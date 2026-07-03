@@ -41,6 +41,8 @@
   }
 
   .page{ flex:1; padding:6px 16px 24px 16px; }
+  .punch-hero{ margin:0 -16px -24px -16px; border-radius:16px 16px 0 0; }
+  @media (min-width:900px){ .punch-hero{ margin:0 -32px -32px -32px; } }
   .page h2{ font-size:16px; font-weight:700; margin:14px 2px 10px 2px; display:flex; align-items:center; gap:7px; }
 
   .card{
@@ -586,10 +588,10 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
 
   return (
     <div className="page">
-      <div style={{position:'relative', borderRadius:16, overflow:'hidden', minHeight:640, background:'var(--bg-1)'}}>
+      <div className="punch-hero" style={{position:'relative', overflow:'hidden', minHeight:640, background:'var(--bg-1)'}}>
         <PunchMap companyLat={settings?.lat} companyLng={settings?.lng} radius={settings?.radius} deviceLat={deviceLoc?.lat} deviceLng={deviceLoc?.lng} />
 
-        <div style={{position:'absolute', left:8, right:8, top:8, background:'var(--panel)', border:'1px solid var(--line)', borderRadius:14, padding:'12px 14px', boxShadow:'0 8px 20px rgba(0,0,0,.4)'}}>
+        <div style={{position:'absolute', left:8, right:8, top:8, background:'rgba(57,62,70,0.8)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)', border:'1px solid var(--line)', borderRadius:14, padding:'12px 14px', boxShadow:'0 8px 20px rgba(0,0,0,.4)'}}>
           <div className="status-grid" style={{marginTop:0}}>
             <div className="status-cell"><div className="lbl">上班</div><div className="val">{hhmm(status?.checkInTime)}</div></div>
             <div className="status-cell"><div className="lbl">下班</div><div className="val">{hhmm(status?.checkOutTime)}</div></div>
@@ -599,7 +601,7 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
           <div className="hint" style={{marginTop:8}}>打卡會記錄 GPS 位置；如超出公司設定範圍仍會完成打卡，但紀錄將標示供管理者核對。</div>
         </div>
 
-        <div style={{position:'absolute', left:8, right:8, bottom:8, background:'var(--panel)', border:'1px solid var(--line)', borderRadius:14, padding:'14px', boxShadow:'0 10px 28px rgba(0,0,0,.4)'}}>
+        <div style={{position:'absolute', left:8, right:8, bottom:8, background:'rgba(57,62,70,0.8)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)', border:'1px solid var(--line)', borderRadius:14, padding:'14px', boxShadow:'0 10px 28px rgba(0,0,0,.4)'}}>
           <div className="clock-big" style={{margin:'2px 0 12px 0'}}>
             <div className="time">{pad(now.getHours())}:{pad(now.getMinutes())}:{pad(now.getSeconds())}</div>
             <div className="date">{dateStr}</div>
