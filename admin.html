@@ -458,7 +458,11 @@ function App(){
           );
         })}
         <div style={{padding:'14px 18px', marginTop:'auto', display:'flex', flexDirection:'column', gap:8}}>
-          <div style={{fontSize:11, color:'#A6ACB3'}}><a href="index.html" style={{color:'#EEEEEE'}}>← 回到打卡頁</a></div>
+          <a href="index.html" target="_blank" rel="noopener" style={{textDecoration:'none'}}>
+            <button className="ghost sm" style={{background:'transparent', color:'#EEEEEE', borderColor:'#454B55', justifyContent:'center', width:'100%'}}>
+              <span className="material-icons" style={{fontSize:16}}>open_in_new</span>前往打卡頁面（另開新視窗）
+            </button>
+          </a>
           <button className="ghost sm" style={{background:'transparent', color:'#EEEEEE', borderColor:'#454B55', justifyContent:'center'}} onClick={()=>{ if(confirm('確定要登出嗎？')) logout(); }}>
             <span className="material-icons" style={{fontSize:16}}>logout</span>登出
           </button>
@@ -523,7 +527,7 @@ function EmployeesTab({employees, loading, reload}){
   function openNew(){
     setEditing({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
       mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
-      companyId:'', departmentId:'', shiftId:'', phone:''});
+      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true});
     setIsNew(true);
   }
   function openEdit(emp){ setEditing({...emp}); setIsNew(false); }
@@ -659,6 +663,10 @@ function EmployeesTab({employees, loading, reload}){
             )}
             <div className="hint">依2026年新制，婚假、喪假、公假、產假、陪產假、生理假等法定假別不得作為扣發全勤獎金的理由，僅事假、遲到、曠工等得依公司規定扣發。</div>
             <div className="field"><label>備註</label><input value={editing.note} onChange={e=>setEditing({...editing, note:e.target.value})} style={{width:'100%'}} /></div>
+            <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
+              <input type="checkbox" checked={editing.canBeDelegate !== false} onChange={e=>setEditing({...editing, canBeDelegate:e.target.checked})} style={{width:'auto'}} />
+              可被員工指定為請假代理人
+            </label>
             {editing.hireDate && <div className="hint">{tenureText(editing.hireDate)}</div>}
             <div className="modal-actions">
               <button className="ghost" onClick={()=>setEditing(null)}>取消</button>
