@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>員工打卡</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c2420;
+    --bg-1:#101915;
+    --bg-2:#16221c;
+    --panel:#1c2b23;
+    --line:#2c3c33;
+    --gold:#d9a441;
+    --green:#4f9b6f;
+    --red:#c05a4f;
+    --text:#eef1ec;
+    --muted:#93a598;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0; height:100%;}
+  body{
+    background:radial-gradient(circle at 50% -10%, var(--bg-2), var(--bg-1) 60%);
+    color:var(--text); font-family:'Noto Sans TC',sans-serif;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:20px 14px 40px 14px;
+  }
+  .clock-head{ text-align:center; margin:18px 0 26px 0; }
+  .clock-head .store{ font-family:'Noto Serif TC',serif; font-size:15px; letter-spacing:4px; color:var(--gold); text-transform:uppercase; }
+  .clock-head .time{ font-family:'Roboto Mono',monospace; font-size:min(15vw,64px); font-weight:700; letter-spacing:2px; margin-top:6px; }
+  .clock-head .date{ font-size:14px; color:var(--muted); margin-top:4px; }
+
+  .mode-switch{ display:flex; gap:8px; margin-bottom:18px; }
+  .mode-switch button{
+    background:transparent; border:1px solid var(--line); color:var(--muted);
+    padding:7px 16px; border-radius:20px; font-size:12.5px; cursor:pointer;
+  }
+  .mode-switch button.active{ background:var(--gold); color:#1c1305; border-color:var(--gold); font-weight:700; }
+
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+    gap:12px; width:100%; max-width:960px;
+  }
+  .emp-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:18px 10px; text-align:center; cursor:pointer; transition:transform .1s, border-color .15s;
+    position:relative;
+  }
+  .emp-card:active{ transform:scale(0.96); }
+  .emp-card .name{ font-size:16px; font-weight:700; }
+  .emp-card .dept{ font-size:11px; color:var(--muted); margin-top:3px; }
+  .emp-card .dot{ position:absolute; top:10px; right:10px; width:9px; height:9px; border-radius:50%; background:var(--line); }
+  .emp-card.done-in .dot{ background:var(--green); }
+  .emp-card.done-out .dot{ box-shadow:0 0 0 2px var(--gold); background:var(--gold); }
+  .emp-card.remembered{ border-color:var(--gold); }
+
+  .footer-note{ margin-top:28px; font-size:11.5px; color:var(--muted); text-align:center; max-width:520px; }
+  .footer-note a{ color:var(--gold); }
+
+  .modal-bg{
+    position:fixed; inset:0; background:rgba(6,10,8,0.7); backdrop-filter:blur(2px);
+    display:flex; align-items:center; justify-content:center; z-index:60; padding:16px;
+  }
+  .modal{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:28px 26px; width:360px; max-width:100%; text-align:center;
+  }
+  .modal .who{ font-size:20px; font-weight:700; margin-bottom:4px; }
+  .modal .action-label{
+    font-family:'Noto Serif TC',serif; font-size:26px; font-weight:800; margin:14px 0; letter-spacing:2px;
+  }
+  .modal .action-label.in{ color:var(--green); }
+  .modal .action-label.out{ color:var(--gold); }
+  .modal .time{ font-family:'Roboto Mono',monospace; font-size:34px; font-weight:700; margin-bottom:10px; }
+  .modal .status-line{ font-size:12.5px; color:var(--muted); margin-bottom:18px; min-height:18px; }
+  .modal .btn-row{ display:flex; gap:10px; }
+  .modal button{
+    flex:1; padding:13px 0; border-radius:8px; border:none; font-size:15px; font-weight:700; cursor:pointer;
+  }
+  .modal .confirm{ background:var(--gold); color:#1c1305; }
+  .modal .cancel{ background:transparent; color:var(--muted); border:1px solid var(--line); }
+  .modal .remember-row{ margin-top:14px; font-size:12px; color:var(--muted); display:flex; align-items:center; justify-content:center; gap:6px; }
+  .modal.loading .btn-row{ opacity:.5; pointer-events:none; }
+  .spinner{ display:inline-block; width:14px; height:14px; border:2px solid var(--muted); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:#20302680; border:1px solid var(--line); padding:12px 20px; border-radius:8px;
+    font-size:13.5px; z-index:70; max-width:90vw; text-align:center;
+  }
+  .toast.ok{ border-color:var(--green); }
+  .toast.err{ border-color:var(--red); color:#f3c9c2; }
+  .config-warn{
+    background:#3a2317; border:1px solid #6b4326; color:#f0caa0; padding:14px 18px; border-radius:8px;
+    max-width:560px; font-size:13px; margin-bottom:20px;
+  }
+  .config-warn code{ background:#00000040; padding:1px 5px; border-radius:3px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const {useState, useEffect, useRef} = React;
+
+/* ⚠️ 部署 Code.gs 為網頁應用程式後，把網址貼在這裡 */
+const GAS_URL = 'https://script.google.com/macros/s/請填入你的部署ID/exec';
+
+async function apiGet(action, params={}){
+  const qs = new URLSearchParams({action, ...params}).toString();
+  const res = await fetch(`${GAS_URL}?${qs}`);
+  const json = await res.json();
+  if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
+  return json.data;
+}
+async function apiPost(action, body={}){
+  const res = await fetch(GAS_URL, {method:'POST', body: JSON.stringify({action, ...body})});
+  const json = await res.json();
+  if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
+  return json.data;
+}
+
+function getLocation(){
+  return new Promise((resolve) => {
+    if(!navigator.geolocation){ resolve({lat:null,lng:null,error:'此裝置不支援定位'}); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({lat:pos.coords.latitude, lng:pos.coords.longitude, error:null}),
+      err => resolve({lat:null, lng:null, error:'無法取得定位（' + err.message + '）'}),
+      {enableHighAccuracy:true, timeout:8000, maximumAge:0}
+    );
+  });
+}
+
+function useClock(){
+  const [now, setNow] = useState(new Date());
+  useEffect(()=>{ const t = setInterval(()=>setNow(new Date()), 1000); return ()=>clearInterval(t); }, []);
+  return now;
+}
+function pad(n){ return String(n).padStart(2,'0'); }
+
+function App(){
+  const now = useClock();
+  const [employees, setEmployees] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [statusMap, setStatusMap] = useState({});
+  const [configError, setConfigError] = useState(false);
+  const [modal, setModal] = useState(null); // {emp, type, time}
+  const [modalState, setModalState] = useState('confirm'); // confirm | loading | result
+  const [locInfo, setLocInfo] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [remembered, setRemembered] = useState(localStorage.getItem('punch_remember_id') || '');
+  const [rememberToggle, setRememberToggle] = useState(true);
+
+  useEffect(()=>{
+    if(GAS_URL.indexOf('請填入') !== -1){ setConfigError(true); return; }
+    Promise.all([apiGet('getEmployees'), apiGet('getSettings')])
+      .then(([emps, set])=>{ setEmployees(emps); setSettings(set); })
+      .catch(e => showToast(e.message, 'err'));
+  }, []);
+
+  function showToast(msg, type){
+    setToast({msg, type});
+    setTimeout(()=>setToast(null), 3500);
+  }
+
+  async function openCard(emp){
+    let st = statusMap[emp.id];
+    if(!st){
+      try{ st = await apiGet('getTodayStatus', {employeeId: emp.id}); setStatusMap(prev=>({...prev,[emp.id]:st})); }
+      catch(e){ showToast(e.message,'err'); return; }
+    }
+    const type = !st.clockedIn ? 'in' : (!st.clockedOut ? 'out' : 'done');
+    setModal({emp, type});
+    setModalState('confirm');
+    setLocInfo(null);
+  }
+
+  async function confirmPunch(){
+    setModalState('loading');
+    const loc = await getLocation();
+    setLocInfo(loc);
+    try{
+      const action = modal.type === 'in' ? 'clockIn' : 'clockOut';
+      const data = await apiPost(action, {employeeId: modal.emp.id, lat: loc.lat, lng: loc.lng, source: window.innerWidth < 700 ? 'mobile' : 'kiosk'});
+      setStatusMap(prev => ({...prev, [modal.emp.id]: {
+        clockedIn: true, clockedOut: modal.type==='out' ? true : (prev[modal.emp.id]?.clockedOut||false),
+        checkInTime: modal.type==='in'?data.time:prev[modal.emp.id]?.checkInTime,
+        checkOutTime: modal.type==='out'?data.time:null
+      }}));
+      if(rememberToggle){ localStorage.setItem('punch_remember_id', modal.emp.id); setRemembered(modal.emp.id); }
+      showToast(`${modal.emp.name} ${modal.type==='in'?'上班':'下班'}打卡成功（${data.statusTag}）`, data.statusTag.indexOf('超出')===0 ? 'err':'ok');
+      setModal(null);
+    }catch(e){
+      showToast(e.message, 'err');
+      setModalState('confirm');
+    }
+  }
+
+  if(configError){
+    return (
+      <div style={{padding:40, maxWidth:600}}>
+        <div className="config-warn">
+          尚未設定 GAS 後端網址。請先部署 <code>Code.gs</code> 為網頁應用程式，
+          並將網址貼到本檔案頂端的 <code>GAS_URL</code> 常數中。
+        </div>
+      </div>
+    );
+  }
+
+  const dateStr = `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())}　${'日一二三四五六'[now.getDay()]}`;
+
+  return (
+    <div>
+      <div className="clock-head">
+        <div className="store">{settings?.storeName || '打卡系統'}</div>
+        <div className="time">{pad(now.getHours())}:{pad(now.getMinutes())}:{pad(now.getSeconds())}</div>
+        <div className="date">星期{dateStr}</div>
+      </div>
+
+      <div className="grid">
+        {employees.length===0 && <div style={{gridColumn:'1/-1', textAlign:'center', color:'var(--muted)'}}>載入員工資料中...</div>}
+        {employees.map(emp=>{
+          const st = statusMap[emp.id];
+          const cls = st?.clockedOut ? 'done-out' : (st?.clockedIn ? 'done-in' : '');
+          return (
+            <div key={emp.id} className={`emp-card ${cls} ${remembered===emp.id?'remembered':''}`} onClick={()=>openCard(emp)}>
+              <div className="dot"></div>
+              <div className="name">{emp.name}</div>
+              <div className="dept">{emp.department}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="footer-note">
+        點選你的名字即可打卡，系統會自動判斷上班／下班卡。<br/>
+        本裝置若為個人手機，可於打卡確認視窗勾選「記住我」，下次開啟會標示你的卡片方便尋找。<br/>
+        <a href="admin.html">後台管理</a>
+      </div>
+
+      {modal && (
+        <div className="modal-bg" onClick={(e)=>{ if(e.target===e.currentTarget && modalState!=='loading') setModal(null); }}>
+          <div className={`modal ${modalState==='loading'?'loading':''}`}>
+            <div className="who">{modal.emp.name}</div>
+            {modal.type === 'done' ? (
+              <>
+                <div className="action-label" style={{color:'var(--muted)'}}>今日已完成打卡</div>
+                <div className="status-line">上班 {statusMap[modal.emp.id]?.checkInTime} ／ 下班 {statusMap[modal.emp.id]?.checkOutTime}</div>
+                <div className="btn-row"><button className="cancel" onClick={()=>setModal(null)} style={{flex:1}}>關閉</button></div>
+              </>
+            ) : (
+              <>
+                <div className={`action-label ${modal.type}`}>{modal.type==='in' ? '上班打卡' : '下班打卡'}</div>
+                <div className="time">{pad(now.getHours())}:{pad(now.getMinutes())}:{pad(now.getSeconds())}</div>
+                <div className="status-line">
+                  {modalState==='loading' ? <span><span className="spinner"></span> 定位中並送出紀錄...</span> : '請確認身分無誤後按下確認'}
+                </div>
+                <div className="btn-row">
+                  <button className="cancel" onClick={()=>setModal(null)}>取消</button>
+                  <button className="confirm" onClick={confirmPunch}>確認{modal.type==='in'?'上班':'下班'}</button>
+                </div>
+                <div className="remember-row">
+                  <input type="checkbox" checked={rememberToggle} onChange={e=>setRememberToggle(e.target.checked)} id="rm" />
+                  <label htmlFor="rm">記住我（個人手機建議勾選）</label>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>打卡系統 · 後台管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=Roboto+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1f2a24; --paper:#f6f4ee; --paper-2:#ffffff; --line:#d9d3c3;
+    --brand:#2f5d4f; --brand-dark:#1c3a30; --accent:#d9a441; --danger:#a13d3d; --muted:#6b7268;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Noto Sans TC',sans-serif; font-size:14px;}
+  h1,h2,h3{font-family:'Noto Serif TC',serif; margin:0 0 6px 0;}
+  .app-shell{display:flex; min-height:100vh;}
+  .sidebar{width:200px; flex-shrink:0; background:var(--brand-dark); color:#eee7d9; padding:22px 0;}
+  .brand{padding:0 18px 18px 18px; border-bottom:1px solid rgba(255,255,255,.12); margin-bottom:10px;}
+  .brand .mark{font-family:'Noto Serif TC',serif; font-size:19px; font-weight:700; color:#f3ead3;}
+  .brand .sub{font-size:11px; color:#b9c9bf; margin-top:2px;}
+  .navitem{padding:12px 18px; cursor:pointer; font-size:13.5px; border-left:3px solid transparent; color:#d9dfd5;}
+  .navitem:hover{background:rgba(255,255,255,.06);}
+  .navitem.active{background:rgba(255,255,255,.1); border-left-color:var(--accent); color:#fff; font-weight:700;}
+  .main{flex:1; min-width:0;}
+  .topbar{background:var(--paper-2); border-bottom:1px solid var(--line); padding:14px 26px;}
+  .content{padding:22px 26px 60px 26px; overflow-x:auto;}
+  button{font-size:13px; background:var(--brand); color:#fff; border:none; padding:8px 14px; border-radius:3px; cursor:pointer;}
+  button:hover{background:var(--brand-dark);}
+  button.ghost{background:transparent; color:var(--brand); border:1px solid var(--brand);}
+  button.ghost:hover{background:var(--brand); color:#fff;}
+  button.danger{background:transparent; color:var(--danger); border:1px solid var(--danger);}
+  button.danger:hover{background:var(--danger); color:#fff;}
+  button.sm{padding:4px 9px; font-size:12px;}
+  input,select{font-size:13px; border:1px solid var(--line); border-radius:3px; padding:6px 8px; background:#fff; color:var(--ink);}
+  label{font-size:12px; color:var(--muted); display:block; margin-bottom:3px;}
+  .field{margin-bottom:10px;}
+  table{border-collapse:collapse; width:100%; background:var(--paper-2); font-size:12.5px;}
+  th,td{border:1px solid var(--line); padding:6px 8px; text-align:right; white-space:nowrap;}
+  th{background:#eef0e7; color:var(--brand-dark); text-align:center;}
+  td.left,th.left{text-align:left;}
+  tr.total-row td{background:#eef0e7; font-weight:700;}
+  .card{background:var(--paper-2); border:1px solid var(--line); border-radius:6px; padding:18px; margin-bottom:18px;}
+  .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px;}
+  .toolbar .grow{flex:1;}
+  .hint{font-size:11.5px; color:var(--muted); margin-top:4px;}
+  .badge{display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; background:#e4e9de; color:var(--brand-dark); font-weight:700;}
+  .modal-bg{position:fixed; inset:0; background:rgba(20,26,20,.45); display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto; z-index:50;}
+  .modal{background:#fff; border-radius:6px; padding:22px 26px; width:520px; max-width:100%;}
+  .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:16px; border-top:1px solid var(--line); padding-top:14px;}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:0 18px;}
+  .config-warn{background:#3a2317; border:1px solid #6b4326; color:#f0caa0; padding:14px 18px; border-radius:8px; max-width:640px; font-size:13px; margin-bottom:20px;}
+  .config-warn code{background:#00000030; padding:1px 5px; border-radius:3px;}
+  .flag{color:var(--danger); font-weight:700;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const {useState, useEffect, useMemo} = React;
+
+const GAS_URL = 'https://script.google.com/macros/s/請填入你的部署ID/exec';
+
+async function apiGet(action, params={}){
+  const qs = new URLSearchParams({action, ...params}).toString();
+  const res = await fetch(`${GAS_URL}?${qs}`);
+  const json = await res.json();
+  if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
+  return json.data;
+}
+async function apiPost(action, body={}){
+  const res = await fetch(GAS_URL, {method:'POST', body: JSON.stringify({action, ...body})});
+  const json = await res.json();
+  if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
+  return json.data;
+}
+function todayMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function exportCSV(filename, headers, rows){
+  const esc = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
+  const lines = [headers.map(esc).join(',')].concat(rows.map(r=>r.map(esc).join(',')));
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
+}
+function exportJSON(filename, obj){
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
+}
+
+function App(){
+  const [tab, setTab] = useState('employees');
+  const [configError, setConfigError] = useState(GAS_URL.indexOf('請填入') !== -1);
+  const NAV = [
+    {id:'employees', label:'員工管理'},
+    {id:'records', label:'打卡紀錄 / 補登'},
+    {id:'summary', label:'月結彙總 / 匯出'},
+    {id:'settings', label:'系統設定（地理圍籬）'},
+  ];
+  if(configError){
+    return <div style={{padding:40}}><div className="config-warn">尚未設定 GAS 後端網址，請先部署 <code>Code.gs</code>，並將網址貼到本檔案頂端 <code>GAS_URL</code> 常數。</div></div>;
+  }
+  return (
+    <div className="app-shell">
+      <div className="sidebar">
+        <div className="brand"><div className="mark">打卡後台</div><div className="sub">出缺勤管理</div></div>
+        {NAV.map(item=><div key={item.id} className={'navitem'+(tab===item.id?' active':'')} onClick={()=>setTab(item.id)}>{item.label}</div>)}
+        <div style={{padding:'14px 18px', fontSize:11, color:'#9fb3a5'}}><a href="index.html" style={{color:'#eee7d9'}}>← 回到打卡頁</a></div>
+      </div>
+      <div className="main">
+        <div className="topbar"><h1 style={{fontSize:18}}>{NAV.find(x=>x.id===tab)?.label}</h1></div>
+        <div className="content">
+          {tab==='employees' && <EmployeesTab/>}
+          {tab==='records' && <RecordsTab/>}
+          {tab==='summary' && <SummaryTab/>}
+          {tab==='settings' && <SettingsTab/>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===================== 員工管理 ===================== */
+function EmployeesTab(){
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null);
+  const [isNew, setIsNew] = useState(false);
+
+  function load(){ setLoading(true); apiGet('getEmployees').then(setList).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
+  useEffect(load, []);
+
+  function openNew(){ setEditing({id:null, name:'', department:'', company:'', status:'在職'}); setIsNew(true); }
+  function openEdit(e){ setEditing({...e}); setIsNew(false); }
+  async function save(){
+    if(!editing.name.trim()){ alert('請輸入姓名'); return; }
+    try{
+      if(isNew) await apiPost('addEmployee', editing);
+      else await apiPost('updateEmployee', editing);
+      setEditing(null); load();
+    }catch(e){ alert(e.message); }
+  }
+  async function toggleStatus(emp){
+    try{ await apiPost('updateEmployee', {...emp, status: emp.status==='在職'?'離職':'在職'}); load(); }
+    catch(e){ alert(e.message); }
+  }
+
+  return (
+    <div>
+      <div className="toolbar">
+        <button onClick={openNew}>＋ 新增員工</button>
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={load}>重新整理</button>
+      </div>
+      <div className="card">
+        {loading ? <div className="hint">載入中...</div> : (
+          <table>
+            <thead><tr><th className="left">狀態</th><th className="left">姓名</th><th className="left">部門</th><th className="left">公司</th><th>操作</th></tr></thead>
+            <tbody>
+              {list.map(e=>(
+                <tr key={e.id} style={{opacity: e.status==='離職'?0.5:1}}>
+                  <td className="left">{e.status}</td>
+                  <td className="left"><b>{e.name}</b></td>
+                  <td className="left">{e.department}</td>
+                  <td className="left">{e.company}</td>
+                  <td><button className="ghost sm" onClick={()=>openEdit(e)}>編輯</button>{' '}
+                      <button className="danger sm" onClick={()=>toggleStatus(e)}>{e.status==='在職'?'設為離職':'恢復在職'}</button></td>
+                </tr>
+              ))}
+              {list.length===0 && <tr><td colSpan="5" className="hint" style={{textAlign:'center'}}>尚無員工，請先新增</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {editing && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setEditing(null); }}>
+          <div className="modal">
+            <h3>{isNew?'新增員工':'編輯員工'}</h3>
+            <div className="grid-2">
+              <div className="field"><label>姓名 *</label><input value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} /></div>
+              <div className="field"><label>部門</label><input value={editing.department} onChange={e=>setEditing({...editing,department:e.target.value})} /></div>
+              <div className="field"><label>公司</label><input value={editing.company} onChange={e=>setEditing({...editing,company:e.target.value})} placeholder="需與薪資系統的公司名稱一致" /></div>
+            </div>
+            <div className="modal-actions"><button className="ghost" onClick={()=>setEditing(null)}>取消</button><button onClick={save}>儲存</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===================== 打卡紀錄 / 補登 ===================== */
+function RecordsTab(){
+  const [month, setMonth] = useState(todayMonth());
+  const [records, setRecords] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [manual, setManual] = useState(null);
+  const [editing, setEditing] = useState(null);
+
+  function load(){
+    setLoading(true);
+    Promise.all([apiGet('getRecords', {month}), apiGet('getEmployees')])
+      .then(([r,e])=>{ setRecords(r); setEmployees(e); })
+      .catch(e=>alert(e.message)).finally(()=>setLoading(false));
+  }
+  useEffect(load, [month]);
+
+  async function saveManual(){
+    try{ await apiPost('addManualRecord', manual); setManual(null); load(); }catch(e){ alert(e.message); }
+  }
+  async function saveEdit(){
+    try{ await apiPost('adjustRecord', editing); setEditing(null); load(); }catch(e){ alert(e.message); }
+  }
+  async function removeRecord(id){
+    if(!confirm('確定刪除這筆紀錄？')) return;
+    try{ await apiPost('deleteRecord', {id}); load(); }catch(e){ alert(e.message); }
+  }
+
+  return (
+    <div>
+      <div className="toolbar">
+        <label style={{marginBottom:0}}>月份</label>
+        <input type="month" value={month} onChange={e=>setMonth(e.target.value)} />
+        <span className="grow"></span>
+        <button className="ghost" onClick={()=>setManual({employeeId:'', name:'', date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
+        <button className="ghost sm" onClick={load}>重新整理</button>
+      </div>
+      <div className="card" style={{overflowX:'auto'}}>
+        {loading ? <div className="hint">載入中...</div> : (
+          <table>
+            <thead><tr><th className="left">姓名</th><th className="left">日期</th><th>上班</th><th className="left">上班狀態</th><th>下班</th><th className="left">下班狀態</th><th className="left">來源</th><th className="left">備註</th><th>操作</th></tr></thead>
+            <tbody>
+              {records.map(r=>(
+                <tr key={r.id}>
+                  <td className="left"><b>{r.name}</b></td>
+                  <td className="left">{r.date}</td>
+                  <td className="mono">{(r.checkIn||'').split(' ')[1]||'-'}</td>
+                  <td className={'left ' + (String(r.checkInStatus).indexOf('超出')===0?'flag':'')}>{r.checkInStatus}</td>
+                  <td className="mono">{(r.checkOut||'').split(' ')[1]||'-'}</td>
+                  <td className={'left ' + (String(r.checkOutStatus).indexOf('超出')===0?'flag':'')}>{r.checkOutStatus}</td>
+                  <td className="left">{r.source}</td>
+                  <td className="left">{r.note}</td>
+                  <td><button className="ghost sm" onClick={()=>setEditing({id:r.id, checkIn:r.checkIn, checkOut:r.checkOut, note:r.note})}>修改</button>{' '}
+                      <button className="danger sm" onClick={()=>removeRecord(r.id)}>刪除</button></td>
+                </tr>
+              ))}
+              {records.length===0 && <tr><td colSpan="9" className="hint" style={{textAlign:'center'}}>本月尚無打卡紀錄</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {manual && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setManual(null); }}>
+          <div className="modal">
+            <h3>補登打卡紀錄</h3>
+            <div className="field"><label>員工</label>
+              <select value={manual.employeeId} onChange={e=>{ const emp=employees.find(x=>x.id===e.target.value); setManual({...manual, employeeId:e.target.value, name: emp?emp.name:''}); }}>
+                <option value="">請選擇</option>
+                {employees.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            </div>
+            <div className="grid-2">
+              <div className="field"><label>日期</label><input type="date" value={manual.date} onChange={e=>setManual({...manual,date:e.target.value})} /></div>
+              <div className="field"></div>
+              <div className="field"><label>上班時間</label><input type="datetime-local" onChange={e=>setManual({...manual, checkIn:e.target.value.replace('T',' ')+':00'})} /></div>
+              <div className="field"><label>下班時間</label><input type="datetime-local" onChange={e=>setManual({...manual, checkOut:e.target.value.replace('T',' ')+':00'})} /></div>
+            </div>
+            <div className="field"><label>備註</label><input value={manual.note} onChange={e=>setManual({...manual,note:e.target.value})} style={{width:'100%'}} /></div>
+            <div className="modal-actions"><button className="ghost" onClick={()=>setManual(null)}>取消</button><button onClick={saveManual}>儲存</button></div>
+          </div>
+        </div>
+      )}
+      {editing && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setEditing(null); }}>
+          <div className="modal">
+            <h3>修改打卡紀錄</h3>
+            <div className="grid-2">
+              <div className="field"><label>上班時間</label><input type="datetime-local" defaultValue={(editing.checkIn||'').replace(' ','T').slice(0,16)} onChange={e=>setEditing({...editing, checkIn:e.target.value.replace('T',' ')+':00'})} /></div>
+              <div className="field"><label>下班時間</label><input type="datetime-local" defaultValue={(editing.checkOut||'').replace(' ','T').slice(0,16)} onChange={e=>setEditing({...editing, checkOut:e.target.value.replace('T',' ')+':00'})} /></div>
+            </div>
+            <div className="field"><label>備註</label><input value={editing.note} onChange={e=>setEditing({...editing,note:e.target.value})} style={{width:'100%'}} /></div>
+            <div className="modal-actions"><button className="ghost" onClick={()=>setEditing(null)}>取消</button><button onClick={saveEdit}>儲存</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===================== 月結彙總 / 匯出 ===================== */
+function SummaryTab(){
+  const [month, setMonth] = useState(todayMonth());
+  const [summary, setSummary] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  function load(){ setLoading(true); apiGet('getMonthlySummary', {month}).then(setSummary).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
+  useEffect(load, [month]);
+
+  async function doExportPayrollJSON(){
+    try{
+      const data = await apiGet('exportForPayroll', {month});
+      exportJSON(`出缺勤匯出_${month}.json`, data);
+      alert('已下載，請至「薪資計算系統」網頁的薪資計算頁籤使用「匯入出缺勤資料」按鈕匯入此檔案。');
+    }catch(e){ alert(e.message); }
+  }
+  function doExportCSV(){
+    const headers = ['姓名','出勤天數','遲到次數','遲到分鐘','早退次數','早退分鐘','平日1.34倍(hr)','平日1.67倍(hr)','假日2倍(hr)','總工時(hr)','定位異常天數'];
+    const rows = summary.map(e=>[e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,e.ot134,e.ot167,e.ot2,e.workedHoursTotal,e.flaggedDays]);
+    exportCSV(`月結彙總_${month}.csv`, headers, rows);
+  }
+
+  return (
+    <div>
+      <div className="toolbar">
+        <label style={{marginBottom:0}}>月份</label>
+        <input type="month" value={month} onChange={e=>setMonth(e.target.value)} />
+        <span className="grow"></span>
+        <button className="ghost" onClick={doExportCSV}>匯出 CSV</button>
+        <button onClick={doExportPayrollJSON}>匯出至薪資系統 (JSON)</button>
+      </div>
+      <div className="card" style={{overflowX:'auto'}}>
+        {loading ? <div className="hint">載入中...</div> : (
+          <table>
+            <thead><tr><th className="left">姓名</th><th>出勤天數</th><th>遲到次數</th><th>遲到分鐘</th><th>早退次數</th><th>早退分鐘</th><th>平日1.34倍(hr)</th><th>平日1.67倍(hr)</th><th>假日2倍(hr)</th><th>總工時(hr)</th><th>定位異常天數</th></tr></thead>
+            <tbody>
+              {summary.map(e=>(
+                <tr key={e.employeeId}>
+                  <td className="left"><b>{e.name}</b></td>
+                  <td>{e.presentDays}</td><td>{e.lateCount}</td><td>{e.lateMinutes}</td>
+                  <td>{e.earlyLeaveCount}</td><td>{e.earlyLeaveMinutes}</td>
+                  <td>{e.ot134}</td><td>{e.ot167}</td><td>{e.ot2}</td><td>{e.workedHoursTotal}</td>
+                  <td className={e.flaggedDays>0?'flag':''}>{e.flaggedDays}</td>
+                </tr>
+              ))}
+              {summary.length===0 && <tr><td colSpan="11" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+      <div className="hint">加班時數依「系統設定」的標準上下班時間自動判斷：平日超時前 2 小時算 1.34 倍，其後算 1.67 倍；六日出勤整段以 2 倍計算。此為概估值，正式薪資仍請於薪資系統核對後定案。</div>
+    </div>
+  );
+}
+
+/* ===================== 系統設定 ===================== */
+function SettingsTab(){
+  const [s, setS] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [locating, setLocating] = useState(false);
+
+  function load(){ setLoading(true); apiGet('getSettings').then(setS).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
+  useEffect(load, []);
+
+  async function save(){
+    try{ await apiPost('updateSettings', s); alert('設定已儲存'); }catch(e){ alert(e.message); }
+  }
+  function useCurrentLocation(){
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      pos => { setS({...s, lat: pos.coords.latitude, lng: pos.coords.longitude}); setLocating(false); },
+      err => { alert('定位失敗：' + err.message); setLocating(false); },
+      {enableHighAccuracy:true, timeout:8000}
+    );
+  }
+
+  if(loading || !s) return <div className="hint">載入中...</div>;
+  return (
+    <div className="card" style={{maxWidth:560}}>
+      <h3>店家 / 公司資訊</h3>
+      <div className="field"><label>顯示名稱</label><input value={s.storeName} onChange={e=>setS({...s,storeName:e.target.value})} style={{width:'100%'}} /></div>
+
+      <h3 style={{marginTop:18}}>地理圍籬（GPS 打卡範圍）</h3>
+      <div className="grid-2">
+        <div className="field"><label>緯度</label><input value={s.lat} onChange={e=>setS({...s,lat:e.target.value})} /></div>
+        <div className="field"><label>經度</label><input value={s.lng} onChange={e=>setS({...s,lng:e.target.value})} /></div>
+      </div>
+      <button className="ghost sm" onClick={useCurrentLocation} disabled={locating}>{locating?'定位中...':'使用目前裝置位置（建議在店內打開此頁操作一次）'}</button>
+      <div className="field" style={{marginTop:10}}><label>允許誤差半徑（公尺）</label><input type="number" value={s.radius} onChange={e=>setS({...s,radius:e.target.value})} /></div>
+      <div className="hint">超出範圍不會擋下打卡，但紀錄會標示「超出範圍」讓後台核對，避免員工在店外因訊號誤差被卡住。</div>
+
+      <h3 style={{marginTop:18}}>標準班表</h3>
+      <div className="grid-2">
+        <div className="field"><label>上班時間</label><input value={s.workStart} onChange={e=>setS({...s,workStart:e.target.value})} placeholder="09:00" /></div>
+        <div className="field"><label>下班時間</label><input value={s.workEnd} onChange={e=>setS({...s,workEnd:e.target.value})} placeholder="18:00" /></div>
+        <div className="field"><label>午休扣除（分鐘）</label><input type="number" value={s.lunchBreak} onChange={e=>setS({...s,lunchBreak:e.target.value})} /></div>
+        <div className="field"><label>遲到寬限（分鐘）</label><input type="number" value={s.lateGrace} onChange={e=>setS({...s,lateGrace:e.target.value})} /></div>
+        <div className="field"><label>早退寬限（分鐘）</label><input type="number" value={s.earlyGrace} onChange={e=>setS({...s,earlyGrace:e.target.value})} /></div>
+      </div>
+      <button onClick={save}>儲存設定</button>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
