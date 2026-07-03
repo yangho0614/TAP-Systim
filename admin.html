@@ -1418,8 +1418,9 @@ function HolidaysTab(){
         <div className="hint">依行政院人事行政總處公告的辦公日曆表一鍵匯入國定假日（含小年夜、除夕、春節、和平紀念日等法定補假），資料來源：<a href="https://www.dgpa.gov.tw/information?uid=41&amp;pid=12573" target="_blank" rel="noopener" style={{color:'var(--brand)'}}>行政院人事行政總處</a></div>
         <div className="toolbar" style={{marginTop:10}}>
           <button onClick={()=>importOfficial('2026')} disabled={importing}>{importing?'匯入中...':'匯入 2026 年（115年）行事曆'}</button>
+          <button onClick={()=>importOfficial('2027')} disabled={importing}>{importing?'匯入中...':'匯入 2027 年（116年）行事曆'}</button>
         </div>
-        <div className="hint">目前系統內建 2026 年資料；未來年度公告後（每年約6月底）請再請開發者更新，或於下方手動新增。</div>
+        <div className="hint">目前系統內建 2026、2027 年資料；未來年度公告後（每年約6月底）請再請開發者更新，或於下方手動新增。</div>
       </div>
       <div className="card">
         <h3><span className="material-icons">event_busy</span> 新增假日</h3>
