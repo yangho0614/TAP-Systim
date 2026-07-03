@@ -134,18 +134,31 @@ function setToken(t){
   CURRENT_TOKEN = t;
   try{ if(t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); }catch(e){}
 }
+function isSessionError(msg){
+  return typeof msg === 'string' && (msg.indexOf('登入已逾時') !== -1 || msg.indexOf('請先登入') !== -1);
+}
+function forceReLogin(){
+  setToken(null);
+  try{ location.reload(); }catch(e){}
+}
 
 async function apiGet(action, params={}){
   const qs = new URLSearchParams({action, token: CURRENT_TOKEN||'', ...params}).toString();
   const res = await fetch(`${GAS_URL}?${qs}`);
   const json = await res.json();
-  if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
+  if(json.status !== 'success'){
+    if(isSessionError(json.message)) forceReLogin();
+    throw new Error(json.message || '發生錯誤');
+  }
   return json.data;
 }
 async function apiPost(action, body={}){
   const res = await fetch(GAS_URL, {method:'POST', body: JSON.stringify({action, token: CURRENT_TOKEN, ...body})});
   const json = await res.json();
-  if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
+  if(json.status !== 'success'){
+    if(isSessionError(json.message)) forceReLogin();
+    throw new Error(json.message || '發生錯誤');
+  }
   return json.data;
 }
 function todayMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
@@ -352,13 +365,12 @@ function App(){
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // 頁面載入時，若本機已有登入 token，嘗試驗證是否還有效
+  // 頁面載入時，若本機已有登入 token，先樂觀還原登入狀態
+  // 若 token 其實已逾時，後續任何 API 呼叫都會偵測到並自動導回登入畫面
   useEffect(()=>{
     if(configError){ setCheckingSession(false); return; }
-    if(!CURRENT_TOKEN){ setCheckingSession(false); return; }
-    apiGet('getSettings').then(()=>{
-      setSession({token: CURRENT_TOKEN, restored: true});
-    }).catch(()=>{ setToken(null); }).finally(()=>setCheckingSession(false));
+    if(CURRENT_TOKEN){ setSession({token: CURRENT_TOKEN, restored: true}); }
+    setCheckingSession(false);
   }, []);
 
   function reloadEmployees(){

@@ -233,18 +233,31 @@ function setToken(t){
   CURRENT_TOKEN = t;
   try{ if(t) localStorage.setItem(TOKEN_KEY, t); else { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(SESSION_CACHE_KEY); } }catch(e){}
 }
+function isSessionError(msg){
+  return typeof msg === 'string' && (msg.indexOf('登入已逾時') !== -1 || msg.indexOf('請先登入') !== -1);
+}
+function forceReLogin(){
+  setToken(null);
+  try{ location.reload(); }catch(e){}
+}
 
 async function apiGet(action, params={}){
   const qs = new URLSearchParams({action, token: CURRENT_TOKEN||'', ...params}).toString();
   const res = await fetch(`${GAS_URL}?${qs}`);
   const json = await res.json();
-  if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
+  if(json.status !== 'success'){
+    if(isSessionError(json.message)) forceReLogin();
+    throw new Error(json.message || '發生錯誤');
+  }
   return json.data;
 }
 async function apiPost(action, body={}){
   const res = await fetch(GAS_URL, {method:'POST', body: JSON.stringify({action, token: CURRENT_TOKEN, ...body})});
   const json = await res.json();
-  if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
+  if(json.status !== 'success'){
+    if(isSessionError(json.message)) forceReLogin();
+    throw new Error(json.message || '發生錯誤');
+  }
   return json.data;
 }
 function getLocation(){
@@ -713,11 +726,14 @@ function App(){
     if(!CURRENT_TOKEN){ setCheckingSession(false); return; }
     let cached = null;
     try{ cached = JSON.parse(localStorage.getItem(SESSION_CACHE_KEY) || 'null'); }catch(e){}
-    apiGet('getSettings').then(s=>{
-      setSettings(s);
-      if(cached && cached.employeeId){ setSession(cached); }
-      else { setToken(null); }
-    }).catch(()=>{ setToken(null); }).finally(()=>setCheckingSession(false));
+    if(cached && cached.employeeId){
+      // 樂觀還原：本機已有登入紀錄就直接視為已登入，不用等一趟網路來回才顯示畫面
+      // 如果 token 真的已經逾時，後續任何 API 呼叫都會偵測到並自動導回登入畫面
+      setSession(cached);
+    } else {
+      setToken(null);
+    }
+    setCheckingSession(false);
   }, []);
 
   useEffect(()=>{
