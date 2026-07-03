@@ -527,7 +527,7 @@ function EmployeesTab({employees, loading, reload}){
   function openNew(){
     setEditing({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
       mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
-      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true});
+      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false});
     setIsNew(true);
   }
   function openEdit(emp){ setEditing({...emp}); setIsNew(false); }
@@ -590,7 +590,7 @@ function EmployeesTab({employees, loading, reload}){
                   {employees.filter(e=>(e.company||'(未分類)')===co).map(emp=>(
                     <tr key={emp.id}>
                       <td className="left">{emp.department}</td>
-                      <td className="left"><b>{emp.name}</b></td>
+                      <td className="left"><b>{emp.name}</b>{emp.exemptFromAttendance && <span className="badge warn" style={{marginLeft:6}}>免打卡</span>}</td>
                       <td className="left mono">{emp.phone}</td>
                       <td>{emp.shift ? emp.shift.name : <span className="hint">預設</span>}</td>
                       <td>{emp.hireDate || '-'}</td>
@@ -666,6 +666,10 @@ function EmployeesTab({employees, loading, reload}){
             <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
               <input type="checkbox" checked={editing.canBeDelegate !== false} onChange={e=>setEditing({...editing, canBeDelegate:e.target.checked})} style={{width:'auto'}} />
               可被員工指定為請假代理人
+            </label>
+            <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
+              <input type="checkbox" checked={editing.exemptFromAttendance === true} onChange={e=>setEditing({...editing, exemptFromAttendance:e.target.checked})} style={{width:'auto'}} />
+              免打卡（不列入出缺勤彙總與薪資自動試算，薪資項目需手動填寫，如業務費用）
             </label>
             {editing.hireDate && <div className="hint">{tenureText(editing.hireDate)}</div>}
             <div className="modal-actions">

@@ -161,13 +161,14 @@
     background:#1B2027; color:var(--text); font-size:14px; font-family:'Noto Sans TC',sans-serif;
   }
   select{ appearance:none; }
-  input[type=date],input[type=time],input[type=datetime-local]{
-    padding-right:8px; color-scheme:dark;
+  input[type=date],input[type=time],input[type=datetime-local],input[type=month]{
+    padding-right:10px; color-scheme:dark; min-width:0; max-width:100%;
   }
   input[type=date]::-webkit-calendar-picker-indicator,
   input[type=time]::-webkit-calendar-picker-indicator,
-  input[type=datetime-local]::-webkit-calendar-picker-indicator{
-    margin-right:2px; padding:4px; filter:invert(0.75);
+  input[type=datetime-local]::-webkit-calendar-picker-indicator,
+  input[type=month]::-webkit-calendar-picker-indicator{
+    margin-left:4px; padding:4px; filter:invert(0.75);
   }
   .primary-btn{
     width:100%; padding:13px 0; border-radius:9px; border:none; background:var(--gold); color:#1c1305;
@@ -273,6 +274,23 @@ const {useState, useEffect, useMemo, useRef} = React;
 
 /* ⚠️ 部署 Code.gs 為網頁應用程式後，把網址貼在這裡 */
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzW7073VQtPGa9cIn-pBNdfLClDdkEn8eBGVzDSkv26ZZWiHGcD5wikhx7KL5l4mlsC/exec';
+
+/* ⚠️ 打卡地圖功能需要 Google Maps API 金鑰，請填入你申請到的金鑰（申請步驟見下方 GOOGLE_MAPS_SETUP_NOTE） */
+const GOOGLE_MAPS_API_KEY = '請填入你的GoogleMapsAPI金鑰';
+let mapsLoadPromise = null;
+function loadGoogleMaps(){
+  if(mapsLoadPromise) return mapsLoadPromise;
+  mapsLoadPromise = new Promise((resolve, reject)=>{
+    if(window.google && window.google.maps){ resolve(); return; }
+    if(!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.indexOf('請填入') !== -1){ reject(new Error('尚未設定 Google Maps API 金鑰')); return; }
+    window.__initGoogleMaps = ()=>resolve();
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=__initGoogleMaps`;
+    s.onerror = ()=>reject(new Error('Google Maps 載入失敗，請確認金鑰是否正確'));
+    document.head.appendChild(s);
+  });
+  return mapsLoadPromise;
+}
 const TOKEN_KEY = 'employee_session_token';
 const SESSION_CACHE_KEY = 'employee_session_info';
 
@@ -469,10 +487,74 @@ function ChangePasswordModal({onClose, showToast}){
 }
 
 /* ========================= 打卡頁 ========================= */
-function PunchPage({session, status, refreshStatus, showToast}){
+/* ========================= 打卡位置地圖 ========================= */
+function PunchMap({companyLat, companyLng, radius, deviceLat, deviceLng}){
+  const mapDivRef = useRef(null);
+  const mapObjRef = useRef(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(()=>{
+    let cancelled = false;
+    loadGoogleMaps().then(()=>{
+      if(cancelled || !mapDivRef.current) return;
+      const hasCompany = companyLat && companyLng;
+      const center = hasCompany ? {lat:Number(companyLat), lng:Number(companyLng)} : (deviceLat ? {lat:deviceLat, lng:deviceLng} : {lat:25.0330, lng:121.5654});
+      const map = new google.maps.Map(mapDivRef.current, {
+        center, zoom:17, disableDefaultUI:false, streetViewControl:false, mapTypeControl:false, fullscreenControl:false,
+        styles:[
+          {elementType:'geometry', stylers:[{color:'#222831'}]},
+          {elementType:'labels.text.stroke', stylers:[{color:'#222831'}]},
+          {elementType:'labels.text.fill', stylers:[{color:'#9CA3AC'}]},
+          {featureType:'road', elementType:'geometry', stylers:[{color:'#393E46'}]},
+          {featureType:'water', elementType:'geometry', stylers:[{color:'#2C3540'}]},
+          {featureType:'poi', elementType:'geometry', stylers:[{color:'#2A3138'}]}
+        ]
+      });
+      mapObjRef.current = map;
+      if(hasCompany){
+        new google.maps.Marker({
+          position:{lat:Number(companyLat), lng:Number(companyLng)}, map, title:'公司位置',
+          icon:{path:google.maps.SymbolPath.CIRCLE, scale:8, fillColor:'#00ADB5', fillOpacity:1, strokeColor:'#EEEEEE', strokeWeight:2}
+        });
+        new google.maps.Circle({
+          center:{lat:Number(companyLat), lng:Number(companyLng)}, radius:Number(radius||200), map,
+          fillColor:'#00ADB5', fillOpacity:0.12, strokeColor:'#00ADB5', strokeOpacity:0.6, strokeWeight:1.5
+        });
+      }
+      if(deviceLat && deviceLng){
+        new google.maps.Marker({
+          position:{lat:deviceLat, lng:deviceLng}, map, title:'我的位置',
+          icon:{path:google.maps.SymbolPath.CIRCLE, scale:7, fillColor:'#E6D59A', fillOpacity:1, strokeColor:'#222831', strokeWeight:2}
+        });
+      }
+      setLoading(false);
+    }).catch(e=>{ if(!cancelled){ setError(e.message); setLoading(false); } });
+    return ()=>{ cancelled = true; };
+  }, [companyLat, companyLng, radius, deviceLat, deviceLng]);
+
+  if(error){
+    return <div className="card hint" style={{textAlign:'center', padding:'20px 14px'}}>地圖無法顯示（{error}），不影響打卡功能正常使用。</div>;
+  }
+  return (
+    <div className="card" style={{padding:0, overflow:'hidden', position:'relative'}}>
+      {loading && <div className="hint" style={{padding:'40px 0', textAlign:'center'}}>地圖載入中...</div>}
+      <div ref={mapDivRef} style={{width:'100%', height:200, display:loading?'none':'block'}}></div>
+    </div>
+  );
+}
+
+function PunchPage({session, status, refreshStatus, showToast, settings}){
   const now = useClock();
   const [modal, setModal] = useState(null); // 'in'|'out'|'outgo'|'return'
   const [modalState, setModalState] = useState('confirm');
+  const [deviceLoc, setDeviceLoc] = useState(null);
+
+  useEffect(()=>{
+    let cancelled = false;
+    getLocation().then(loc=>{ if(!cancelled && loc.lat) setDeviceLoc(loc); });
+    return ()=>{ cancelled = true; };
+  }, []);
 
   const LABEL = {in:'上班打卡', out:'下班打卡', outgo:'外出', 'return':'返回'};
   const ACTION = {in:'clockIn', out:'clockOut', outgo:'clockOutgo', 'return':'clockReturn'};
@@ -481,6 +563,7 @@ function PunchPage({session, status, refreshStatus, showToast}){
   async function confirmPunch(){
     setModalState('loading');
     const loc = await getLocation();
+    if(loc.lat) setDeviceLoc(loc);
     try{
       const data = await apiPost(ACTION[modal], {employeeId: session.employeeId, lat: loc.lat, lng: loc.lng, source:'mobile'});
       showToast(`${LABEL[modal]}成功（${data.statusTag}）`, String(data.statusTag).indexOf('超出')===0 ? 'err':'ok');
@@ -520,6 +603,10 @@ function PunchPage({session, status, refreshStatus, showToast}){
         <button className="sub-btn" disabled={!canReturn} onClick={()=>{setModal('return'); setModalState('confirm');}}>
           <span className="material-icons">keyboard_return</span>返回
         </button>
+      </div>
+
+      <div style={{marginTop:16}}>
+        <PunchMap companyLat={settings?.lat} companyLng={settings?.lng} radius={settings?.radius} deviceLat={deviceLoc?.lat} deviceLng={deviceLoc?.lng} />
       </div>
 
       <div className="card" style={{marginTop:16}}>
@@ -1118,7 +1205,7 @@ function App(){
           </div>
 
           {tab==='home' && <HomePage session={session} status={status} pendingCount={pending.length} goForms={()=>setTab('forms')} showToast={showToast} />}
-          {tab==='punch' && <PunchPage session={session} status={status} refreshStatus={refreshStatus} showToast={showToast} />}
+          {tab==='punch' && <PunchPage session={session} status={status} refreshStatus={refreshStatus} showToast={showToast} settings={settings} />}
           {tab==='forms' && <FormsPage session={session} isManager={!!session.isManager} pending={pending} refreshPending={refreshPending} showToast={showToast} settings={settings} />}
           {tab==='schedule' && <CalendarPage session={session} showToast={showToast} />}
           {tab==='news' && <NewsPage showToast={showToast} />}
