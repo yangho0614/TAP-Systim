@@ -334,10 +334,12 @@ function LoginScreen({onLoggedIn, storeName}){
 
 /* ========================= App ========================= */
 const NAV = [
+  {group:'總覽', id:'dashboard', label:'Dashboard', icon:'dashboard'},
   {group:'出缺勤', id:'employees', label:'員工資料', icon:'people'},
   {group:'出缺勤', id:'records', label:'打卡紀錄 / 補登', icon:'schedule'},
   {group:'出缺勤', id:'requests', label:'假單審核', icon:'approval'},
   {group:'出缺勤', id:'annual', label:'特休設定', icon:'beach_access'},
+  {group:'出缺勤', id:'comp', label:'加班補休明細表', icon:'swap_horiz'},
   {group:'出缺勤', id:'attendance', label:'出缺勤彙總', icon:'fact_check'},
   {group:'薪資', id:'payroll', label:'薪資計算 / 明細', icon:'calculate'},
   {group:'薪資', id:'payslip', label:'薪資條', icon:'receipt_long'},
@@ -347,6 +349,7 @@ const NAV = [
   {group:'組織設定', id:'departments', label:'部門管理', icon:'apartment'},
   {group:'組織設定', id:'shifts', label:'班別設定', icon:'schedule_send'},
   {group:'組織設定', id:'holidays', label:'公司休假設定', icon:'event_busy'},
+  {group:'組織設定', id:'announcements', label:'公告管理', icon:'campaign'},
   {group:'組織設定', id:'accounts', label:'帳號管理', icon:'manage_accounts'},
   {group:'組織設定', id:'settings', label:'系統設定', icon:'settings'},
 ];
@@ -355,7 +358,7 @@ function App(){
   const [configError] = useState(GAS_URL.indexOf('請填入') !== -1);
   const [session, setSession] = useState(null);
   const [checkingSession, setCheckingSession] = useState(true);
-  const [tab, setTab] = useState('employees');
+  const [tab, setTab] = useState('dashboard');
   const [month, setMonth] = useState(todayMonth());
 
   const [employees, setEmployees] = useState([]);
@@ -475,10 +478,12 @@ function App(){
           </div>
         </div>
         <div className="content">
+          {tab==='dashboard' && <DashboardTab setTab={setTab}/>}
           {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees}/>}
           {tab==='records' && <RecordsTab employees={employees} month={month}/>}
           {tab==='requests' && <RequestsTab month={month}/>}
           {tab==='annual' && <AnnualLeaveTab employees={employees}/>}
+          {tab==='comp' && <CompLedgerTab employees={employees}/>}
           {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}/>}
           {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving}/>}
           {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month}/>}
@@ -488,6 +493,7 @@ function App(){
           {tab==='departments' && <DepartmentTab employees={employees}/>}
           {tab==='shifts' && <ShiftTab employees={employees}/>}
           {tab==='holidays' && <HolidaysTab/>}
+          {tab==='announcements' && <AnnouncementsTab/>}
           {tab==='accounts' && <AccountsTab employees={employees}/>}
           {tab==='settings' && <SettingsTab/>}
         </div>
@@ -1650,6 +1656,215 @@ function AnnualLeaveTab({employees}){
           </table>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ========================= Dashboard ========================= */
+function DashboardTab({setTab}){
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  function load(){ setLoading(true); apiGet('getDashboardStats').then(setStats).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
+  useEffect(load, []);
+
+  const CARDS = stats ? [
+    {label:'在職員工', value:stats.employeeCount, icon:'people', color:'var(--brand)', onClick:()=>setTab('employees')},
+    {label:'今日已打卡', value:`${stats.presentToday} / ${stats.employeeCount}`, icon:'fact_check', color:'var(--brand)', onClick:()=>setTab('records')},
+    {label:'待審核申請', value:stats.pendingRequests, icon:'approval', color: stats.pendingRequests>0 ? 'var(--danger)' : 'var(--brand)', onClick:()=>setTab('requests')},
+    {label:'本月平日加班時數', value:stats.monthlyOtHoursTotal, icon:'schedule', color:'var(--brand)', onClick:()=>setTab('attendance')},
+  ] : [];
+
+  return (
+    <div>
+      <div className="toolbar">
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
+      </div>
+      {loading || !stats ? <div className="hint">載入中...</div> : (
+        <>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:14, marginBottom:18}}>
+            {CARDS.map(c=>(
+              <div className="card" key={c.label} style={{cursor:'pointer', textAlign:'center'}} onClick={c.onClick}>
+                <span className="material-icons" style={{fontSize:26, color:c.color}}>{c.icon}</span>
+                <div style={{fontSize:26, fontWeight:700, color:c.color, marginTop:6}}>{c.value}</div>
+                <div className="hint">{c.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {(stats.otCapAlerts>0 || stats.minWageAlerts>0) && (
+            <div className="card" style={{borderColor:'var(--danger)', background:'#fdf2f0'}}>
+              <h3 style={{color:'var(--danger)', fontSize:14}}><span className="material-icons">warning</span> 合規提醒</h3>
+              {stats.otCapAlerts>0 && <div className="hint" style={{cursor:'pointer'}} onClick={()=>setTab('attendance')}>本月有 {stats.otCapAlerts} 位員工平日加班超過月上限，點此查看出缺勤彙總</div>}
+              {stats.minWageAlerts>0 && <div className="hint" style={{cursor:'pointer'}} onClick={()=>setTab('employees')}>有 {stats.minWageAlerts} 位員工經常性給予低於最低工資，點此查看員工資料</div>}
+            </div>
+          )}
+
+          <div className="grid-2">
+            <div className="card">
+              <h3><span className="material-icons">apartment</span> 組織規模</h3>
+              <div className="row-between" style={{marginBottom:8}}><span className="hint">公司數</span><b>{stats.companyCount}</b></div>
+              <div className="row-between"><span className="hint">部門數</span><b>{stats.departmentCount}</b></div>
+            </div>
+            <div className="card">
+              <h3><span className="material-icons">today</span> 今日出勤</h3>
+              <div className="row-between" style={{marginBottom:8}}><span className="hint">已打卡</span><b style={{color:'var(--brand)'}}>{stats.presentToday}</b></div>
+              <div className="row-between"><span className="hint">尚未打卡</span><b style={{color: stats.absentToday>0 ? 'var(--danger)':'inherit'}}>{stats.absentToday}</b></div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ========================= 加班補休明細表 ========================= */
+function CompLedgerTab({employees}){
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [empFilter, setEmpFilter] = useState('');
+
+  function load(){
+    setLoading(true);
+    apiGet('getCompLedger', empFilter ? {employeeId:empFilter} : {}).then(setList).catch(e=>alert(e.message)).finally(()=>setLoading(false));
+  }
+  useEffect(load, [empFilter]);
+
+  function doExport(){
+    const headers = ['姓名','類型','時數','異動後餘額','說明','到期日','建立時間'];
+    const rows = list.map(r=>[r.name, r.type, r.hours, r.balanceAfter, r.note, r.expireDate, r.createdAt]);
+    exportCSV('加班補休明細表.csv', headers, rows);
+  }
+
+  return (
+    <div>
+      <div className="toolbar">
+        <label style={{marginBottom:0}}>員工</label>
+        <select value={empFilter} onChange={e=>setEmpFilter(e.target.value)}>
+          <option value="">全部員工</option>
+          {employees.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+        </select>
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
+        <button className="ghost" onClick={doExport}><span className="material-icons" style={{fontSize:16}}>download</span>匯出 CSV</button>
+      </div>
+      <div className="hint" style={{marginBottom:12}}>每筆加班換補休核准後會自動「轉入」，員工請補休假核准後會自動「使用」扣抵，餘額為累計結果。到期日到了仍未使用完的補休，依規定應折算工資發給。</div>
+      <div className="card" style={{overflowX:'auto'}}>
+        {loading ? <div className="hint">載入中...</div> : (
+          <table>
+            <thead><tr><th className="left">姓名</th><th className="left">類型</th><th>時數</th><th>異動後餘額</th><th className="left">說明</th><th className="left">到期日</th><th className="left">時間</th></tr></thead>
+            <tbody>
+              {list.map(r=>(
+                <tr key={r.id}>
+                  <td className="left"><b>{r.name}</b></td>
+                  <td className="left">{r.type==='加班轉入' ? <span className="badge">加班轉入</span> : <span className="badge warn">請假使用</span>}</td>
+                  <td className={r.hours>=0?'num-pos':'num-neg'}>{r.hours>=0?'+':''}{r.hours}</td>
+                  <td>{r.balanceAfter}</td>
+                  <td className="left">{r.note}</td>
+                  <td className="left">{r.expireDate}</td>
+                  <td className="left">{r.createdAt}</td>
+                </tr>
+              ))}
+              {list.length===0 && <tr><td colSpan="7" className="hint" style={{textAlign:'center'}}>尚無補休紀錄</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ========================= 公告管理 ========================= */
+function AnnouncementsTab(){
+  const [list, setList] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null);
+  const [isNew, setIsNew] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  function load(){
+    setLoading(true);
+    Promise.all([apiGet('getAnnouncements'), apiGet('getCompanies')])
+      .then(([a,c])=>{ setList(a); setCompanies(c); })
+      .catch(e=>alert(e.message)).finally(()=>setLoading(false));
+  }
+  useEffect(load, []);
+
+  function openNew(){ setEditing({id:null, title:'', content:'', companyId:'', pinned:false, status:'已發布'}); setIsNew(true); }
+  function openEdit(a){ setEditing({...a}); setIsNew(false); }
+  async function save(){
+    if(!editing.title.trim()){ alert('請輸入標題'); return; }
+    setSaving(true);
+    try{
+      if(isNew) await apiPost('addAnnouncement', editing);
+      else await apiPost('updateAnnouncement', editing);
+      setEditing(null); load();
+    }catch(e){ alert(e.message); }
+    finally{ setSaving(false); }
+  }
+  async function remove(id){
+    if(!confirm('確定刪除這則公告？')) return;
+    try{ await apiPost('deleteAnnouncement', {id}); load(); }catch(e){ alert(e.message); }
+  }
+  function companyName(id){ if(!id) return '全公司'; const c = companies.find(x=>x.id===id); return c?c.name:'-'; }
+
+  return (
+    <div>
+      <div className="toolbar">
+        <button onClick={openNew}><span className="material-icons">campaign</span>發布公告</button>
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
+      </div>
+      {loading ? <div className="hint">載入中...</div> : list.length===0 ? <div className="empty card">尚無公告</div> : list.map(a=>(
+        <div className="card" key={a.id}>
+          <div className="row-between">
+            <h3 style={{display:'flex', alignItems:'center', gap:7, margin:0}}>
+              {a.pinned && <span className="material-icons" style={{fontSize:16, color:'var(--accent)'}}>push_pin</span>}
+              {a.title}
+              {a.status!=='已發布' && <span className="badge warn">草稿</span>}
+            </h3>
+            <div>
+              <button className="ghost sm" onClick={()=>openEdit(a)}>編輯</button>{' '}
+              <button className="danger sm" onClick={()=>remove(a.id)}>刪除</button>
+            </div>
+          </div>
+          <div className="hint" style={{margin:'6px 0'}}>{companyName(a.companyId)}　·　{a.author}　·　{a.createdAt}</div>
+          <div style={{fontSize:13, whiteSpace:'pre-wrap'}}>{a.content}</div>
+        </div>
+      ))}
+
+      {editing && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setEditing(null); }}>
+          <div className="modal">
+            <h3><span className="material-icons">campaign</span>{isNew?'發布公告':'編輯公告'}</h3>
+            <div className="field"><label>標題 *</label><input value={editing.title} onChange={e=>setEditing({...editing,title:e.target.value})} style={{width:'100%'}} /></div>
+            <div className="field"><label>內容</label><textarea rows="5" value={editing.content} onChange={e=>setEditing({...editing,content:e.target.value})} style={{width:'100%', fontFamily:'inherit', fontSize:13, padding:8, borderRadius:6, border:'1px solid var(--line)'}}></textarea></div>
+            <div className="grid-2">
+              <div className="field"><label>發布對象</label>
+                <select value={editing.companyId} onChange={e=>setEditing({...editing,companyId:e.target.value})}>
+                  <option value="">全公司</option>
+                  {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="field"><label>狀態</label>
+                <select value={editing.status} onChange={e=>setEditing({...editing,status:e.target.value})}>
+                  <option value="已發布">已發布</option>
+                  <option value="草稿">草稿（員工看不到）</option>
+                </select>
+              </div>
+            </div>
+            <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)'}}>
+              <input type="checkbox" checked={editing.pinned} onChange={e=>setEditing({...editing,pinned:e.target.checked})} style={{width:'auto'}} />置頂
+            </label>
+            <div className="modal-actions">
+              <button className="ghost" onClick={()=>setEditing(null)}>取消</button>
+              <button onClick={save} disabled={saving}>{saving?'儲存中...':'儲存'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

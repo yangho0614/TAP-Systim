@@ -325,6 +325,7 @@ function HomePage({session, status, pendingCount, goForms, onLogout, showToast})
   const [pwBox, setPwBox] = useState(false);
   const [pw, setPw] = useState({oldPassword:'', newPassword:'', confirm:''});
   const [saving, setSaving] = useState(false);
+  const [payslipOpen, setPayslipOpen] = useState(false);
 
   async function changePw(){
     if(!pw.newPassword || pw.newPassword.length < 4){ showToast('新密碼至少 4 碼', 'err'); return; }
@@ -379,6 +380,13 @@ function HomePage({session, status, pendingCount, goForms, onLogout, showToast})
         </div>
       </div>
 
+      <div className="card row-between" style={{cursor:'pointer'}} onClick={()=>setPayslipOpen(true)}>
+        <div style={{display:'flex', alignItems:'center', gap:10}}>
+          <span className="material-icons" style={{color:'var(--muted)'}}>receipt_long</span>
+          <div style={{fontSize:14}}>我的薪資條</div>
+        </div>
+        <span className="material-icons" style={{color:'var(--muted)'}}>chevron_right</span>
+      </div>
       <div className="card row-between" style={{cursor:'pointer'}} onClick={()=>setPwBox(true)}>
         <div style={{display:'flex', alignItems:'center', gap:10}}>
           <span className="material-icons" style={{color:'var(--muted)'}}>lock</span>
@@ -408,6 +416,7 @@ function HomePage({session, status, pendingCount, goForms, onLogout, showToast})
           </div>
         </div>
       )}
+      {payslipOpen && <PayslipModal onClose={()=>setPayslipOpen(false)} showToast={showToast} />}
     </div>
   );
 }
@@ -692,12 +701,219 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   );
 }
 
+/* ========================= 行事曆 ========================= */
+function CalendarPage({session, showToast}){
+  const [month, setMonth] = useState(()=>{ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); });
+  const [holidays, setHolidays] = useState([]);
+  const [myLeaves, setMyLeaves] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(()=>{
+    setLoading(true);
+    Promise.all([apiGet('getHolidays'), apiGet('listMyRequests')])
+      .then(([h, reqs])=>{
+        setHolidays(h);
+        setMyLeaves(reqs.filter(r=>r.type==='請假' && r.status==='已核准'));
+      })
+      .catch(e=>showToast(e.message,'err')).finally(()=>setLoading(false));
+  }, []);
+
+  const [y, m] = month.split('-').map(Number);
+  const firstDow = new Date(y, m-1, 1).getDay();
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const holidayMap = {}; holidays.forEach(h=>{ holidayMap[h.date] = h; });
+  function leavesOnDate(dateStr){
+    return myLeaves.filter(r=>{
+      const s = r.startTime.slice(0,10), e = r.endTime.slice(0,10);
+      return dateStr >= s && dateStr <= e;
+    });
+  }
+  function shiftMonth(delta){
+    const nd = new Date(y, m-1+delta, 1);
+    setMonth(nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0'));
+  }
+
+  const cells = [];
+  for(let i=0;i<firstDow;i++) cells.push(null);
+  for(let d=1; d<=daysInMonth; d++) cells.push(d);
+
+  const monthLeaves = myLeaves.filter(r=>r.startTime.slice(0,7)===month || r.endTime.slice(0,7)===month);
+  const monthHolidays = holidays.filter(h=>h.date.indexOf(month)===0).sort((a,b)=>a.date.localeCompare(b.date));
+
+  const shift = session.employee?.shift;
+
+  return (
+    <div className="page">
+      <div className="card shift-card">
+        <span className="material-icons">schedule</span>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700, fontSize:14.5}}>{shift ? shift.name : '標準班'}　{shift ? shift.workStart : '09:00'}~{shift ? shift.workEnd : '18:00'}</div>
+          <div className="hint">預設班別（若無另外排班）</div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="row-between" style={{marginBottom:10}}>
+          <button className="icon-btn" onClick={()=>shiftMonth(-1)}><span className="material-icons">chevron_left</span></button>
+          <div style={{fontWeight:700, fontSize:15}}>{y} 年 {m} 月</div>
+          <button className="icon-btn" onClick={()=>shiftMonth(1)}><span className="material-icons">chevron_right</span></button>
+        </div>
+        {loading ? <div className="hint" style={{textAlign:'center'}}>載入中...</div> : (
+          <>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:4, textAlign:'center', fontSize:11, color:'var(--muted)', marginBottom:4}}>
+              {['日','一','二','三','四','五','六'].map(d=><div key={d}>{d}</div>)}
+            </div>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:4}}>
+              {cells.map((d,idx)=>{
+                if(!d) return <div key={idx}></div>;
+                const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const hol = holidayMap[dateStr];
+                const leaves = leavesOnDate(dateStr);
+                const isToday = dateStr === new Date().toISOString().slice(0,10);
+                let bg = 'transparent';
+                if(hol) bg = hol.type==='國定假日' ? '#c05a4f26' : '#5b8db826';
+                else if(leaves.length) bg = '#4f9b6f26';
+                return (
+                  <div key={idx} style={{
+                    aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                    borderRadius:8, background:bg, fontSize:12.5,
+                    border: isToday ? '1.5px solid var(--gold)' : '1px solid transparent'
+                  }}>
+                    <div>{d}</div>
+                    {(hol || leaves.length>0) && <div style={{width:4,height:4,borderRadius:2,background: hol?(hol.type==='國定假日'?'var(--red)':'var(--blue)'):'var(--green)', marginTop:2}}></div>}
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{display:'flex', gap:14, marginTop:12, fontSize:11, color:'var(--muted)', flexWrap:'wrap'}}>
+              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--red)',marginRight:4}}></span>國定假日</span>
+              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--blue)',marginRight:4}}></span>公司休假日</span>
+              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--green)',marginRight:4}}></span>已核准請假</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {monthHolidays.length>0 && (
+        <>
+          <h2><span className="material-icons" style={{color:'var(--red)'}}>event_busy</span>本月假日</h2>
+          {monthHolidays.map(h=>(
+            <div className="card req-item" key={h.date}>
+              <div className="title-row"><div className="type">{h.name || h.type}</div><span className={'status-badge '+(h.type==='國定假日'?'no':'pending')}>{h.type}</span></div>
+              <div className="meta">{h.date}</div>
+            </div>
+          ))}
+        </>
+      )}
+      {monthLeaves.length>0 && (
+        <>
+          <h2><span className="material-icons" style={{color:'var(--green)'}}>event_available</span>本月已核准請假</h2>
+          {monthLeaves.map(r=>(
+            <div className="card req-item" key={r.id}>
+              <div className="title-row"><div className="type">{r.leaveType}</div><span className="status-badge ok">已核准</span></div>
+              <div className="meta">{r.startTime} ~ {r.endTime}　{r.hours} 小時</div>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ========================= 公告 ========================= */
+function NewsPage({showToast}){
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+
+  function load(){
+    setLoading(true);
+    apiGet('getAnnouncements').then(setList).catch(e=>showToast(e.message,'err')).finally(()=>setLoading(false));
+  }
+  useEffect(load, []);
+
+  return (
+    <div className="page">
+      {loading ? <div className="hint" style={{textAlign:'center', marginTop:30}}>載入中...</div> : list.length===0 ? (
+        <div className="coming">
+          <div><span className="material-icons">campaign</span></div>
+          <div style={{fontSize:15, fontWeight:700, color:'var(--text)'}}>目前尚無公告</div>
+        </div>
+      ) : list.map(a=>{
+        const isOpen = expanded===a.id;
+        return (
+          <div className="card" key={a.id} onClick={()=>setExpanded(isOpen?null:a.id)} style={{cursor:'pointer'}}>
+            <div className="title-row">
+              <div style={{display:'flex', alignItems:'center', gap:7}}>
+                {a.pinned && <span className="material-icons" style={{fontSize:16, color:'var(--gold)'}}>push_pin</span>}
+                <div className="type">{a.title}</div>
+              </div>
+              <span className="material-icons" style={{color:'var(--muted)', fontSize:20}}>{isOpen?'expand_less':'expand_more'}</span>
+            </div>
+            <div className="meta">{a.createdAt}　· {a.author}</div>
+            {isOpen && <div style={{marginTop:10, fontSize:13.5, lineHeight:1.7, whiteSpace:'pre-wrap'}}>{a.content}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ========================= 薪資條（Modal） ========================= */
+function PayslipModal({onClose, showToast}){
+  const [month, setMonth] = useState(()=>{ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); });
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  function load(m){
+    setLoading(true);
+    apiGet('getMyPayslip', {month:m}).then(setData).catch(e=>{ showToast(e.message,'err'); setData(null); }).finally(()=>setLoading(false));
+  }
+  useEffect(()=>{ load(month); }, [month]);
+
+  const money = v => Math.round(Number(v)||0).toLocaleString('zh-TW');
+
+  return (
+    <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+      <div className="modal">
+        <h3><span className="material-icons">receipt_long</span>我的薪資條</h3>
+        <div className="field"><label>月份</label><input type="month" value={month} onChange={e=>setMonth(e.target.value)} /></div>
+        {loading ? <div className="hint">載入中...</div> : !data ? (
+          <div className="hint">查無資料</div>
+        ) : (
+          <>
+            <div className="balance-row">
+              <div className="balance-cell"><div className="num">{money(data.calc.pay06)}</div><div className="lbl">06日應付</div></div>
+              <div className="balance-cell"><div className="num">{money(data.calc.pay26)}</div><div className="lbl">26日應付</div></div>
+            </div>
+            <div className="card" style={{padding:14}}>
+              <div className="row-between"><span className="hint">本薪</span><span>{money(data.employee.baseSalary)}</span></div>
+              <div className="row-between"><span className="hint">加班費</span><span className="num-pos" style={{color:'var(--green)'}}>{money(data.calc.overtimePay)}</span></div>
+              <div className="row-between"><span className="hint">津貼合計</span><span>{money(data.calc.allowanceTotal)}</span></div>
+              <div className="row-between"><span className="hint">獎金合計</span><span>{money(data.calc.bonusTotal)}</span></div>
+              <div className="row-between"><span className="hint">應發合計</span><span style={{fontWeight:700}}>{money(data.calc.payableTotal)}</span></div>
+              <div style={{borderTop:'1px solid var(--line)', margin:'8px 0'}}></div>
+              <div className="row-between"><span className="hint">勞保費</span><span style={{color:'var(--red)'}}>-{money(data.calc.laborFee)}</span></div>
+              <div className="row-between"><span className="hint">健保費</span><span style={{color:'var(--red)'}}>-{money(data.calc.healthFee)}</span></div>
+              <div className="row-between"><span className="hint">請假扣款</span><span style={{color:'var(--red)'}}>-{money(data.calc.leaveDeduct)}</span></div>
+              <div className="row-between"><span className="hint">應扣合計</span><span style={{fontWeight:700, color:'var(--red)'}}>-{money(data.calc.deductTotal)}</span></div>
+            </div>
+            <div className="hint" style={{marginTop:8, textAlign:'center'}}>合計 NT$ {money(data.calc.grandTotal)}</div>
+          </>
+        )}
+        <div className="modal-actions"><button className="stay" onClick={onClose} style={{flex:1}}>關閉</button></div>
+      </div>
+    </div>
+  );
+}
+
 /* ========================= 即將推出 ========================= */
 function ComingSoon({icon, label}){
   return (
     <div className="page">
       <div className="coming">
         <div><span className="material-icons">{icon}</span></div>
+
         <div style={{fontSize:15, fontWeight:700, color:'var(--text)'}}>{label}</div>
         <div className="hint" style={{marginTop:6}}>功能即將推出，敬請期待</div>
       </div>
@@ -789,8 +1005,8 @@ function App(){
           {tab==='home' && <HomePage session={session} status={status} pendingCount={pending.length} goForms={()=>setTab('forms')} onLogout={logout} showToast={showToast} />}
           {tab==='punch' && <PunchPage session={session} status={status} refreshStatus={refreshStatus} showToast={showToast} />}
           {tab==='forms' && <FormsPage session={session} isManager={!!session.isManager} pending={pending} refreshPending={refreshPending} showToast={showToast} settings={settings} />}
-          {tab==='schedule' && <ComingSoon icon="calendar_month" label="班表 / 行事曆" />}
-          {tab==='news' && <ComingSoon icon="campaign" label="公司公告" />}
+          {tab==='schedule' && <CalendarPage session={session} showToast={showToast} />}
+          {tab==='news' && <NewsPage showToast={showToast} />}
 
           <div className="tabbar">
             <div className="tabbar-inner">
