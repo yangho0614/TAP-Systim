@@ -323,6 +323,8 @@ function LoginScreen({onLoggedIn, storeName}){
 const NAV = [
   {group:'出缺勤', id:'employees', label:'員工資料', icon:'people'},
   {group:'出缺勤', id:'records', label:'打卡紀錄 / 補登', icon:'schedule'},
+  {group:'出缺勤', id:'requests', label:'假單審核', icon:'approval'},
+  {group:'出缺勤', id:'annual', label:'特休設定', icon:'beach_access'},
   {group:'出缺勤', id:'attendance', label:'出缺勤彙總', icon:'fact_check'},
   {group:'薪資', id:'payroll', label:'薪資計算 / 明細', icon:'calculate'},
   {group:'薪資', id:'payslip', label:'薪資條', icon:'receipt_long'},
@@ -389,7 +391,8 @@ function App(){
           const cur = next[s.employeeId] || emptyEntry();
           next[s.employeeId] = {...emptyEntry(), ...cur,
             otWeekday134: s.otWeekday134, otWeekday167: s.otWeekday167,
-            otRestDayHours: s.otRestDayHours, otHolidayHours: s.otHolidayHours, otMandatoryRestHours: s.otMandatoryRestHours};
+            otRestDayHours: s.otRestDayHours, otHolidayHours: s.otHolidayHours, otMandatoryRestHours: s.otMandatoryRestHours,
+            personalLeave: s.personalLeave || 0, sickLeave: s.sickLeave || 0, disasterLeave: s.disasterLeave || 0};
         });
         return next;
       });
@@ -403,7 +406,7 @@ function App(){
     return {emp, entry, calc: calcForEmployee(emp, entry)};
   }), [employees, payrollEntries]);
 
-  const needsMonth = ['records','attendance','payroll','payslip','transfer'].includes(tab);
+  const needsMonth = ['records','requests','attendance','payroll','payslip','transfer'].includes(tab);
 
   function logout(){
     setToken(null);
@@ -462,6 +465,8 @@ function App(){
         <div className="content">
           {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees}/>}
           {tab==='records' && <RecordsTab employees={employees} month={month}/>}
+          {tab==='requests' && <RequestsTab month={month}/>}
+          {tab==='annual' && <AnnualLeaveTab employees={employees}/>}
           {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}/>}
           {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving}/>}
           {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month}/>}
@@ -1476,6 +1481,159 @@ function AccountsTab({employees}){
   );
 }
 
+/* ========================= 假單審核 ========================= */
+function RequestsTab({month}){
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [reviewBox, setReviewBox] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  function load(){
+    setLoading(true);
+    apiGet('listAllRequests', {month, status: statusFilter}).then(setList).catch(e=>alert(e.message)).finally(()=>setLoading(false));
+  }
+  useEffect(load, [month, statusFilter]);
+
+  async function doReview(){
+    setBusy(true);
+    try{
+      await apiPost(reviewBox.mode==='approve'?'approveRequest':'rejectRequest', {id: reviewBox.req.id, comment: reviewBox.comment||''});
+      setReviewBox(null); load();
+    }catch(e){ alert(e.message); }
+    finally{ setBusy(false); }
+  }
+  const STATUS_BADGE = {'待審核':'warn', '已核准':'', '已駁回':'warn', '已取消':''};
+
+  return (
+    <div>
+      <div className="toolbar">
+        <label style={{marginBottom:0}}>狀態</label>
+        <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
+          <option value="">全部</option>
+          <option value="待審核">待審核</option>
+          <option value="已核准">已核准</option>
+          <option value="已駁回">已駁回</option>
+          <option value="已取消">已取消</option>
+        </select>
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
+      </div>
+      <div className="hint" style={{marginBottom:12}}>員工的請假與加班換補休申請。部門主管可在前台審核；你也可以在此直接核准或駁回（含沒有設定主管的部門）。</div>
+      <div className="card" style={{overflowX:'auto'}}>
+        {loading ? <div className="hint">載入中...</div> : (
+          <table>
+            <thead><tr><th className="left">姓名</th><th className="left">類型</th><th className="left">假別</th><th className="left">起訖 / 加班日期</th><th>時數</th><th className="left">事由</th><th>狀態</th><th className="left">審核人</th><th>操作</th></tr></thead>
+            <tbody>
+              {list.map(r=>(
+                <tr key={r.id}>
+                  <td className="left"><b>{r.name}</b></td>
+                  <td className="left">{r.type}</td>
+                  <td className="left">{r.leaveType || '-'}</td>
+                  <td className="left">{r.type==='請假' ? (r.startTime + ' ~ ' + r.endTime) : String(r.startTime).split(' ')[0]}</td>
+                  <td>{r.hours}</td>
+                  <td className="left">{r.reason}</td>
+                  <td>{r.status==='待審核' ? <span className="badge warn">待審核</span> : <span className="badge">{r.status}</span>}</td>
+                  <td className="left">{r.reviewer}{r.reviewComment ? '（'+r.reviewComment+'）' : ''}</td>
+                  <td>
+                    {r.status==='待審核' && (
+                      <>
+                        <button className="ghost sm" onClick={()=>setReviewBox({req:r, mode:'approve', comment:''})}>核准</button>{' '}
+                        <button className="danger sm" onClick={()=>setReviewBox({req:r, mode:'reject', comment:''})}>駁回</button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {list.length===0 && <tr><td colSpan="9" className="hint" style={{textAlign:'center'}}>本月尚無申請單</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {reviewBox && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setReviewBox(null); }}>
+          <div className="modal" style={{width:420}}>
+            <h3><span className="material-icons">{reviewBox.mode==='approve'?'check_circle':'cancel'}</span>{reviewBox.mode==='approve'?'核准':'駁回'}：{reviewBox.req.name} 的{reviewBox.req.type==='請假'?reviewBox.req.leaveType:'加班換補休'}</h3>
+            <div className="field"><label>審核意見（選填）</label><input value={reviewBox.comment} onChange={e=>setReviewBox({...reviewBox, comment:e.target.value})} style={{width:'100%'}} /></div>
+            <div className="modal-actions">
+              <button className="ghost" onClick={()=>setReviewBox(null)}>取消</button>
+              <button onClick={doReview} disabled={busy}>{busy?'處理中...':'確認'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ========================= 特休設定 ========================= */
+function AnnualLeaveTab({employees}){
+  const [year, setYear] = useState(String(new Date().getFullYear()));
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [edits, setEdits] = useState({});
+  const [savingId, setSavingId] = useState(null);
+
+  function load(){
+    setLoading(true);
+    apiGet('getAnnualLeaveList', {year}).then(d=>{ setData(d); setEdits({}); }).catch(e=>alert(e.message)).finally(()=>setLoading(false));
+  }
+  useEffect(load, [year]);
+
+  async function save(empId){
+    const hours = Number(edits[empId]);
+    if(isNaN(hours) || hours < 0){ alert('請輸入正確的時數'); return; }
+    setSavingId(empId);
+    try{
+      await apiPost('setAnnualLeave', {employeeId: empId, year, hours});
+      await load();
+    }catch(e){ alert(e.message); }
+    finally{ setSavingId(null); }
+  }
+
+  const years = [];
+  const thisYear = new Date().getFullYear();
+  for(let y = thisYear + 1; y >= thisYear - 2; y--) years.push(String(y));
+
+  return (
+    <div>
+      <div className="toolbar">
+        <label style={{marginBottom:0}}>年度</label>
+        <select value={year} onChange={e=>setYear(e.target.value)}>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
+      </div>
+      <div className="hint" style={{marginBottom:12}}>核定每位員工當年度的特休「時數」（1天＝8小時，例如14天＝112小時）。員工申請特休時系統會自動檢查並扣抵剩餘額度。可參考各員工編輯視窗內依到職日算出的法定天數。</div>
+      <div className="card">
+        {loading || !data ? <div className="hint">載入中...</div> : (
+          <table>
+            <thead><tr><th className="left">姓名</th><th className="left">部門</th><th>到職日</th><th>核定時數</th><th>已用</th><th>剩餘</th><th>操作</th></tr></thead>
+            <tbody>
+              {employees.map(emp=>{
+                const granted = data.granted[emp.id] ? data.granted[emp.id].hours : 0;
+                const used = data.used[emp.id] || 0;
+                const editVal = edits[emp.id] !== undefined ? edits[emp.id] : granted;
+                return (
+                  <tr key={emp.id}>
+                    <td className="left"><b>{emp.name}</b></td>
+                    <td className="left">{emp.department}</td>
+                    <td>{emp.hireDate || '-'}</td>
+                    <td><input type="number" min="0" value={editVal} onChange={e=>setEdits({...edits, [emp.id]: e.target.value})} style={{width:80}} /></td>
+                    <td>{used}</td>
+                    <td className={granted-used < 8 ? 'flag' : ''}>{Math.max(0, granted-used)}</td>
+                    <td><button className="ghost sm" onClick={()=>save(emp.id)} disabled={savingId===emp.id}>{savingId===emp.id?'儲存中':'儲存'}</button></td>
+                  </tr>
+                );
+              })}
+              {employees.length===0 && <tr><td colSpan="7" className="hint" style={{textAlign:'center'}}>尚無員工</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ========================= 系統設定 ========================= */
 function SettingsTab(){
   const [s, setS] = useState(null);
@@ -1535,6 +1693,19 @@ function SettingsTab(){
         <div className="field"><label>平日加班月上限（小時）</label><input type="number" value={s.monthlyOtCap} onChange={e=>setS({...s,monthlyOtCap:e.target.value})} /></div>
       </div>
       <div className="hint">依勞基法第32條，平日延長工時原則每月不得超過46小時（經工會或無工會則經勞資會議同意可延長至54小時，但每3個月不得逾138小時）；此上限不含國定假日與例假日出勤。</div>
+
+      <h3 style={{marginTop:18}}><span className="material-icons">event_available</span> 請假與補休規則</h3>
+      <div className="grid-2">
+        <div className="field"><label>請假最小單位</label>
+          <select value={s.leaveUnit} onChange={e=>setS({...s,leaveUnit:Number(e.target.value)})}>
+            <option value={1}>1 小時</option>
+            <option value={0.5}>0.5 小時</option>
+            <option value={4}>半天（4 小時）</option>
+          </select>
+        </div>
+        <div className="field"><label>補休使用期限（月）</label><input type="number" min="1" value={s.compTimeExpireMonths} onChange={e=>setS({...s,compTimeExpireMonths:e.target.value})} /></div>
+      </div>
+      <div className="hint">補休期限自核准日起算，依勞基法第32條之1，補休期限屆滿或契約終止仍未休完的時數，應依原加班費標準折算工資。</div>
 
       <div style={{marginTop:16}}><button onClick={save}><span className="material-icons" style={{fontSize:16}}>save</span>儲存設定</button></div>
     </div>
