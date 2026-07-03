@@ -504,7 +504,7 @@ function EmployeesTab({employees, loading, reload}){
   function openNew(){
     setEditing({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
       mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
-      companyId:'', departmentId:'', shiftId:''});
+      companyId:'', departmentId:'', shiftId:'', phone:''});
     setIsNew(true);
   }
   function openEdit(emp){ setEditing({...emp}); setIsNew(false); }
@@ -519,7 +519,7 @@ function EmployeesTab({employees, loading, reload}){
       await reload();
       if(isNew){
         if(confirm('員工已新增，要不要現在就幫他建立登入帳號？')){
-          setAccountBox({employeeId:id, name:editing.name, account:'', password: Math.random().toString(36).slice(2,8)});
+          setAccountBox({employeeId:id, name:editing.name, account:editing.phone||'', password: Math.random().toString(36).slice(2,8)});
         }
       }
     }catch(e){ alert(e.message); }
@@ -559,7 +559,7 @@ function EmployeesTab({employees, loading, reload}){
               <table>
                 <thead>
                   <tr>
-                    <th className="left">部門</th><th className="left">姓名</th><th>班別</th><th>到職日</th>
+                    <th className="left">部門</th><th className="left">姓名</th><th className="left">手機</th><th>班別</th><th>到職日</th>
                     <th>投保級距</th><th>本薪</th><th className="left">銀行帳號</th><th>操作</th>
                   </tr>
                 </thead>
@@ -568,6 +568,7 @@ function EmployeesTab({employees, loading, reload}){
                     <tr key={emp.id}>
                       <td className="left">{emp.department}</td>
                       <td className="left"><b>{emp.name}</b></td>
+                      <td className="left mono">{emp.phone}</td>
                       <td>{emp.shift ? emp.shift.name : <span className="hint">預設</span>}</td>
                       <td>{emp.hireDate || '-'}</td>
                       <td>{emp.insuranceGrade || 0}</td>
@@ -575,7 +576,7 @@ function EmployeesTab({employees, loading, reload}){
                       <td className="left mono">{emp.bankAccount}</td>
                       <td>
                         <button className="ghost sm" onClick={()=>openEdit(emp)}>編輯</button>{' '}
-                        <button className="ghost sm" onClick={()=>setAccountBox({employeeId:emp.id, name:emp.name, account:'', password: Math.random().toString(36).slice(2,8)})}>帳號</button>{' '}
+                        <button className="ghost sm" onClick={()=>setAccountBox({employeeId:emp.id, name:emp.name, account:emp.phone||'', password: Math.random().toString(36).slice(2,8)})}>帳號</button>{' '}
                         <button className="danger sm" onClick={()=>setLeft(emp)}>離職</button>
                       </td>
                     </tr>
@@ -605,6 +606,7 @@ function EmployeesTab({employees, loading, reload}){
                 </select>
               </div>
               <div className="field"><label>姓名 *</label><input value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} /></div>
+              <div className="field"><label>手機</label><input value={editing.phone} onChange={e=>setEditing({...editing, phone:e.target.value})} placeholder="09xxxxxxxx" /></div>
               <div className="field"><label>到職日</label><input type="date" value={editing.hireDate} onChange={e=>setEditing({...editing, hireDate:e.target.value})} /></div>
 
               <div className="field"><label>班別</label>
@@ -1430,6 +1432,11 @@ function AccountsTab({employees}){
     try{ await apiPost('setAccountStatus', {accountId:a.id, status: a.status==='啟用'?'停用':'啟用'}); load(); }
     catch(e){ alert(e.message); }
   }
+  async function removeAccount(a){
+    if(!confirm(`確定要刪除帳號「${a.account}」嗎？此動作無法復原。`)) return;
+    try{ await apiPost('deleteAccount', {accountId:a.id}); load(); }
+    catch(e){ alert(e.message); }
+  }
   async function doReset(){
     try{
       await apiPost('resetPassword', {accountId: resetBox.id, newPassword: resetBox.newPassword});
@@ -1459,7 +1466,8 @@ function AccountsTab({employees}){
                   <td className="left">{a.lastLogin || '尚未登入'}</td>
                   <td>
                     <button className="ghost sm" onClick={()=>setResetBox({id:a.id, account:a.account, newPassword: Math.random().toString(36).slice(2,8)})}>重設密碼</button>{' '}
-                    <button className="danger sm" onClick={()=>toggleStatus(a)}>{a.status==='啟用'?'停用':'啟用'}</button>
+                    <button className="danger sm" onClick={()=>toggleStatus(a)}>{a.status==='啟用'?'停用':'啟用'}</button>{' '}
+                    <button className="danger sm" onClick={()=>removeAccount(a)}>刪除</button>
                   </td>
                 </tr>
               ))}
