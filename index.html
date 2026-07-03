@@ -216,41 +216,28 @@
   }
   .config-warn code{ background:#00000040; padding:1px 5px; border-radius:3px; }
 
-  /* ===== 桌機版（寬螢幕）版面 ===== */
+  /* ===== 桌機版（寬螢幕）：維持單一卡片樣式，整體放大 ===== */
   @media (min-width: 900px){
-    .app:not(:has(.tabbar)){
-      display:flex; align-items:center; justify-content:center;
-      min-height:100vh; min-height:100dvh; max-width:none;
+    body{ display:flex; align-items:flex-start; justify-content:center; padding:40px 20px; }
+    .app{
+      max-width:640px; width:100%; min-height:auto;
+      background:var(--panel); border:1px solid var(--line); border-radius:22px;
+      box-shadow:0 24px 60px rgba(0,0,0,.35); overflow:hidden; padding-bottom:0;
     }
-    .login-wrap{ padding:0 24px; margin:0; }
+    .login-wrap{ padding:60px 40px; margin:0; }
+    .topbar{ padding:22px 32px 14px 32px; }
+    .topbar .store{ font-size:17px; }
+    .page{ padding:10px 32px 32px 32px; }
+    .tabbar{ position:static; border-radius:0 0 22px 22px; }
+    .tabbar-inner{ max-width:none; }
+    .tab{ padding:14px 0 calc(14px + env(safe-area-inset-bottom)) 0; font-size:12px; }
+    .tab .material-icons{ font-size:24px; }
 
-    .app:has(.tabbar){
-      max-width:none; min-height:100vh; min-height:100dvh; padding-bottom:0;
-      display:grid; grid-template-columns:230px 1fr; grid-template-rows:auto 1fr;
-      grid-template-areas: "sidebar topbar" "sidebar content";
-    }
-    .app:has(.tabbar) > .topbar{ grid-area:topbar; padding:18px 32px; }
-    .app:has(.tabbar) > .page{
-      grid-area:content; max-width:840px; width:100%; margin:0 auto;
-      padding:8px 32px 48px 32px; overflow-y:auto;
-    }
-    .app:has(.tabbar) .tabbar{
-      grid-area:sidebar; position:static; height:100%;
-      background:var(--panel); border-top:none; border-right:1px solid var(--line); backdrop-filter:none;
-    }
-    .app:has(.tabbar) .tabbar-inner{
-      flex-direction:column; max-width:none; height:100%; align-items:stretch; padding:26px 0;
-    }
-    .app:has(.tabbar) .tab{
-      flex-direction:row; justify-content:flex-start; gap:14px; padding:13px 28px; font-size:14px;
-    }
-    .app:has(.tabbar) .tab .material-icons{ font-size:21px; }
-    .app:has(.tabbar) .tab .reddot{ position:static; margin-left:auto; }
-
-    /* 首頁：狀態卡片改用更寬的格線 */
+    .clock-big .time{ font-size:60px; }
     .status-grid{ grid-template-columns:repeat(4,1fr); }
-    .balance-row{ max-width:520px; }
+    .balance-row{ max-width:520px; margin-left:auto; margin-right:auto; }
     .profile{ padding-top:14px; }
+    .big-btn{ font-size:21px; padding:22px 0; }
   }
 </style>
 </head>
@@ -346,7 +333,7 @@ function LoginScreen({onLoggedIn}){
         <h2>員工專區登入</h2>
         <div className="sub">帳號為公司提供之手機號碼或員工編號</div>
         <form onSubmit={submit}>
-          <div className="field"><label>帳號</label><input value={account} onChange={e=>setAccount(e.target.value)} autoFocus /></div>
+          <div className="field"><label>帳號（手機號碼）</label><input type="tel" inputMode="numeric" pattern="[0-9]*" value={account} onChange={e=>setAccount(e.target.value.replace(/\D/g,''))} autoFocus /></div>
           <div className="field"><label>密碼</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} /></div>
           <button type="submit" className="primary-btn" disabled={loading}>
             <span className="material-icons" style={{fontSize:18}}>login</span>{loading?'登入中...':'登入'}
