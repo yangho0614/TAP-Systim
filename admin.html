@@ -1570,7 +1570,7 @@ function RequestsTab({month}){
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
-            <thead><tr><th className="left">姓名</th><th className="left">類型</th><th className="left">假別</th><th className="left">起訖 / 加班日期</th><th>時數</th><th className="left">事由</th><th>狀態</th><th className="left">審核人</th><th>操作</th></tr></thead>
+            <thead><tr><th className="left">姓名</th><th className="left">類型</th><th className="left">假別</th><th className="left">起訖 / 加班日期</th><th>時數</th><th className="left">代理人</th><th className="left">事由</th><th>狀態</th><th className="left">審核人</th><th>操作</th></tr></thead>
             <tbody>
               {list.map(r=>(
                 <tr key={r.id}>
@@ -1579,6 +1579,7 @@ function RequestsTab({month}){
                   <td className="left">{r.leaveType || '-'}</td>
                   <td className="left">{r.type==='請假' ? (r.startTime + ' ~ ' + r.endTime) : String(r.startTime).split(' ')[0]}</td>
                   <td>{r.hours}</td>
+                  <td className="left">{r.delegateName || '-'}</td>
                   <td className="left">{r.reason}</td>
                   <td>{r.status==='待審核' ? <span className="badge warn">待審核</span> : <span className="badge">{r.status}</span>}</td>
                   <td className="left">{r.reviewer}{r.reviewComment ? '（'+r.reviewComment+'）' : ''}</td>
@@ -1592,7 +1593,7 @@ function RequestsTab({month}){
                   </td>
                 </tr>
               ))}
-              {list.length===0 && <tr><td colSpan="9" className="hint" style={{textAlign:'center'}}>本月尚無申請單</td></tr>}
+              {list.length===0 && <tr><td colSpan="10" className="hint" style={{textAlign:'center'}}>本月尚無申請單</td></tr>}
             </tbody>
           </table>
         )}

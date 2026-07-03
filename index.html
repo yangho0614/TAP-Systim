@@ -368,25 +368,10 @@ function LoginScreen({onLoggedIn}){
 }
 
 /* ========================= 首頁 ========================= */
-function HomePage({session, status, pendingCount, goForms, onLogout, showToast}){
+function HomePage({session, status, pendingCount, goForms, showToast}){
   const emp = session.employee || {};
   const shift = emp.shift;
-  const [pwBox, setPwBox] = useState(false);
-  const [pw, setPw] = useState({oldPassword:'', newPassword:'', confirm:''});
-  const [saving, setSaving] = useState(false);
   const [payslipOpen, setPayslipOpen] = useState(false);
-
-  async function changePw(){
-    if(!pw.newPassword || pw.newPassword.length < 4){ showToast('新密碼至少 4 碼', 'err'); return; }
-    if(pw.newPassword !== pw.confirm){ showToast('兩次輸入的新密碼不一致', 'err'); return; }
-    setSaving(true);
-    try{
-      await apiPost('changePassword', {oldPassword: pw.oldPassword, newPassword: pw.newPassword});
-      showToast('密碼已更新', 'ok');
-      setPwBox(false); setPw({oldPassword:'', newPassword:'', confirm:''});
-    }catch(e){ showToast(e.message, 'err'); }
-    finally{ setSaving(false); }
-  }
 
   return (
     <div className="page">
@@ -436,36 +421,41 @@ function HomePage({session, status, pendingCount, goForms, onLogout, showToast})
         </div>
         <span className="material-icons" style={{color:'var(--muted)'}}>chevron_right</span>
       </div>
-      <div className="card row-between" style={{cursor:'pointer'}} onClick={()=>setPwBox(true)}>
-        <div style={{display:'flex', alignItems:'center', gap:10}}>
-          <span className="material-icons" style={{color:'var(--muted)'}}>lock</span>
-          <div style={{fontSize:14}}>修改密碼</div>
-        </div>
-        <span className="material-icons" style={{color:'var(--muted)'}}>chevron_right</span>
-      </div>
-      <div className="card row-between" style={{cursor:'pointer'}} onClick={()=>{ if(confirm('確定要登出嗎？')) onLogout(); }}>
-        <div style={{display:'flex', alignItems:'center', gap:10}}>
-          <span className="material-icons" style={{color:'var(--muted)'}}>logout</span>
-          <div style={{fontSize:14}}>登出</div>
-        </div>
-        <span className="material-icons" style={{color:'var(--muted)'}}>chevron_right</span>
-      </div>
 
-      {pwBox && (
-        <div className="modal-bg">
-          <div className="modal">
-            <h3><span className="material-icons">lock_reset</span>修改密碼</h3>
-            <div className="field"><label>原密碼</label><input type="password" value={pw.oldPassword} onChange={e=>setPw({...pw,oldPassword:e.target.value})} /></div>
-            <div className="field"><label>新密碼（至少4碼）</label><input type="password" value={pw.newPassword} onChange={e=>setPw({...pw,newPassword:e.target.value})} /></div>
-            <div className="field"><label>再次輸入新密碼</label><input type="password" value={pw.confirm} onChange={e=>setPw({...pw,confirm:e.target.value})} /></div>
-            <div className="modal-actions">
-              <button className="stay" onClick={()=>setPwBox(false)}>取消</button>
-              <button className="go" onClick={changePw} disabled={saving}>{saving?'儲存中...':'確認修改'}</button>
-            </div>
-          </div>
-        </div>
-      )}
       {payslipOpen && <PayslipModal onClose={()=>setPayslipOpen(false)} showToast={showToast} />}
+    </div>
+  );
+}
+
+/* ========================= 修改密碼（Modal） ========================= */
+function ChangePasswordModal({onClose, showToast}){
+  const [pw, setPw] = useState({oldPassword:'', newPassword:'', confirm:''});
+  const [saving, setSaving] = useState(false);
+
+  async function changePw(){
+    if(!pw.newPassword || pw.newPassword.length < 4){ showToast('新密碼至少 4 碼', 'err'); return; }
+    if(pw.newPassword !== pw.confirm){ showToast('兩次輸入的新密碼不一致', 'err'); return; }
+    setSaving(true);
+    try{
+      await apiPost('changePassword', {oldPassword: pw.oldPassword, newPassword: pw.newPassword});
+      showToast('密碼已更新', 'ok');
+      onClose();
+    }catch(e){ showToast(e.message, 'err'); }
+    finally{ setSaving(false); }
+  }
+
+  return (
+    <div className="modal-bg">
+      <div className="modal">
+        <h3><span className="material-icons">lock_reset</span>修改密碼</h3>
+        <div className="field"><label>原密碼</label><input type="password" value={pw.oldPassword} onChange={e=>setPw({...pw,oldPassword:e.target.value})} /></div>
+        <div className="field"><label>新密碼（至少4碼）</label><input type="password" value={pw.newPassword} onChange={e=>setPw({...pw,newPassword:e.target.value})} /></div>
+        <div className="field"><label>再次輸入新密碼</label><input type="password" value={pw.confirm} onChange={e=>setPw({...pw,confirm:e.target.value})} /></div>
+        <div className="modal-actions">
+          <button className="stay" onClick={onClose}>取消</button>
+          <button className="go" onClick={changePw} disabled={saving}>{saving?'儲存中...':'確認修改'}</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -563,6 +553,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   const [compBox, setCompBox] = useState(null);
   const [reviewBox, setReviewBox] = useState(null); // {req, mode:'approve'|'reject', comment}
   const [busy, setBusy] = useState(false);
+  const [colleagues, setColleagues] = useState([]);
 
   const unit = Number(settings?.leaveUnit) || 1;
   const shift = session.employee?.shift;
@@ -597,6 +588,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
       .catch(e=>showToast(e.message,'err')).finally(()=>setLoading(false));
   }
   useEffect(load, []);
+  useEffect(()=>{ apiGet('getColleagueList').then(setColleagues).catch(()=>{}); }, []);
 
   async function submitLeave(){
     if(!leaveBox.leaveType){ showToast('請選擇假別','err'); return; }
@@ -615,7 +607,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
         type:'請假', leaveType: leaveBox.leaveType,
         startTime: leaveBox.startDT.replace('T',' '),
         endTime: leaveBox.endDT.replace('T',' '),
-        hours: Number(leaveBox.hours), reason: leaveBox.reason || ''
+        hours: Number(leaveBox.hours), reason: leaveBox.reason || '', delegateId: leaveBox.delegateId || ''
       });
       showToast('請假申請已送出','ok');
       setLeaveBox(null); load();
@@ -649,7 +641,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   }
 
   function reqSummary(r){
-    if(r.type==='請假') return `${r.leaveType}　${r.startTime} ~ ${r.endTime}　${r.hours}小時`;
+    if(r.type==='請假') return `${r.leaveType}　${r.startTime} ~ ${r.endTime}　${r.hours}小時${r.delegateName?'　代理人：'+r.delegateName:''}`;
     return `加班日期 ${String(r.startTime).split(' ')[0]}　${r.hours}小時`;
   }
 
@@ -665,7 +657,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
       <div className="form-actions">
         <button className="leave" onClick={()=>{
           const today = new Date().toISOString().slice(0,10);
-          setLeaveBox({leaveType:'', startDT: today+'T'+shiftStart, endDT: today+'T'+shiftEnd, hours:'', reason:''});
+          setLeaveBox({leaveType:'', startDT: today+'T'+shiftStart, endDT: today+'T'+shiftEnd, hours:'', reason:'', delegateId:''});
         }}>
           <span className="material-icons">event_available</span>請假申請
         </button>
@@ -731,9 +723,17 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
               </select>
             </div>
             <div className="hint" style={{marginBottom:10}}>班別時間 {shiftStart}~{shiftEnd}，請假時段需在此範圍內</div>
-            <div className="field"><label>開始時間</label><input type="datetime-local" value={leaveBox.startDT} onChange={e=>updateLeaveField({startDT:e.target.value, endDT: leaveBox.endDT || e.target.value})} /></div>
-            <div className="field"><label>結束時間</label><input type="datetime-local" value={leaveBox.endDT} onChange={e=>updateLeaveField({endDT:e.target.value})} /></div>
+            <div className="field"><label>開始時間</label><input type="datetime-local" lang="zh-TW-u-hc-h23" value={leaveBox.startDT} onChange={e=>updateLeaveField({startDT:e.target.value, endDT: leaveBox.endDT || e.target.value})} /></div>
+            <div className="field"><label>結束時間</label><input type="datetime-local" lang="zh-TW-u-hc-h23" value={leaveBox.endDT} onChange={e=>updateLeaveField({endDT:e.target.value})} /></div>
             <div className="field"><label>請假時數（依起訖時間自動計算，最小單位 {unit} 小時，可手動調整）</label><input type="number" step={unit} min={unit} value={leaveBox.hours} onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} /></div>
+            <div className="field"><label>代理人（選填）</label>
+              <select value={leaveBox.delegateId} onChange={e=>setLeaveBox({...leaveBox, delegateId:e.target.value})}>
+                <option value="">不指定</option>
+                {colleagues.filter(c=>c.id!==session.employeeId).map(c=>(
+                  <option key={c.id} value={c.id}>{c.name}{c.department?'（'+c.department+'）':''}</option>
+                ))}
+              </select>
+            </div>
             <div className="field"><label>事由</label><textarea rows="2" value={leaveBox.reason} onChange={e=>setLeaveBox({...leaveBox, reason:e.target.value})}></textarea></div>
             <div className="modal-actions">
               <button className="stay" onClick={()=>setLeaveBox(null)}>取消</button>
@@ -1012,6 +1012,7 @@ function App(){
   const [status, setStatus] = useState(null);
   const [pending, setPending] = useState([]);
   const [toast, setToast] = useState(null);
+  const [pwOpen, setPwOpen] = useState(false);
 
   function showToast(msg, type){
     setToast({msg, type});
@@ -1038,7 +1039,20 @@ function App(){
     if(!settings) apiGet('getSettings').then(setSettings).catch(()=>{});
     refreshStatus();
     refreshPending();
-  }, [session]);
+    refreshProfile();
+  }, [session?.token]);
+
+  function refreshProfile(){
+    if(!session?.employeeId) return;
+    apiGet('getMyProfile').then(data=>{
+      setSession(prev=>{
+        if(!prev) return prev;
+        const next = {...prev, employee: data.employee, isManager: data.isManager};
+        try{ localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(next)); }catch(e){}
+        return next;
+      });
+    }).catch(()=>{}); // 背景刷新，失敗不影響現有畫面
+  }
 
   function refreshStatus(){
     if(!session?.employeeId) return;
@@ -1081,9 +1095,13 @@ function App(){
         <>
           <div className="topbar">
             <div className="store">{settings?.storeName || '員工專區'}</div>
+            <div className="right">
+              <button className="icon-btn" title="修改密碼" onClick={()=>setPwOpen(true)}><span className="material-icons">lock</span></button>
+              <button className="icon-btn" title="登出" onClick={()=>{ if(confirm('確定要登出嗎？')) logout(); }}><span className="material-icons">logout</span></button>
+            </div>
           </div>
 
-          {tab==='home' && <HomePage session={session} status={status} pendingCount={pending.length} goForms={()=>setTab('forms')} onLogout={logout} showToast={showToast} />}
+          {tab==='home' && <HomePage session={session} status={status} pendingCount={pending.length} goForms={()=>setTab('forms')} showToast={showToast} />}
           {tab==='punch' && <PunchPage session={session} status={status} refreshStatus={refreshStatus} showToast={showToast} />}
           {tab==='forms' && <FormsPage session={session} isManager={!!session.isManager} pending={pending} refreshPending={refreshPending} showToast={showToast} settings={settings} />}
           {tab==='schedule' && <CalendarPage session={session} showToast={showToast} />}
@@ -1102,6 +1120,7 @@ function App(){
           </div>
         </>
       )}
+      {pwOpen && <ChangePasswordModal onClose={()=>setPwOpen(false)} showToast={showToast} />}
       {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
     </div>
   );
