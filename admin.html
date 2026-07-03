@@ -56,15 +56,14 @@
 </head>
 <body>
 <div id="root"></div>
+<div id="boot-status" style="padding:60px 20px;text-align:center;color:#6b7268;font-family:sans-serif;font-size:13px;">頁面載入中，請稍候...</div>
+<div id="boot-error" style="display:none; position:fixed; left:12px; right:12px; bottom:12px; max-width:640px; margin:0 auto; background:#3a1717; color:#fbd7d0; border:1px solid #7a3b34; padding:14px 18px; border-radius:8px; font-size:12px; font-family:monospace; white-space:pre-wrap; z-index:9999;"></div>
 
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/plain" id="app-src">
 
-<script type="text/babel" data-presets="react">
 const {useState, useEffect, useMemo} = React;
 
-const GAS_URL = 'https://script.google.com/macros/s/請填入你的部署ID/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzW7073VQtPGa9cIn-pBNdfLClDdkEn8eBGVzDSkv26ZZWiHGcD5wikhx7KL5l4mlsC/exec';
 
 async function apiGet(action, params={}){
   const qs = new URLSearchParams({action, ...params}).toString();
@@ -311,8 +310,8 @@ function SummaryTab(){
     }catch(e){ alert(e.message); }
   }
   function doExportCSV(){
-    const headers = ['姓名','出勤天數','遲到次數','遲到分鐘','早退次數','早退分鐘','平日1.34倍(hr)','平日1.67倍(hr)','假日2倍(hr)','總工時(hr)','定位異常天數'];
-    const rows = summary.map(e=>[e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,e.ot134,e.ot167,e.ot2,e.workedHoursTotal,e.flaggedDays]);
+    const headers = ['姓名','出勤天數','遲到次數','遲到分鐘','早退次數','早退分鐘','平日1.34倍(hr)','平日1.67倍(hr)','休息日出勤(hr)','國定假日出勤(hr)','例假日出勤(hr)','總工時(hr)','平日加班上限是否超過','定位異常天數'];
+    const rows = summary.map(e=>[e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,e.otWeekday134,e.otWeekday167,e.otRestDayHours,e.otHolidayHours,e.otMandatoryRestHours,e.workedHoursTotal,e.otCapExceeded?'是':'否',e.flaggedDays]);
     exportCSV(`月結彙總_${month}.csv`, headers, rows);
   }
 
@@ -328,23 +327,31 @@ function SummaryTab(){
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
-            <thead><tr><th className="left">姓名</th><th>出勤天數</th><th>遲到次數</th><th>遲到分鐘</th><th>早退次數</th><th>早退分鐘</th><th>平日1.34倍(hr)</th><th>平日1.67倍(hr)</th><th>假日2倍(hr)</th><th>總工時(hr)</th><th>定位異常天數</th></tr></thead>
+            <thead><tr><th className="left">姓名</th><th>出勤天數</th><th>遲到次數</th><th>遲到分鐘</th><th>早退次數</th><th>早退分鐘</th><th>平日1.34倍(hr)</th><th>平日1.67倍(hr)</th><th>休息日(hr)</th><th>國定假日(hr)</th><th>例假日(hr)</th><th>總工時(hr)</th><th>定位異常</th></tr></thead>
             <tbody>
               {summary.map(e=>(
                 <tr key={e.employeeId}>
                   <td className="left"><b>{e.name}</b></td>
                   <td>{e.presentDays}</td><td>{e.lateCount}</td><td>{e.lateMinutes}</td>
                   <td>{e.earlyLeaveCount}</td><td>{e.earlyLeaveMinutes}</td>
-                  <td>{e.ot134}</td><td>{e.ot167}</td><td>{e.ot2}</td><td>{e.workedHoursTotal}</td>
+                  <td className={e.otCapExceeded?'flag':''}>{e.otWeekday134}</td>
+                  <td className={e.otCapExceeded?'flag':''}>{e.otWeekday167}</td>
+                  <td>{e.otRestDayHours}</td>
+                  <td>{e.otHolidayHours}</td>
+                  <td className={e.otMandatoryRestHours>0?'flag':''}>{e.otMandatoryRestHours}</td>
+                  <td>{e.workedHoursTotal}</td>
                   <td className={e.flaggedDays>0?'flag':''}>{e.flaggedDays}</td>
                 </tr>
               ))}
-              {summary.length===0 && <tr><td colSpan="11" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
+              {summary.length===0 && <tr><td colSpan="13" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
             </tbody>
           </table>
         )}
       </div>
-      <div className="hint">加班時數依「系統設定」的標準上下班時間自動判斷：平日超時前 2 小時算 1.34 倍，其後算 1.67 倍；六日出勤整段以 2 倍計算。此為概估值，正式薪資仍請於薪資系統核對後定案。</div>
+      <div className="hint">
+        依勞基法第24條分類計算：平日超時前2小時1.34倍、其後1.67倍；休息日出勤及國定假日出勤時數已依日期自動分類，實際加成倍率（休息日1.34/1.67/2.67倍、國定假日加發一日工資）將於薪資系統匯入後計算。<br/>
+        <span className="flag">紅字</span>代表該員工當月平日加班已超過設定的月上限（預設46小時，經工會或勞資會議同意可達54小時，但需符合每3個月不逾138小時），或有例假日出勤紀錄，請優先確認合法性。此為概估值，正式薪資仍請於薪資系統核對後定案。
+      </div>
     </div>
   );
 }
@@ -354,8 +361,16 @@ function SettingsTab(){
   const [s, setS] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
+  const [holidays, setHolidays] = useState([]);
+  const [newHoliday, setNewHoliday] = useState({date:'', name:''});
+  const DOW = ['日','一','二','三','四','五','六'];
 
-  function load(){ setLoading(true); apiGet('getSettings').then(setS).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
+  function load(){
+    setLoading(true);
+    Promise.all([apiGet('getSettings'), apiGet('getHolidays')])
+      .then(([set,h])=>{ setS(set); setHolidays(h); })
+      .catch(e=>alert(e.message)).finally(()=>setLoading(false));
+  }
   useEffect(load, []);
 
   async function save(){
@@ -369,9 +384,19 @@ function SettingsTab(){
       {enableHighAccuracy:true, timeout:8000}
     );
   }
+  async function addHoliday(){
+    if(!newHoliday.date){ alert('請選擇日期'); return; }
+    try{ await apiPost('addHoliday', newHoliday); setNewHoliday({date:'',name:''}); const h = await apiGet('getHolidays'); setHolidays(h); }
+    catch(e){ alert(e.message); }
+  }
+  async function removeHoliday(date){
+    try{ await apiPost('deleteHoliday', {date}); const h = await apiGet('getHolidays'); setHolidays(h); }
+    catch(e){ alert(e.message); }
+  }
 
   if(loading || !s) return <div className="hint">載入中...</div>;
   return (
+    <div>
     <div className="card" style={{maxWidth:560}}>
       <h3>店家 / 公司資訊</h3>
       <div className="field"><label>顯示名稱</label><input value={s.storeName} onChange={e=>setS({...s,storeName:e.target.value})} style={{width:'100%'}} /></div>
@@ -393,12 +418,94 @@ function SettingsTab(){
         <div className="field"><label>遲到寬限（分鐘）</label><input type="number" value={s.lateGrace} onChange={e=>setS({...s,lateGrace:e.target.value})} /></div>
         <div className="field"><label>早退寬限（分鐘）</label><input type="number" value={s.earlyGrace} onChange={e=>setS({...s,earlyGrace:e.target.value})} /></div>
       </div>
-      <button onClick={save}>儲存設定</button>
+
+      <h3 style={{marginTop:18}}>一例一休（勞基法第36條）</h3>
+      <div className="grid-2">
+        <div className="field"><label>休息日（可出勤，需依加成給薪）</label>
+          <select value={s.restDay} onChange={e=>setS({...s,restDay:Number(e.target.value)})}>{DOW.map((d,i)=><option key={i} value={i}>星期{d}</option>)}</select>
+        </div>
+        <div className="field"><label>例假日（原則不可出勤）</label>
+          <select value={s.mandatoryRestDay} onChange={e=>setS({...s,mandatoryRestDay:Number(e.target.value)})}>{DOW.map((d,i)=><option key={i} value={i}>星期{d}</option>)}</select>
+        </div>
+        <div className="field"><label>平日加班月上限（小時）</label><input type="number" value={s.monthlyOtCap} onChange={e=>setS({...s,monthlyOtCap:e.target.value})} /></div>
+      </div>
+      <div className="hint">依勞基法第32條，平日延長工時原則每月不得超過46小時（經工會或無工會則經勞資會議同意可延長至54小時，但每3個月不得逾138小時）；此上限不含國定假日與例假日出勤。</div>
+
+      <div style={{marginTop:16}}><button onClick={save}>儲存設定</button></div>
+    </div>
+
+    <div className="card" style={{maxWidth:560}}>
+      <h3>國定假日清單</h3>
+      <div className="hint">於此新增當年度國定假日日期，系統會自動將該日出勤歸類為「國定假日出勤」，依法加發一日工資。</div>
+      <div className="toolbar">
+        <input type="date" value={newHoliday.date} onChange={e=>setNewHoliday({...newHoliday,date:e.target.value})} />
+        <input value={newHoliday.name} onChange={e=>setNewHoliday({...newHoliday,name:e.target.value})} placeholder="假日名稱（例：中秋節）" />
+        <button className="ghost sm" onClick={addHoliday}>＋ 新增</button>
+      </div>
+      <table>
+        <thead><tr><th className="left">日期</th><th className="left">名稱</th><th>操作</th></tr></thead>
+        <tbody>
+          {holidays.map(h=>(
+            <tr key={h.date}><td className="left">{h.date}</td><td className="left">{h.name}</td>
+              <td><button className="danger sm" onClick={()=>removeHoliday(h.date)}>刪除</button></td></tr>
+          ))}
+          {holidays.length===0 && <tr><td colSpan="3" className="hint" style={{textAlign:'center'}}>尚未設定國定假日</td></tr>}
+        </tbody>
+      </table>
+    </div>
     </div>
   );
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+
+<script>
+(function(){
+  function showError(msg){
+    var box = document.getElementById('boot-error');
+    if(box){ box.style.display='block'; box.textContent = msg; }
+  }
+  window.addEventListener('error', function(e){
+    showError('頁面發生錯誤：' + (e.message||e.error) + '\n(檔案:' + (e.filename||'') + ' 行:' + (e.lineno||'') + ')');
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    showError('未處理的錯誤：' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+  });
+
+  function loadScript(src){
+    return new Promise(function(resolve, reject){
+      var s = document.createElement('script');
+      s.src = src; s.onload = resolve; s.onerror = function(){ reject(new Error(src + ' 載入失敗')); };
+      document.head.appendChild(s);
+    });
+  }
+  function loadWithFallback(urls, idx){
+    idx = idx || 0;
+    if(idx >= urls.length) return Promise.reject(new Error('所有來源皆載入失敗：' + urls.join(' / ')));
+    return loadScript(urls[idx]).catch(function(){ return loadWithFallback(urls, idx+1); });
+  }
+
+  var CDN = {
+    react: ['https://unpkg.com/react@18/umd/react.production.min.js', 'https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js'],
+    reactDom: ['https://unpkg.com/react-dom@18/umd/react-dom.production.min.js', 'https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js'],
+    babel: ['https://unpkg.com/@babel/standalone/babel.min.js', 'https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js']
+  };
+
+  loadWithFallback(CDN.react)
+    .then(function(){ return loadWithFallback(CDN.reactDom); })
+    .then(function(){ return loadWithFallback(CDN.babel); })
+    .then(function(){
+      var src = document.getElementById('app-src').textContent;
+      var compiled = Babel.transform(src, {presets:['react']}).code;
+      var statusEl = document.getElementById('boot-status');
+      if(statusEl) statusEl.remove();
+      (0, eval)(compiled);
+    })
+    .catch(function(err){
+      showError('必要程式庫載入失敗，畫面因此空白。\n原因：' + err.message + '\n\n最常見情況：瀏覽器擴充功能（例如廣告攔截／隱私保護外掛）封鎖了 unpkg.com 或 jsdelivr.net，或目前網路無法連線到這兩個網域。\n\n請嘗試：\n1. 停用廣告攔截類擴充功能後重新整理本頁\n2. 改用無痕視窗開啟同一網址測試\n3. 確認網路能連上 unpkg.com 與 cdn.jsdelivr.net');
+    });
+})();
 </script>
 </body>
 </html>

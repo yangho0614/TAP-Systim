@@ -102,16 +102,15 @@
 </head>
 <body>
 <div id="root"></div>
+<div id="boot-status" style="padding:60px 20px;text-align:center;color:#93a598;font-family:sans-serif;font-size:13px;">頁面載入中，請稍候...</div>
+<div id="boot-error" style="display:none; position:fixed; left:12px; right:12px; bottom:12px; max-width:640px; margin:0 auto; background:#3a1717; color:#fbd7d0; border:1px solid #7a3b34; padding:14px 18px; border-radius:8px; font-size:12px; font-family:monospace; white-space:pre-wrap; z-index:9999;"></div>
 
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/plain" id="app-src">
 
-<script type="text/babel" data-presets="react">
 const {useState, useEffect, useRef} = React;
 
 /* ⚠️ 部署 Code.gs 為網頁應用程式後，把網址貼在這裡 */
-const GAS_URL = 'https://script.google.com/macros/s/請填入你的部署ID/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzW7073VQtPGa9cIn-pBNdfLClDdkEn8eBGVzDSkv26ZZWiHGcD5wikhx7KL5l4mlsC/exec';
 
 async function apiGet(action, params={}){
   const qs = new URLSearchParams({action, ...params}).toString();
@@ -282,6 +281,54 @@ function App(){
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+
+<script>
+(function(){
+  function showError(msg){
+    var box = document.getElementById('boot-error');
+    if(box){ box.style.display='block'; box.textContent = msg; }
+  }
+  window.addEventListener('error', function(e){
+    showError('頁面發生錯誤：' + (e.message||e.error) + '\n(檔案:' + (e.filename||'') + ' 行:' + (e.lineno||'') + ')');
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    showError('未處理的錯誤：' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+  });
+
+  function loadScript(src){
+    return new Promise(function(resolve, reject){
+      var s = document.createElement('script');
+      s.src = src; s.onload = resolve; s.onerror = function(){ reject(new Error(src + ' 載入失敗')); };
+      document.head.appendChild(s);
+    });
+  }
+  function loadWithFallback(urls, idx){
+    idx = idx || 0;
+    if(idx >= urls.length) return Promise.reject(new Error('所有來源皆載入失敗：' + urls.join(' / ')));
+    return loadScript(urls[idx]).catch(function(){ return loadWithFallback(urls, idx+1); });
+  }
+
+  var CDN = {
+    react: ['https://unpkg.com/react@18/umd/react.production.min.js', 'https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js'],
+    reactDom: ['https://unpkg.com/react-dom@18/umd/react-dom.production.min.js', 'https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js'],
+    babel: ['https://unpkg.com/@babel/standalone/babel.min.js', 'https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js']
+  };
+
+  loadWithFallback(CDN.react)
+    .then(function(){ return loadWithFallback(CDN.reactDom); })
+    .then(function(){ return loadWithFallback(CDN.babel); })
+    .then(function(){
+      var src = document.getElementById('app-src').textContent;
+      var compiled = Babel.transform(src, {presets:['react']}).code;
+      var statusEl = document.getElementById('boot-status');
+      if(statusEl) statusEl.remove();
+      (0, eval)(compiled);
+    })
+    .catch(function(err){
+      showError('必要程式庫載入失敗，畫面因此空白。\n原因：' + err.message + '\n\n最常見情況：瀏覽器擴充功能（例如廣告攔截／隱私保護外掛）封鎖了 unpkg.com 或 jsdelivr.net，或目前網路無法連線到這兩個網域。\n\n請嘗試：\n1. 停用廣告攔截類擴充功能後重新整理本頁\n2. 改用無痕視窗開啟同一網址測試\n3. 確認網路能連上 unpkg.com 與 cdn.jsdelivr.net');
+    });
+})();
 </script>
 </body>
 </html>
