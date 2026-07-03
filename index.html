@@ -719,7 +719,8 @@ function CalendarPage({session, showToast}){
   }, []);
 
   const [y, m] = month.split('-').map(Number);
-  const firstDow = new Date(y, m-1, 1).getDay();
+  const firstDowSun = new Date(y, m-1, 1).getDay();
+  const firstDow = (firstDowSun + 6) % 7; // 轉換成週一為0的排列
   const daysInMonth = new Date(y, m, 0).getDate();
   const holidayMap = {}; holidays.forEach(h=>{ holidayMap[h.date] = h; });
   function leavesOnDate(dateStr){
@@ -761,7 +762,7 @@ function CalendarPage({session, showToast}){
         {loading ? <div className="hint" style={{textAlign:'center'}}>載入中...</div> : (
           <>
             <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:4, textAlign:'center', fontSize:11, color:'var(--muted)', marginBottom:4}}>
-              {['日','一','二','三','四','五','六'].map(d=><div key={d}>{d}</div>)}
+              {['一','二','三','四','五','六','日'].map(d=><div key={d}>{d}</div>)}
             </div>
             <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:4}}>
               {cells.map((d,idx)=>{

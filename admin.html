@@ -186,7 +186,7 @@ function tenureText(hireDate){
   const y = Math.floor(months/12), m = months%12;
   let leave = 0;
   const years = months/12;
-  if(years >= 10) leave = Math.min(30, 15 + Math.floor(years-10));
+  if(years >= 10) leave = Math.min(30, 16 + Math.floor(years-10));
   else if(years >= 5) leave = 15;
   else if(years >= 3) leave = 14;
   else if(years >= 2) leave = 10;
@@ -1387,6 +1387,7 @@ function HolidaysTab(){
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({date:'', name:'', type:'國定假日'});
+  const [importing, setImporting] = useState(false);
 
   function load(){ setLoading(true); apiGet('getHolidays').then(setHolidays).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
   useEffect(load, []);
@@ -1399,9 +1400,27 @@ function HolidaysTab(){
   async function remove(date){
     try{ await apiPost('deleteHoliday', {date}); load(); }catch(e){ alert(e.message); }
   }
+  async function importOfficial(year){
+    if(!confirm(`匯入 ${year} 年行政院人事行政總處公告的國定假日（含小年夜、春節、補假等），已存在的日期會自動略過，確定匯入？`)) return;
+    setImporting(true);
+    try{
+      const r = await apiPost('importOfficialHolidays', {year});
+      alert(`匯入完成：新增 ${r.added} 筆，略過已存在 ${r.skipped} 筆（共 ${r.total} 筆）`);
+      load();
+    }catch(e){ alert(e.message); }
+    finally{ setImporting(false); }
+  }
 
   return (
     <div>
+      <div className="card">
+        <h3><span className="material-icons">event_available</span> 匯入台灣行政機關行事曆</h3>
+        <div className="hint">依行政院人事行政總處公告的辦公日曆表一鍵匯入國定假日（含小年夜、除夕、春節、和平紀念日等法定補假），資料來源：<a href="https://www.dgpa.gov.tw/information?uid=41&amp;pid=12573" target="_blank" rel="noopener" style={{color:'var(--brand)'}}>行政院人事行政總處</a></div>
+        <div className="toolbar" style={{marginTop:10}}>
+          <button onClick={()=>importOfficial('2026')} disabled={importing}>{importing?'匯入中...':'匯入 2026 年（115年）行事曆'}</button>
+        </div>
+        <div className="hint">目前系統內建 2026 年資料；未來年度公告後（每年約6月底）請再請開發者更新，或於下方手動新增。</div>
+      </div>
       <div className="card">
         <h3><span className="material-icons">event_busy</span> 新增假日</h3>
         <div className="hint">國定假日出勤依法加發一日工資；公司自訂休假日（例如店休日）出勤則比照休息日，依4/8/12小時級距加成計算。</div>
@@ -1595,10 +1614,12 @@ function RequestsTab({month}){
 /* ========================= 特休設定 ========================= */
 function AnnualLeaveTab({employees}){
   const [year, setYear] = useState(String(new Date().getFullYear()));
+  const [system, setSystem] = useState('calendar');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [edits, setEdits] = useState({});
   const [savingId, setSavingId] = useState(null);
+  const [estimatingId, setEstimatingId] = useState(null);
 
   function load(){
     setLoading(true);
@@ -1616,6 +1637,14 @@ function AnnualLeaveTab({employees}){
     }catch(e){ alert(e.message); }
     finally{ setSavingId(null); }
   }
+  async function estimate(empId){
+    setEstimatingId(empId);
+    try{
+      const r = await apiGet('estimateAnnualLeave', {employeeId: empId, year, system});
+      setEdits({...edits, [empId]: r.hours});
+    }catch(e){ alert(e.message); }
+    finally{ setEstimatingId(null); }
+  }
 
   const years = [];
   const thisYear = new Date().getFullYear();
@@ -1626,10 +1655,18 @@ function AnnualLeaveTab({employees}){
       <div className="toolbar">
         <label style={{marginBottom:0}}>年度</label>
         <select value={year} onChange={e=>setYear(e.target.value)}>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
+        <label style={{marginBottom:0}}>試算方式</label>
+        <select value={system} onChange={e=>setSystem(e.target.value)}>
+          <option value="calendar">歷年制（每年1/1~12/31）</option>
+          <option value="anniversary">週年制（到職日起算）</option>
+        </select>
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
-      <div className="hint" style={{marginBottom:12}}>核定每位員工當年度的特休「時數」（1天＝8小時，例如14天＝112小時）。員工申請特休時系統會自動檢查並扣抵剩餘額度。可參考各員工編輯視窗內依到職日算出的法定天數。</div>
+      <div className="hint" style={{marginBottom:12}}>
+        核定每位員工當年度的特休「時數」（1天＝8小時）。按「試算」可依到職日自動帶入建議天數，仍可手動調整後再儲存。
+        <br/>⚠ 系統試算僅供參考，正式天數請以<a href="https://calcr2.mol.gov.tw/RestDays" target="_blank" rel="noopener" style={{color:'var(--brand)'}}>勞動部特別休假日數試算系統</a>或人資顧問確認為準。
+      </div>
       <div className="card">
         {loading || !data ? <div className="hint">載入中...</div> : (
           <table>
@@ -1647,7 +1684,10 @@ function AnnualLeaveTab({employees}){
                     <td><input type="number" min="0" value={editVal} onChange={e=>setEdits({...edits, [emp.id]: e.target.value})} style={{width:80}} /></td>
                     <td>{used}</td>
                     <td className={granted-used < 8 ? 'flag' : ''}>{Math.max(0, granted-used)}</td>
-                    <td><button className="ghost sm" onClick={()=>save(emp.id)} disabled={savingId===emp.id}>{savingId===emp.id?'儲存中':'儲存'}</button></td>
+                    <td>
+                      <button className="ghost sm" onClick={()=>estimate(emp.id)} disabled={estimatingId===emp.id || !emp.hireDate} title={!emp.hireDate?'請先設定到職日':''}>{estimatingId===emp.id?'試算中':'試算'}</button>{' '}
+                      <button className="ghost sm" onClick={()=>save(emp.id)} disabled={savingId===emp.id}>{savingId===emp.id?'儲存中':'儲存'}</button>
+                    </td>
                   </tr>
                 );
               })}
