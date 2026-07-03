@@ -9,9 +9,9 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
   :root{
-    --ink:#1f2a24; --paper:#f6f4ee; --paper-2:#ffffff; --line:#d9d3c3;
-    --brand:#2f5d4f; --brand-dark:#1c3a30; --accent:#d9a441; --danger:#a13d3d; --muted:#6b7268;
-    --income:#2f5d4f; --outcome:#a13d3d;
+    --ink:#22242C; --paper:#F2F2F2; --paper-2:#ffffff; --line:#DCDCDC;
+    --brand:#00ADB5; --brand-dark:#222831; --accent:#00ADB5; --danger:#a13d3d; --muted:#6D7278;
+    --income:#00858C; --outcome:#a13d3d;
   }
   *{box-sizing:border-box;}
   body{margin:0; background:var(--paper); color:var(--ink); font-family:'Noto Sans TC',sans-serif; font-size:14px;}
@@ -19,14 +19,14 @@
   .mono{font-family:'Roboto Mono',monospace;}
   .material-icons{font-size:19px; vertical-align:middle; line-height:1;}
   .app-shell{display:flex; min-height:100vh;}
-  .sidebar{width:212px; flex-shrink:0; background:var(--brand-dark); color:#eee7d9; padding:22px 0; display:flex; flex-direction:column;}
+  .sidebar{width:212px; flex-shrink:0; background:var(--brand-dark); color:#EEEEEE; padding:22px 0; display:flex; flex-direction:column;}
   .brand{padding:0 18px 18px 18px; border-bottom:1px solid rgba(255,255,255,.12); margin-bottom:10px;}
   .brand .mark{font-family:'Noto Sans TC',sans-serif; font-size:19px; font-weight:700; color:#f3ead3;}
   .brand .sub{font-size:11px; color:#b9c9bf; margin-top:2px;}
   .navitem{padding:10px 18px; cursor:pointer; font-size:13px; border-left:3px solid transparent; color:#d9dfd5; display:flex; align-items:center; gap:9px;}
   .navitem:hover{background:rgba(255,255,255,.06);}
   .navitem.active{background:rgba(255,255,255,.1); border-left-color:var(--accent); color:#fff; font-weight:700;}
-  .navitem .material-icons{font-size:18px; color:#9fb3a5;}
+  .navitem .material-icons{font-size:18px; color:#A6ACB3;}
   .navitem.active .material-icons{color:var(--accent);}
   .nav-group-label{padding:14px 18px 4px 18px; font-size:10.5px; letter-spacing:1px; color:#8fa397; text-transform:uppercase;}
   .main{flex:1; min-width:0;}
@@ -41,7 +41,7 @@
   button.danger:hover{background:var(--danger); color:#fff;}
   button.sm{padding:4px 9px; font-size:12px;}
   button.icon-btn{background:transparent; color:var(--muted); padding:5px; border-radius:50%;}
-  button.icon-btn:hover{background:#eef0e7; color:var(--brand-dark);}
+  button.icon-btn:hover{background:#EDEDED; color:var(--brand-dark);}
   button:disabled{opacity:.45; cursor:not-allowed;}
   input,select{font-size:13px; border:1px solid var(--line); border-radius:6px; padding:7px 9px; background:#fff; color:var(--ink);}
   input[type=number]{font-family:'Roboto Mono',monospace;}
@@ -50,15 +50,15 @@
   .field{margin-bottom:10px;}
   table{border-collapse:collapse; width:100%; background:var(--paper-2); font-size:12.5px;}
   th,td{border:1px solid var(--line); padding:6px 8px; text-align:right; white-space:nowrap;}
-  th{background:#eef0e7; color:var(--brand-dark); text-align:center;}
+  th{background:#EDEDED; color:var(--brand-dark); text-align:center;}
   td.left,th.left{text-align:left;}
   td input[type=number]{width:64px; text-align:right; padding:4px 5px;}
-  tr.total-row td{background:#eef0e7; font-weight:700;}
+  tr.total-row td{background:#EDEDED; font-weight:700;}
   .num-pos{color:var(--income);}
   .num-neg{color:var(--outcome);}
   .card{background:var(--paper-2); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:18px;}
   .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:0 18px;}
-  .badge{display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:2px 9px; border-radius:20px; background:#e4e9de; color:var(--brand-dark); font-weight:700;}
+  .badge{display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:2px 9px; border-radius:20px; background:#D6F1F2; color:var(--brand-dark); font-weight:700;}
   .badge.warn{background:#f6d9ce; color:#7a3b1e;}
   .badge .material-icons{font-size:13px;}
   .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px;}
@@ -80,10 +80,10 @@
   .payslip h2{font-size:15px; text-align:center; border-bottom:2px solid var(--brand-dark); padding-bottom:8px; margin-bottom:10px;}
   .payslip .meta{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:10px;}
   .payslip table{font-size:12px;}
-  .payslip th{background:#eef0e7;}
+  .payslip th{background:#EDEDED;}
   .payslip .grand{
     display:flex; justify-content:space-between; align-items:center;
-    background:#eef0e7; padding:10px 14px; margin-top:10px; border-radius:4px;
+    background:#EDEDED; padding:10px 14px; margin-top:10px; border-radius:4px;
     font-family:'Roboto Mono',monospace; font-size:16px; font-weight:700; color:var(--brand-dark);
   }
   .payslip .foot-note{font-size:11px; color:var(--muted); margin-top:10px;}
@@ -91,7 +91,7 @@
   /* 登入畫面 */
   .login-wrap{
     min-height:100vh; display:flex; align-items:center; justify-content:center;
-    background:radial-gradient(circle at 50% -10%, #1c2b23, #0f1712 65%);
+    background:radial-gradient(circle at 50% -10%, #282E38, #1a1e24 65%);
     padding:20px;
   }
   .login-card{
@@ -458,8 +458,8 @@ function App(){
           );
         })}
         <div style={{padding:'14px 18px', marginTop:'auto', display:'flex', flexDirection:'column', gap:8}}>
-          <div style={{fontSize:11, color:'#9fb3a5'}}><a href="index.html" style={{color:'#eee7d9'}}>← 回到打卡頁</a></div>
-          <button className="ghost sm" style={{background:'transparent', color:'#eee7d9', borderColor:'#5c7568', justifyContent:'center'}} onClick={()=>{ if(confirm('確定要登出嗎？')) logout(); }}>
+          <div style={{fontSize:11, color:'#A6ACB3'}}><a href="index.html" style={{color:'#EEEEEE'}}>← 回到打卡頁</a></div>
+          <button className="ghost sm" style={{background:'transparent', color:'#EEEEEE', borderColor:'#454B55', justifyContent:'center'}} onClick={()=>{ if(confirm('確定要登出嗎？')) logout(); }}>
             <span className="material-icons" style={{fontSize:16}}>logout</span>登出
           </button>
         </div>

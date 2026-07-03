@@ -9,9 +9,9 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
   :root{
-    --bg-1:#101915; --bg-2:#16221c; --panel:#1c2b23; --panel-2:#213329;
-    --line:#2c3c33; --gold:#d9a441; --green:#4f9b6f; --red:#c05a4f; --blue:#5b8db8;
-    --text:#eef1ec; --muted:#93a598;
+    --bg-1:#222831; --bg-2:#282E38; --panel:#393E46; --panel-2:#454B55;
+    --line:#4F5761; --gold:#00ADB5; --green:#4f9b6f; --red:#c05a4f; --blue:#5b8db8;
+    --text:#EEEEEE; --muted:#9CA3AC;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
@@ -129,7 +129,7 @@
   /* 底部分頁列 */
   .tabbar{
     position:fixed; bottom:0; left:0; right:0; z-index:40;
-    background:#141f19f2; border-top:1px solid var(--line); backdrop-filter:blur(8px);
+    background:#222831f2; border-top:1px solid var(--line); backdrop-filter:blur(8px);
   }
   .tabbar-inner{ max-width:480px; margin:0 auto; display:flex; }
   .tab{
@@ -158,7 +158,7 @@
   label{ font-size:12px; color:var(--muted); display:block; margin-bottom:5px; }
   input,select,textarea{
     width:100%; padding:12px 13px; border-radius:9px; border:1px solid var(--line);
-    background:#101915; color:var(--text); font-size:14px; font-family:'Noto Sans TC',sans-serif;
+    background:#1B2027; color:var(--text); font-size:14px; font-family:'Noto Sans TC',sans-serif;
   }
   select{ appearance:none; }
   input[type=date],input[type=time],input[type=datetime-local]{
@@ -213,7 +213,7 @@
 
   .toast{
     position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
-    background:#203026f0; border:1px solid var(--line); padding:12px 20px; border-radius:10px;
+    background:#282E38f0; border:1px solid var(--line); padding:12px 20px; border-radius:10px;
     font-size:13.5px; z-index:90; max-width:88vw; text-align:center;
   }
   .toast.ok{ border-color:var(--green); }
@@ -326,6 +326,14 @@ function useClock(){
 }
 function pad(v){ return String(v).padStart(2,'0'); }
 function hhmm(dt){ return dt ? String(dt).split(' ')[1]?.slice(0,5) || '—' : '—'; }
+function formatDateTimeReadable(dtLocalValue){
+  if(!dtLocalValue) return '';
+  const d = new Date(dtLocalValue);
+  if(isNaN(d.getTime())) return '';
+  const dow = '日一二三四五六'[d.getDay()];
+  const pad2 = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}（${dow}）${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
 const LEAVE_TYPES = ['特休', '補休', '事假', '病假', '生理假', '婚假', '喪假', '公假', '公傷病假', '產假', '產檢假', '陪產假', '家庭照顧假', '災防假'];
 const STATUS_CLASS = {'待審核':'pending', '已核准':'ok', '已駁回':'no', '已取消':'cancel'};
 
@@ -723,8 +731,16 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
               </select>
             </div>
             <div className="hint" style={{marginBottom:10}}>班別時間 {shiftStart}~{shiftEnd}，請假時段需在此範圍內</div>
-            <div className="field"><label>開始時間</label><input type="datetime-local" lang="zh-TW-u-hc-h23" value={leaveBox.startDT} onChange={e=>updateLeaveField({startDT:e.target.value, endDT: leaveBox.endDT || e.target.value})} /></div>
-            <div className="field"><label>結束時間</label><input type="datetime-local" lang="zh-TW-u-hc-h23" value={leaveBox.endDT} onChange={e=>updateLeaveField({endDT:e.target.value})} /></div>
+            <div className="field">
+              <label>開始時間</label>
+              <input type="datetime-local" lang="zh-TW-u-hc-h23" value={leaveBox.startDT} onChange={e=>updateLeaveField({startDT:e.target.value, endDT: leaveBox.endDT || e.target.value})} />
+              {leaveBox.startDT && <div className="hint" style={{marginTop:5}}>{formatDateTimeReadable(leaveBox.startDT)}</div>}
+            </div>
+            <div className="field">
+              <label>結束時間</label>
+              <input type="datetime-local" lang="zh-TW-u-hc-h23" value={leaveBox.endDT} onChange={e=>updateLeaveField({endDT:e.target.value})} />
+              {leaveBox.endDT && <div className="hint" style={{marginTop:5}}>{formatDateTimeReadable(leaveBox.endDT)}</div>}
+            </div>
             <div className="field"><label>請假時數（依起訖時間自動計算，最小單位 {unit} 小時，可手動調整）</label><input type="number" step={unit} min={unit} value={leaveBox.hours} onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} /></div>
             <div className="field"><label>代理人（選填）</label>
               <select value={leaveBox.delegateId} onChange={e=>setLeaveBox({...leaveBox, delegateId:e.target.value})}>
@@ -1078,7 +1094,7 @@ function App(){
 
   const TABS = [
     {id:'home', label:'首頁', icon:'home'},
-    {id:'punch', label:'打卡', icon:'fingerprint'},
+    {id:'punch', label:'打卡', icon:'how_to_reg'},
     {id:'forms', label:'表單', icon:'description'},
     {id:'schedule', label:'班表', icon:'calendar_month'},
     {id:'news', label:'公告', icon:'campaign'},
