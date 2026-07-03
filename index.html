@@ -17,10 +17,10 @@
   html,body{margin:0;padding:0;}
   body{
     background:radial-gradient(circle at 50% -10%, var(--bg-2), var(--bg-1) 60%);
-    color:var(--text); font-family:'Noto Sans TC',sans-serif; min-height:100vh;
+    color:var(--text); font-family:'Noto Sans TC',sans-serif; min-height:100vh; min-height:100dvh;
   }
   .material-icons{vertical-align:middle; line-height:1;}
-  .app{ max-width:480px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; padding-bottom:76px; }
+  .app{ max-width:480px; margin:0 auto; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; padding-bottom:76px; }
 
   /* 頂欄 */
   .topbar{
@@ -174,13 +174,16 @@
 
   /* Modal */
   .modal-bg{
-    position:fixed; inset:0; background:rgba(6,10,8,0.72); backdrop-filter:blur(2px);
-    display:flex; align-items:flex-end; justify-content:center; z-index:60;
+    position:fixed; inset:0; height:100vh; height:100dvh; background:rgba(6,10,8,0.72); backdrop-filter:blur(2px);
+    display:flex; align-items:flex-end; justify-content:center; z-index:60; overflow:hidden;
   }
   @media(min-width:520px){ .modal-bg{ align-items:center; padding:20px; } }
   .modal{
     background:var(--panel); border:1px solid var(--line); border-radius:18px 18px 0 0;
-    padding:24px 22px calc(24px + env(safe-area-inset-bottom)) 22px; width:100%; max-width:480px; max-height:88vh; overflow:auto;
+    padding:20px 20px calc(20px + env(safe-area-inset-bottom)) 20px;
+    width:100%; max-width:480px;
+    max-height:85vh; max-height:85dvh; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    box-sizing:border-box;
   }
   @media(min-width:520px){ .modal{ border-radius:18px; } }
   .modal h3{ font-size:16.5px; font-weight:700; margin:0 0 16px 0; display:flex; align-items:center; gap:8px; }
@@ -394,7 +397,7 @@ function HomePage({session, status, pendingCount, goForms, onLogout, showToast})
         </div>
         <span className="material-icons" style={{color:'var(--muted)'}}>chevron_right</span>
       </div>
-      <div className="card row-between" style={{cursor:'pointer'}} onClick={onLogout}>
+      <div className="card row-between" style={{cursor:'pointer'}} onClick={()=>{ if(confirm('確定要登出嗎？')) onLogout(); }}>
         <div style={{display:'flex', alignItems:'center', gap:10}}>
           <span className="material-icons" style={{color:'var(--muted)'}}>logout</span>
           <div style={{fontSize:14}}>登出</div>
@@ -516,6 +519,27 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   const [busy, setBusy] = useState(false);
 
   const unit = Number(settings?.leaveUnit) || 1;
+  const shift = session.employee?.shift;
+  const shiftStart = shift?.workStart || settings?.workStart || '09:00';
+  const shiftEnd = shift?.workEnd || settings?.workEnd || '18:00';
+
+  function roundToUnit(h){
+    return Math.round(h / unit) * unit;
+  }
+  function computeHours(startDate, startTime, endDate, endTime){
+    if(!startDate || !startTime || !endDate || !endTime) return '';
+    const start = new Date(startDate+'T'+startTime+':00');
+    const end = new Date(endDate+'T'+endTime+':00');
+    if(isNaN(start.getTime()) || isNaN(end.getTime()) || end<=start) return '';
+    const diff = (end-start)/3600000;
+    return roundToUnit(diff);
+  }
+  function updateLeaveField(patch){
+    const next = {...leaveBox, ...patch};
+    const auto = computeHours(next.startDate, next.startTime, next.endDate, next.endTime);
+    if(auto !== '') next.hours = auto;
+    setLeaveBox(next);
+  }
 
   function load(){
     setLoading(true);
@@ -528,6 +552,11 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   async function submitLeave(){
     if(!leaveBox.leaveType){ showToast('請選擇假別','err'); return; }
     if(!leaveBox.startDate || !leaveBox.startTime || !leaveBox.endDate || !leaveBox.endTime){ showToast('請填寫起訖時間','err'); return; }
+    if(new Date(leaveBox.endDate+'T'+leaveBox.endTime+':00') <= new Date(leaveBox.startDate+'T'+leaveBox.startTime+':00')){ showToast('結束時間必須晚於開始時間','err'); return; }
+    if(leaveBox.startTime < shiftStart || leaveBox.endTime > shiftEnd){
+      showToast(`請假時間需在班別時間內（${shiftStart}~${shiftEnd}），請重新選擇`, 'err');
+      return;
+    }
     if(!(Number(leaveBox.hours) > 0)){ showToast('請填寫時數','err'); return; }
     setBusy(true);
     try{
@@ -647,13 +676,14 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 })}
               </select>
             </div>
+            <div className="hint" style={{marginBottom:10}}>班別時間 {shiftStart}~{shiftEnd}，請假時段需在此範圍內</div>
             <div className="grid-2m">
-              <div className="field"><label>開始日期</label><input type="date" value={leaveBox.startDate} onChange={e=>setLeaveBox({...leaveBox, startDate:e.target.value, endDate: leaveBox.endDate || e.target.value})} /></div>
-              <div className="field"><label>開始時間</label><input type="time" value={leaveBox.startTime} onChange={e=>setLeaveBox({...leaveBox, startTime:e.target.value})} /></div>
-              <div className="field"><label>結束日期</label><input type="date" value={leaveBox.endDate} onChange={e=>setLeaveBox({...leaveBox, endDate:e.target.value})} /></div>
-              <div className="field"><label>結束時間</label><input type="time" value={leaveBox.endTime} onChange={e=>setLeaveBox({...leaveBox, endTime:e.target.value})} /></div>
+              <div className="field"><label>開始日期</label><input type="date" value={leaveBox.startDate} onChange={e=>updateLeaveField({startDate:e.target.value, endDate: leaveBox.endDate || e.target.value})} /></div>
+              <div className="field"><label>開始時間</label><input type="time" min={shiftStart} max={shiftEnd} value={leaveBox.startTime} onChange={e=>updateLeaveField({startTime:e.target.value})} /></div>
+              <div className="field"><label>結束日期</label><input type="date" value={leaveBox.endDate} onChange={e=>updateLeaveField({endDate:e.target.value})} /></div>
+              <div className="field"><label>結束時間</label><input type="time" min={shiftStart} max={shiftEnd} value={leaveBox.endTime} onChange={e=>updateLeaveField({endTime:e.target.value})} /></div>
             </div>
-            <div className="field"><label>請假時數（最小單位 {unit} 小時）</label><input type="number" step={unit} min={unit} value={leaveBox.hours} onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} /></div>
+            <div className="field"><label>請假時數（依起訖時間自動計算，最小單位 {unit} 小時，可手動調整）</label><input type="number" step={unit} min={unit} value={leaveBox.hours} onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} /></div>
             <div className="field"><label>事由</label><textarea rows="2" value={leaveBox.reason} onChange={e=>setLeaveBox({...leaveBox, reason:e.target.value})}></textarea></div>
             <div className="modal-actions">
               <button className="stay" onClick={()=>setLeaveBox(null)}>取消</button>
