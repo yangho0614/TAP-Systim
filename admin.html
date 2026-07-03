@@ -458,7 +458,7 @@ function App(){
         })}
         <div style={{padding:'14px 18px', marginTop:'auto', display:'flex', flexDirection:'column', gap:8}}>
           <div style={{fontSize:11, color:'#9fb3a5'}}><a href="index.html" style={{color:'#eee7d9'}}>← 回到打卡頁</a></div>
-          <button className="ghost sm" style={{background:'transparent', color:'#eee7d9', borderColor:'#5c7568', justifyContent:'center'}} onClick={logout}>
+          <button className="ghost sm" style={{background:'transparent', color:'#eee7d9', borderColor:'#5c7568', justifyContent:'center'}} onClick={()=>{ if(confirm('確定要登出嗎？')) logout(); }}>
             <span className="material-icons" style={{fontSize:16}}>logout</span>登出
           </button>
         </div>
