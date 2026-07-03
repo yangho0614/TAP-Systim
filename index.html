@@ -3,135 +3,213 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>員工打卡</title>
+<title>員工專區</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
   :root{
-    --ink:#1c2420;
-    --bg-1:#101915;
-    --bg-2:#16221c;
-    --panel:#1c2b23;
-    --line:#2c3c33;
-    --gold:#d9a441;
-    --green:#4f9b6f;
-    --red:#c05a4f;
-    --text:#eef1ec;
-    --muted:#93a598;
+    --bg-1:#101915; --bg-2:#16221c; --panel:#1c2b23; --panel-2:#213329;
+    --line:#2c3c33; --gold:#d9a441; --green:#4f9b6f; --red:#c05a4f; --blue:#5b8db8;
+    --text:#eef1ec; --muted:#93a598;
   }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0; height:100%;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
   body{
     background:radial-gradient(circle at 50% -10%, var(--bg-2), var(--bg-1) 60%);
-    color:var(--text); font-family:'Noto Sans TC',sans-serif;
-    min-height:100vh; display:flex; flex-direction:column; align-items:center;
-    padding:20px 14px 40px 14px;
+    color:var(--text); font-family:'Noto Sans TC',sans-serif; min-height:100vh;
   }
   .material-icons{vertical-align:middle; line-height:1;}
+  .app{ max-width:480px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; padding-bottom:76px; }
 
-  .clock-head{ text-align:center; margin:18px 0 26px 0; }
-  .clock-head .store{ font-family:'Noto Sans TC',sans-serif; font-weight:700; font-size:15px; letter-spacing:4px; color:var(--gold); text-transform:uppercase; }
-  .clock-head .time{ font-family:'Roboto Mono',monospace; font-size:min(15vw,64px); font-weight:700; letter-spacing:2px; margin-top:6px; }
-  .clock-head .date{ font-size:14px; color:var(--muted); margin-top:4px; }
+  /* 頂欄 */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 18px 10px 18px;
+  }
+  .topbar .store{ font-size:15px; font-weight:700; letter-spacing:2px; color:var(--gold); }
+  .topbar .right{ display:flex; gap:6px; }
+  .icon-btn{
+    background:transparent; border:none; color:var(--muted); cursor:pointer; padding:6px;
+    border-radius:50%; display:flex; align-items:center; position:relative;
+  }
+  .icon-btn:active{ background:#ffffff14; }
+  .icon-btn .reddot{
+    position:absolute; top:4px; right:4px; min-width:16px; height:16px; border-radius:9px;
+    background:var(--red); color:#fff; font-size:10px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; padding:0 4px;
+  }
 
-  /* 登入畫面 */
-  .login-wrap{ width:100%; max-width:360px; margin-top:6vh; }
-  .login-card{
-    background:var(--panel); border:1px solid var(--line); border-radius:16px;
-    padding:32px 28px; text-align:center;
-  }
-  .login-card .mark-icon{
-    width:52px; height:52px; border-radius:14px; background:var(--gold); color:#1c1305;
-    display:flex; align-items:center; justify-content:center; margin:0 auto 14px auto;
-  }
-  .login-card h2{ font-family:'Noto Sans TC',sans-serif; font-weight:700; font-size:18px; margin:0 0 4px 0; }
-  .login-card .sub{ font-size:12px; color:var(--muted); margin-bottom:22px; }
-  .login-card .field{ text-align:left; margin-bottom:14px; }
-  .login-card label{ font-size:12px; color:var(--muted); display:block; margin-bottom:5px; }
-  .login-card input{
-    width:100%; padding:12px 13px; border-radius:8px; border:1px solid var(--line);
-    background:#101915; color:var(--text); font-size:14px;
-  }
-  .login-card button{
-    width:100%; padding:13px 0; border-radius:8px; border:none; background:var(--gold); color:#1c1305;
-    font-size:15px; font-weight:700; cursor:pointer; margin-top:6px;
-    display:flex; align-items:center; justify-content:center; gap:6px;
-  }
-  .login-card .err{ color:#f3c9c2; font-size:12.5px; margin-top:12px; min-height:16px; }
+  .page{ flex:1; padding:6px 16px 24px 16px; }
+  .page h2{ font-size:16px; font-weight:700; margin:14px 2px 10px 2px; display:flex; align-items:center; gap:7px; }
 
-  /* 打卡主畫面（單一員工） */
-  .punch-card{
-    background:var(--panel); border:1px solid var(--line); border-radius:18px;
-    padding:32px 28px; width:100%; max-width:400px; text-align:center;
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:16px; margin-bottom:12px;
   }
-  .punch-card .avatar{
-    width:64px; height:64px; border-radius:50%; background:var(--gold); color:#1c1305;
-    display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto;
-    font-size:24px; font-weight:800;
+  .hint{ font-size:11.5px; color:var(--muted); }
+  .row-between{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+
+  /* 首頁 */
+  .profile{ display:flex; align-items:center; gap:14px; padding:8px 4px 16px 4px; }
+  .avatar{
+    width:60px; height:60px; border-radius:50%; background:var(--gold); color:#1c1305;
+    display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:800; flex-shrink:0;
   }
-  .punch-card .name{ font-size:20px; font-weight:700; }
-  .punch-card .dept{ font-size:12.5px; color:var(--muted); margin-top:2px; }
-  .punch-card .status-row{ display:flex; justify-content:center; gap:22px; margin:20px 0; font-size:12.5px; color:var(--muted); }
-  .punch-card .status-row b{ color:var(--text); font-family:'Roboto Mono',monospace; font-size:15px; display:block; margin-top:2px; }
+  .profile .name{ font-size:19px; font-weight:700; }
+  .profile .dept{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .shift-card{ display:flex; align-items:center; gap:10px; }
+  .shift-card .material-icons{ color:var(--gold); }
+  .status-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+  .status-cell{ background:var(--panel-2); border-radius:10px; padding:10px 12px; }
+  .status-cell .lbl{ font-size:11px; color:var(--muted); }
+  .status-cell .val{ font-family:'Roboto Mono',monospace; font-size:17px; font-weight:700; margin-top:2px; }
+  .pending-card{ border-color:var(--gold); cursor:pointer; }
+  .pending-card .material-icons{ color:var(--gold); }
+
+  /* 打卡 */
+  .clock-big{ text-align:center; margin:8px 0 16px 0; }
+  .clock-big .time{ font-family:'Roboto Mono',monospace; font-size:52px; font-weight:700; letter-spacing:2px; }
+  .clock-big .date{ font-size:13px; color:var(--muted); margin-top:2px; }
   .big-btn{
-    width:100%; padding:20px 0; border-radius:14px; border:none; cursor:pointer;
-    font-size:20px; font-weight:700; font-family:'Noto Sans TC',sans-serif; letter-spacing:3px;
-    display:flex; align-items:center; justify-content:center; gap:10px;
-    transition:transform .1s;
+    width:100%; padding:19px 0; border-radius:14px; border:none; cursor:pointer;
+    font-size:19px; font-weight:700; font-family:'Noto Sans TC',sans-serif; letter-spacing:3px;
+    display:flex; align-items:center; justify-content:center; gap:10px; transition:transform .1s;
+    margin-bottom:10px;
   }
   .big-btn:active{ transform:scale(0.97); }
   .big-btn.in{ background:var(--green); color:#082018; }
   .big-btn.out{ background:var(--gold); color:#1c1305; }
   .big-btn.done{ background:var(--line); color:var(--muted); cursor:default; }
-  .big-btn .material-icons{ font-size:26px; }
+  .sub-btn-row{ display:flex; gap:10px; }
+  .sub-btn{
+    flex:1; padding:13px 0; border-radius:11px; border:1px solid var(--line); background:var(--panel);
+    color:var(--text); font-size:14.5px; font-weight:700; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+  }
+  .sub-btn:active{ transform:scale(0.97); }
+  .sub-btn:disabled{ opacity:.4; }
+  .sub-btn .material-icons{ font-size:18px; color:var(--blue); }
 
-  .logout-row{ margin-top:22px; }
-  .logout-row button{
-    background:transparent; border:1px solid var(--line); color:var(--muted);
-    padding:8px 16px; border-radius:20px; font-size:12.5px; cursor:pointer;
-    display:inline-flex; align-items:center; gap:6px;
+  /* 表單 */
+  .form-actions{ display:flex; gap:10px; margin-bottom:14px; }
+  .form-actions button{
+    flex:1; padding:14px 0; border-radius:12px; border:none; cursor:pointer;
+    font-size:14px; font-weight:700; display:flex; flex-direction:column; align-items:center; gap:5px;
+  }
+  .form-actions .leave{ background:var(--green); color:#082018; }
+  .form-actions .comp{ background:var(--gold); color:#1c1305; }
+  .req-item{ padding:13px 14px; }
+  .req-item .title-row{ display:flex; align-items:center; justify-content:space-between; }
+  .req-item .type{ font-size:14.5px; font-weight:700; }
+  .req-item .meta{ font-size:12px; color:var(--muted); margin-top:4px; line-height:1.6; }
+  .status-badge{
+    font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px;
+  }
+  .status-badge.pending{ background:#d9a44126; color:var(--gold); }
+  .status-badge.ok{ background:#4f9b6f26; color:var(--green); }
+  .status-badge.no{ background:#c05a4f26; color:#e79288; }
+  .status-badge.cancel{ background:#ffffff12; color:var(--muted); }
+  .req-actions{ display:flex; gap:8px; margin-top:10px; }
+  .req-actions button{
+    flex:1; padding:9px 0; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .btn-approve{ background:var(--green); border:none; color:#082018; }
+  .btn-reject{ background:transparent; border:1px solid var(--red); color:#e79288; }
+  .btn-cancel-req{ background:transparent; border:1px solid var(--line); color:var(--muted); }
+  .balance-row{ display:flex; gap:10px; margin-bottom:12px; }
+  .balance-cell{ flex:1; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; text-align:center; }
+  .balance-cell .num{ font-family:'Roboto Mono',monospace; font-size:21px; font-weight:700; color:var(--gold); }
+  .balance-cell .lbl{ font-size:11px; color:var(--muted); margin-top:2px; }
+
+  /* 即將推出 */
+  .coming{ text-align:center; padding:70px 20px; color:var(--muted); }
+  .coming .material-icons{ font-size:44px; color:var(--line); margin-bottom:10px; }
+
+  /* 底部分頁列 */
+  .tabbar{
+    position:fixed; bottom:0; left:0; right:0; z-index:40;
+    background:#141f19f2; border-top:1px solid var(--line); backdrop-filter:blur(8px);
+  }
+  .tabbar-inner{ max-width:480px; margin:0 auto; display:flex; }
+  .tab{
+    flex:1; padding:9px 0 max(9px, env(safe-area-inset-bottom)) 0; text-align:center; cursor:pointer; color:var(--muted);
+    display:flex; flex-direction:column; align-items:center; gap:2px; font-size:10.5px; position:relative;
+  }
+  .tab .material-icons{ font-size:22px; }
+  .tab.active{ color:var(--gold); font-weight:700; }
+  .tab .reddot{
+    position:absolute; top:5px; left:calc(50% + 8px); min-width:15px; height:15px; border-radius:8px;
+    background:var(--red); color:#fff; font-size:9.5px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; padding:0 4px;
   }
 
-  .footer-note{ margin-top:24px; font-size:11.5px; color:var(--muted); text-align:center; max-width:400px; }
-  .footer-note a{ color:var(--gold); }
+  /* 登入 */
+  .login-wrap{ padding:10vh 24px 0 24px; max-width:400px; margin:0 auto; }
+  .login-card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:32px 26px; text-align:center; }
+  .login-card .mark-icon{
+    width:52px; height:52px; border-radius:14px; background:var(--gold); color:#1c1305;
+    display:flex; align-items:center; justify-content:center; margin:0 auto 14px auto;
+  }
+  .login-card h2{ font-size:18px; font-weight:700; margin:0 0 4px 0; }
+  .login-card .sub{ font-size:12px; color:var(--muted); margin-bottom:22px; }
 
+  .field{ text-align:left; margin-bottom:13px; }
+  label{ font-size:12px; color:var(--muted); display:block; margin-bottom:5px; }
+  input,select,textarea{
+    width:100%; padding:12px 13px; border-radius:9px; border:1px solid var(--line);
+    background:#101915; color:var(--text); font-size:14px; font-family:'Noto Sans TC',sans-serif;
+  }
+  select{ appearance:none; }
+  .primary-btn{
+    width:100%; padding:13px 0; border-radius:9px; border:none; background:var(--gold); color:#1c1305;
+    font-size:15px; font-weight:700; cursor:pointer; margin-top:4px;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .ghost-btn{
+    width:100%; padding:12px 0; border-radius:9px; border:1px solid var(--line); background:transparent;
+    color:var(--muted); font-size:14px; cursor:pointer;
+  }
+  .err-text{ color:#f3c9c2; font-size:12.5px; margin-top:10px; min-height:16px; }
+
+  /* Modal */
   .modal-bg{
-    position:fixed; inset:0; background:rgba(6,10,8,0.7); backdrop-filter:blur(2px);
-    display:flex; align-items:center; justify-content:center; z-index:60; padding:16px;
+    position:fixed; inset:0; background:rgba(6,10,8,0.72); backdrop-filter:blur(2px);
+    display:flex; align-items:flex-end; justify-content:center; z-index:60;
   }
+  @media(min-width:520px){ .modal-bg{ align-items:center; padding:20px; } }
   .modal{
-    background:var(--panel); border:1px solid var(--line); border-radius:14px;
-    padding:28px 26px; width:360px; max-width:100%; text-align:center;
+    background:var(--panel); border:1px solid var(--line); border-radius:18px 18px 0 0;
+    padding:24px 22px calc(24px + env(safe-area-inset-bottom)) 22px; width:100%; max-width:480px; max-height:88vh; overflow:auto;
   }
-  .modal .who{ font-size:20px; font-weight:700; margin-bottom:4px; }
-  .modal .action-label{
-    font-family:'Noto Sans TC',sans-serif; font-size:26px; font-weight:700; margin:14px 0; letter-spacing:2px;
-  }
-  .modal .action-label.in{ color:var(--green); }
-  .modal .action-label.out{ color:var(--gold); }
-  .modal .time{ font-family:'Roboto Mono',monospace; font-size:34px; font-weight:700; margin-bottom:10px; }
-  .modal .status-line{ font-size:12.5px; color:var(--muted); margin-bottom:18px; min-height:18px; }
-  .modal .btn-row{ display:flex; gap:10px; }
-  .modal button{
-    flex:1; padding:13px 0; border-radius:8px; border:none; font-size:15px; font-weight:700; cursor:pointer;
-  }
-  .modal .confirm{ background:var(--gold); color:#1c1305; }
-  .modal .cancel{ background:transparent; color:var(--muted); border:1px solid var(--line); }
-  .modal.loading .btn-row{ opacity:.5; pointer-events:none; }
+  @media(min-width:520px){ .modal{ border-radius:18px; } }
+  .modal h3{ font-size:16.5px; font-weight:700; margin:0 0 16px 0; display:flex; align-items:center; gap:8px; }
+  .modal h3 .material-icons{ color:var(--gold); }
+  .modal-actions{ display:flex; gap:10px; margin-top:16px; }
+  .modal-actions button{ flex:1; padding:13px 0; border-radius:9px; font-size:14.5px; font-weight:700; cursor:pointer; border:none; }
+  .modal-actions .go{ background:var(--gold); color:#1c1305; }
+  .modal-actions .stay{ background:transparent; color:var(--muted); border:1px solid var(--line); }
+  .grid-2m{ display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
+
+  .punch-confirm{ text-align:center; }
+  .punch-confirm .action-label{ font-size:24px; font-weight:700; letter-spacing:2px; margin:10px 0; }
+  .punch-confirm .action-label.in{ color:var(--green); }
+  .punch-confirm .action-label.out{ color:var(--gold); }
+  .punch-confirm .action-label.mid{ color:var(--blue); }
+  .punch-confirm .time{ font-family:'Roboto Mono',monospace; font-size:32px; font-weight:700; margin-bottom:8px; }
   .spinner{ display:inline-block; width:14px; height:14px; border:2px solid var(--muted); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
   .toast{
-    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
-    background:#20302680; border:1px solid var(--line); padding:12px 20px; border-radius:8px;
-    font-size:13.5px; z-index:70; max-width:90vw; text-align:center;
+    position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+    background:#203026f0; border:1px solid var(--line); padding:12px 20px; border-radius:10px;
+    font-size:13.5px; z-index:90; max-width:88vw; text-align:center;
   }
   .toast.ok{ border-color:var(--green); }
   .toast.err{ border-color:var(--red); color:#f3c9c2; }
   .config-warn{
-    background:#3a2317; border:1px solid #6b4326; color:#f0caa0; padding:14px 18px; border-radius:8px;
-    max-width:560px; font-size:13px; margin-bottom:20px;
+    background:#3a2317; border:1px solid #6b4326; color:#f0caa0; padding:14px 18px; border-radius:10px;
+    max-width:560px; font-size:13px; margin:20px;
   }
   .config-warn code{ background:#00000040; padding:1px 5px; border-radius:3px; }
 </style>
@@ -142,17 +220,18 @@
 <div id="boot-error" style="display:none; position:fixed; left:12px; right:12px; bottom:12px; max-width:640px; margin:0 auto; background:#3a1717; color:#fbd7d0; border:1px solid #7a3b34; padding:14px 18px; border-radius:8px; font-size:12px; font-family:monospace; white-space:pre-wrap; z-index:9999;"></div>
 
 <script type="text/plain" id="app-src">
-const {useState, useEffect, useRef} = React;
+const {useState, useEffect, useMemo, useRef} = React;
 
 /* ⚠️ 部署 Code.gs 為網頁應用程式後，把網址貼在這裡 */
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzW7073VQtPGa9cIn-pBNdfLClDdkEn8eBGVzDSkv26ZZWiHGcD5wikhx7KL5l4mlsC/exec';
 const TOKEN_KEY = 'employee_session_token';
+const SESSION_CACHE_KEY = 'employee_session_info';
 
 let CURRENT_TOKEN = null;
 try{ CURRENT_TOKEN = localStorage.getItem(TOKEN_KEY) || null; }catch(e){}
 function setToken(t){
   CURRENT_TOKEN = t;
-  try{ if(t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); }catch(e){}
+  try{ if(t) localStorage.setItem(TOKEN_KEY, t); else { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(SESSION_CACHE_KEY); } }catch(e){}
 }
 
 async function apiGet(action, params={}){
@@ -168,7 +247,6 @@ async function apiPost(action, body={}){
   if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
   return json.data;
 }
-
 function getLocation(){
   return new Promise((resolve) => {
     if(!navigator.geolocation){ resolve({lat:null,lng:null,error:'此裝置不支援定位'}); return; }
@@ -185,6 +263,9 @@ function useClock(){
   return now;
 }
 function pad(v){ return String(v).padStart(2,'0'); }
+function hhmm(dt){ return dt ? String(dt).split(' ')[1]?.slice(0,5) || '—' : '—'; }
+const LEAVE_TYPES = ['特休', '補休', '事假', '病假', '生理假', '婚假', '喪假', '公假', '公傷病假', '產假', '產檢假', '陪產假', '家庭照顧假', '災防假'];
+const STATUS_CLASS = {'待審核':'pending', '已核准':'ok', '已駁回':'no', '已取消':'cancel'};
 
 /* ========================= 登入畫面 ========================= */
 function LoginScreen({onLoggedIn}){
@@ -198,83 +279,142 @@ function LoginScreen({onLoggedIn}){
     setErr(''); setLoading(true);
     try{
       const data = await apiPost('login', {account, password});
+      if(!data.employeeId){ setErr('此帳號未綁定員工資料，請聯繫管理者'); setLoading(false); return; }
       setToken(data.token);
+      try{ localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(data)); }catch(e){}
       onLoggedIn(data);
     }catch(e){ setErr(e.message); }
     finally{ setLoading(false); }
   }
-
   return (
     <div className="login-wrap">
       <div className="login-card">
         <div className="mark-icon"><span className="material-icons" style={{fontSize:28}}>fingerprint</span></div>
-        <h2>員工打卡登入</h2>
-        <div className="sub">請輸入帳號密碼進行打卡</div>
+        <h2>員工專區登入</h2>
+        <div className="sub">帳號為公司提供之手機號碼或員工編號</div>
         <form onSubmit={submit}>
           <div className="field"><label>帳號</label><input value={account} onChange={e=>setAccount(e.target.value)} autoFocus /></div>
           <div className="field"><label>密碼</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} /></div>
-          <button type="submit" disabled={loading}><span className="material-icons" style={{fontSize:18}}>login</span>{loading?'登入中...':'登入'}</button>
-          <div className="err">{err}</div>
+          <button type="submit" className="primary-btn" disabled={loading}>
+            <span className="material-icons" style={{fontSize:18}}>login</span>{loading?'登入中...':'登入'}
+          </button>
+          <div className="err-text">{err}</div>
         </form>
       </div>
     </div>
   );
 }
 
-/* ========================= 打卡主畫面 ========================= */
-function App(){
+/* ========================= 首頁 ========================= */
+function HomePage({session, status, pendingCount, goForms, onLogout, showToast}){
+  const emp = session.employee || {};
+  const shift = emp.shift;
+  const [pwBox, setPwBox] = useState(false);
+  const [pw, setPw] = useState({oldPassword:'', newPassword:'', confirm:''});
+  const [saving, setSaving] = useState(false);
+
+  async function changePw(){
+    if(!pw.newPassword || pw.newPassword.length < 4){ showToast('新密碼至少 4 碼', 'err'); return; }
+    if(pw.newPassword !== pw.confirm){ showToast('兩次輸入的新密碼不一致', 'err'); return; }
+    setSaving(true);
+    try{
+      await apiPost('changePassword', {oldPassword: pw.oldPassword, newPassword: pw.newPassword});
+      showToast('密碼已更新', 'ok');
+      setPwBox(false); setPw({oldPassword:'', newPassword:'', confirm:''});
+    }catch(e){ showToast(e.message, 'err'); }
+    finally{ setSaving(false); }
+  }
+
+  return (
+    <div className="page">
+      <div className="profile">
+        <div className="avatar">{(emp.name||'?').slice(0,1)}</div>
+        <div>
+          <div className="name">{emp.name}</div>
+          <div className="dept">{emp.department}{emp.company ? ' · ' + emp.company : ''}</div>
+        </div>
+      </div>
+
+      <div className="card shift-card">
+        <span className="material-icons">schedule</span>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700, fontSize:14.5}}>{shift ? shift.name : '標準班'}　{shift ? shift.workStart : '09:00'}~{shift ? shift.workEnd : '18:00'}</div>
+          <div className="hint">午休 {shift ? shift.lunchBreak : 60} 分鐘</div>
+        </div>
+      </div>
+
+      {pendingCount > 0 && (
+        <div className="card pending-card row-between" onClick={goForms}>
+          <div style={{display:'flex', alignItems:'center', gap:10}}>
+            <span className="material-icons">pending_actions</span>
+            <div style={{fontWeight:700, fontSize:14}}>有 {pendingCount} 件申請待您審核</div>
+          </div>
+          <span className="material-icons" style={{color:'var(--muted)'}}>chevron_right</span>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="row-between">
+          <div style={{fontWeight:700, fontSize:14.5}}>今日打卡</div>
+          <span className="hint">{new Date().toLocaleDateString('zh-TW')}</span>
+        </div>
+        <div className="status-grid">
+          <div className="status-cell"><div className="lbl">上班</div><div className="val">{hhmm(status?.checkInTime)}</div></div>
+          <div className="status-cell"><div className="lbl">下班</div><div className="val">{hhmm(status?.checkOutTime)}</div></div>
+          <div className="status-cell"><div className="lbl">外出</div><div className="val">{hhmm(status?.outgoTime)}</div></div>
+          <div className="status-cell"><div className="lbl">返回</div><div className="val">{hhmm(status?.returnTime)}</div></div>
+        </div>
+      </div>
+
+      <div className="card row-between" style={{cursor:'pointer'}} onClick={()=>setPwBox(true)}>
+        <div style={{display:'flex', alignItems:'center', gap:10}}>
+          <span className="material-icons" style={{color:'var(--muted)'}}>lock</span>
+          <div style={{fontSize:14}}>修改密碼</div>
+        </div>
+        <span className="material-icons" style={{color:'var(--muted)'}}>chevron_right</span>
+      </div>
+      <div className="card row-between" style={{cursor:'pointer'}} onClick={onLogout}>
+        <div style={{display:'flex', alignItems:'center', gap:10}}>
+          <span className="material-icons" style={{color:'var(--muted)'}}>logout</span>
+          <div style={{fontSize:14}}>登出</div>
+        </div>
+        <span className="material-icons" style={{color:'var(--muted)'}}>chevron_right</span>
+      </div>
+
+      {pwBox && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setPwBox(false); }}>
+          <div className="modal">
+            <h3><span className="material-icons">lock_reset</span>修改密碼</h3>
+            <div className="field"><label>原密碼</label><input type="password" value={pw.oldPassword} onChange={e=>setPw({...pw,oldPassword:e.target.value})} /></div>
+            <div className="field"><label>新密碼（至少4碼）</label><input type="password" value={pw.newPassword} onChange={e=>setPw({...pw,newPassword:e.target.value})} /></div>
+            <div className="field"><label>再次輸入新密碼</label><input type="password" value={pw.confirm} onChange={e=>setPw({...pw,confirm:e.target.value})} /></div>
+            <div className="modal-actions">
+              <button className="stay" onClick={()=>setPwBox(false)}>取消</button>
+              <button className="go" onClick={changePw} disabled={saving}>{saving?'儲存中...':'確認修改'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ========================= 打卡頁 ========================= */
+function PunchPage({session, status, refreshStatus, showToast}){
   const now = useClock();
-  const [configError] = useState(GAS_URL.indexOf('請填入') !== -1);
-  const [session, setSession] = useState(null);
-  const [checkingSession, setCheckingSession] = useState(true);
-  const [settings, setSettings] = useState(null);
-  const [status, setStatus] = useState(null);
-  const [modal, setModal] = useState(null); // 'in' | 'out' | null
+  const [modal, setModal] = useState(null); // 'in'|'out'|'outgo'|'return'
   const [modalState, setModalState] = useState('confirm');
-  const [toast, setToast] = useState(null);
 
-  useEffect(()=>{
-    if(configError){ setCheckingSession(false); return; }
-    if(!CURRENT_TOKEN){ setCheckingSession(false); return; }
-    apiGet('getSettings').then(s=>{ setSettings(s); setSession({token:CURRENT_TOKEN, restored:true}); })
-      .catch(()=>{ setToken(null); }).finally(()=>setCheckingSession(false));
-  }, []);
+  const LABEL = {in:'上班打卡', out:'下班打卡', outgo:'外出', 'return':'返回'};
+  const ACTION = {in:'clockIn', out:'clockOut', outgo:'clockOutgo', 'return':'clockReturn'};
+  const CLS = {in:'in', out:'out', outgo:'mid', 'return':'mid'};
 
-  useEffect(()=>{
-    if(!session) return;
-    apiGet('getSettings').then(setSettings).catch(()=>{});
-    refreshStatus();
-  }, [session]);
-
-  function refreshStatus(){
-    if(!session || !session.employeeId) return;
-    apiGet('getTodayStatus', {employeeId: session.employeeId}).then(setStatus).catch(e=>showToast(e.message,'err'));
-  }
-  function showToast(msg, type){
-    setToast({msg, type});
-    setTimeout(()=>setToast(null), 3500);
-  }
-  function onLoggedIn(data){
-    if(!data.employeeId){ showToast('此帳號沒有綁定員工資料，無法打卡，請聯繫管理者', 'err'); setToken(null); return; }
-    setSession(data);
-  }
-  function logout(){
-    setToken(null);
-    setSession(null);
-    setStatus(null);
-  }
-
-  function openModal(type){
-    setModal(type);
-    setModalState('confirm');
-  }
   async function confirmPunch(){
     setModalState('loading');
     const loc = await getLocation();
     try{
-      const action = modal === 'in' ? 'clockIn' : 'clockOut';
-      const data = await apiPost(action, {employeeId: session.employeeId, lat: loc.lat, lng: loc.lng, source: window.innerWidth < 700 ? 'mobile' : 'kiosk'});
-      showToast(`${modal==='in'?'上班':'下班'}打卡成功（${data.statusTag}）`, data.statusTag.indexOf('超出')===0 ? 'err':'ok');
+      const data = await apiPost(ACTION[modal], {employeeId: session.employeeId, lat: loc.lat, lng: loc.lng, source:'mobile'});
+      showToast(`${LABEL[modal]}成功（${data.statusTag}）`, String(data.statusTag).indexOf('超出')===0 ? 'err':'ok');
       setModal(null);
       refreshStatus();
     }catch(e){
@@ -283,72 +423,372 @@ function App(){
     }
   }
 
-  if(configError){
-    return <div style={{padding:40, maxWidth:600}}><div className="config-warn">尚未設定 GAS 後端網址。請先部署 <code>Code.gs</code> 為網頁應用程式，並將網址貼到本檔案頂端的 <code>GAS_URL</code> 常數中。</div></div>;
-  }
-
-  const dateStr = `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())}　${'日一二三四五六'[now.getDay()]}`;
+  const dateStr = `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())}　星期${'日一二三四五六'[now.getDay()]}`;
+  const canOutgo = status?.clockedIn && !status?.clockedOut && !status?.outgoTime;
+  const canReturn = status?.clockedIn && !status?.clockedOut && status?.outgoTime && !status?.returnTime;
 
   return (
-    <div style={{width:'100%', display:'flex', flexDirection:'column', alignItems:'center'}}>
-      <div className="clock-head">
-        <div className="store">{settings?.storeName || '打卡系統'}</div>
+    <div className="page">
+      <div className="clock-big">
         <div className="time">{pad(now.getHours())}:{pad(now.getMinutes())}:{pad(now.getSeconds())}</div>
-        <div className="date">星期{dateStr}</div>
+        <div className="date">{dateStr}</div>
       </div>
 
-      {checkingSession ? (
-        <div style={{color:'var(--muted)'}}>載入中...</div>
-      ) : !session ? (
-        <LoginScreen onLoggedIn={onLoggedIn} />
+      {!status ? (
+        <div className="hint" style={{textAlign:'center'}}>載入打卡狀態中...</div>
+      ) : !status.clockedIn ? (
+        <button className="big-btn in" onClick={()=>{setModal('in'); setModalState('confirm');}}><span className="material-icons">login</span>上班打卡</button>
+      ) : !status.clockedOut ? (
+        <button className="big-btn out" onClick={()=>{setModal('out'); setModalState('confirm');}}><span className="material-icons">logout</span>下班打卡</button>
       ) : (
-        <div className="punch-card">
-          <div className="avatar">{(session.employee?.name || '').slice(0,1)}</div>
-          <div className="name">{session.employee?.name || session.account}</div>
-          <div className="dept">{session.employee?.department}{session.employee?.company ? ' · ' + session.employee.company : ''}</div>
-
-          <div className="status-row">
-            <div>上班<b>{status?.checkInTime ? status.checkInTime.split(' ')[1] : '—'}</b></div>
-            <div>下班<b>{status?.checkOutTime ? status.checkOutTime.split(' ')[1] : '—'}</b></div>
-          </div>
-
-          {!status ? (
-            <div style={{color:'var(--muted)', fontSize:13}}>載入打卡狀態中...</div>
-          ) : !status.clockedIn ? (
-            <button className="big-btn in" onClick={()=>openModal('in')}><span className="material-icons">login</span>上班打卡</button>
-          ) : !status.clockedOut ? (
-            <button className="big-btn out" onClick={()=>openModal('out')}><span className="material-icons">logout</span>下班打卡</button>
-          ) : (
-            <button className="big-btn done"><span className="material-icons">check_circle</span>今日已完成打卡</button>
-          )}
-
-          <div className="logout-row">
-            <button onClick={logout}><span className="material-icons" style={{fontSize:15}}>switch_account</span>登出（換人打卡）</button>
-          </div>
-        </div>
+        <button className="big-btn done"><span className="material-icons">check_circle</span>今日已完成打卡</button>
       )}
 
-      <div className="footer-note">
-        {session && <>如需修改密碼或查詢紀錄，請聯繫管理者。</>}
+      <div className="sub-btn-row">
+        <button className="sub-btn" disabled={!canOutgo} onClick={()=>{setModal('outgo'); setModalState('confirm');}}>
+          <span className="material-icons">directions_walk</span>外出
+        </button>
+        <button className="sub-btn" disabled={!canReturn} onClick={()=>{setModal('return'); setModalState('confirm');}}>
+          <span className="material-icons">keyboard_return</span>返回
+        </button>
+      </div>
+
+      <div className="card" style={{marginTop:16}}>
+        <div className="status-grid" style={{marginTop:0}}>
+          <div className="status-cell"><div className="lbl">上班</div><div className="val">{hhmm(status?.checkInTime)}</div></div>
+          <div className="status-cell"><div className="lbl">下班</div><div className="val">{hhmm(status?.checkOutTime)}</div></div>
+          <div className="status-cell"><div className="lbl">外出</div><div className="val">{hhmm(status?.outgoTime)}</div></div>
+          <div className="status-cell"><div className="lbl">返回</div><div className="val">{hhmm(status?.returnTime)}</div></div>
+        </div>
+        <div className="hint" style={{marginTop:10}}>打卡會記錄 GPS 位置；如超出公司設定範圍仍會完成打卡，但紀錄將標示供管理者核對。</div>
       </div>
 
       {modal && (
-        <div className="modal-bg" onClick={(e)=>{ if(e.target===e.currentTarget && modalState!=='loading') setModal(null); }}>
-          <div className={`modal ${modalState==='loading'?'loading':''}`}>
-            <div className="who">{session.employee?.name}</div>
-            <div className={`action-label ${modal}`}>{modal==='in' ? '上班打卡' : '下班打卡'}</div>
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget && modalState!=='loading') setModal(null); }}>
+          <div className="modal punch-confirm">
+            <div style={{fontSize:17, fontWeight:700}}>{session.employee?.name}</div>
+            <div className={'action-label ' + CLS[modal]}>{LABEL[modal]}</div>
             <div className="time">{pad(now.getHours())}:{pad(now.getMinutes())}:{pad(now.getSeconds())}</div>
-            <div className="status-line">
+            <div className="hint" style={{minHeight:18, marginBottom:14}}>
               {modalState==='loading' ? <span><span className="spinner"></span> 定位中並送出紀錄...</span> : '請確認後按下確認'}
             </div>
-            <div className="btn-row">
-              <button className="cancel" onClick={()=>setModal(null)}>取消</button>
-              <button className="confirm" onClick={confirmPunch}>確認{modal==='in'?'上班':'下班'}</button>
+            <div className="modal-actions" style={{marginTop:4, opacity:modalState==='loading'?0.5:1, pointerEvents:modalState==='loading'?'none':'auto'}}>
+              <button className="stay" onClick={()=>setModal(null)}>取消</button>
+              <button className="go" onClick={confirmPunch}>確認{LABEL[modal]}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ========================= 表單頁（請假／換補休／審核） ========================= */
+function FormsPage({session, isManager, pending, refreshPending, showToast, settings}){
+  const [myList, setMyList] = useState([]);
+  const [balances, setBalances] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [leaveBox, setLeaveBox] = useState(null);
+  const [compBox, setCompBox] = useState(null);
+  const [reviewBox, setReviewBox] = useState(null); // {req, mode:'approve'|'reject', comment}
+  const [busy, setBusy] = useState(false);
+
+  const unit = Number(settings?.leaveUnit) || 1;
+
+  function load(){
+    setLoading(true);
+    Promise.all([apiGet('listMyRequests'), apiGet('getLeaveBalances')])
+      .then(([list, bal])=>{ setMyList(list); setBalances(bal); })
+      .catch(e=>showToast(e.message,'err')).finally(()=>setLoading(false));
+  }
+  useEffect(load, []);
+
+  async function submitLeave(){
+    if(!leaveBox.leaveType){ showToast('請選擇假別','err'); return; }
+    if(!leaveBox.startDate || !leaveBox.startTime || !leaveBox.endDate || !leaveBox.endTime){ showToast('請填寫起訖時間','err'); return; }
+    if(!(Number(leaveBox.hours) > 0)){ showToast('請填寫時數','err'); return; }
+    setBusy(true);
+    try{
+      await apiPost('submitRequest', {
+        type:'請假', leaveType: leaveBox.leaveType,
+        startTime: leaveBox.startDate + ' ' + leaveBox.startTime,
+        endTime: leaveBox.endDate + ' ' + leaveBox.endTime,
+        hours: Number(leaveBox.hours), reason: leaveBox.reason || ''
+      });
+      showToast('請假申請已送出','ok');
+      setLeaveBox(null); load();
+    }catch(e){ showToast(e.message,'err'); }
+    finally{ setBusy(false); }
+  }
+  async function submitComp(){
+    if(!compBox.date){ showToast('請填寫加班日期','err'); return; }
+    if(!(Number(compBox.hours) > 0)){ showToast('請填寫時數','err'); return; }
+    setBusy(true);
+    try{
+      await apiPost('submitRequest', {type:'換補休', startTime: compBox.date + ' 00:00', hours: Number(compBox.hours), reason: compBox.reason || ''});
+      showToast('換補休申請已送出','ok');
+      setCompBox(null); load();
+    }catch(e){ showToast(e.message,'err'); }
+    finally{ setBusy(false); }
+  }
+  async function cancelReq(id){
+    if(!confirm('確定取消這筆申請？')) return;
+    try{ await apiPost('cancelRequest', {id}); showToast('已取消','ok'); load(); }
+    catch(e){ showToast(e.message,'err'); }
+  }
+  async function doReview(){
+    setBusy(true);
+    try{
+      await apiPost(reviewBox.mode==='approve'?'approveRequest':'rejectRequest', {id: reviewBox.req.id, comment: reviewBox.comment||''});
+      showToast(reviewBox.mode==='approve'?'已核准':'已駁回','ok');
+      setReviewBox(null); refreshPending(); load();
+    }catch(e){ showToast(e.message,'err'); }
+    finally{ setBusy(false); }
+  }
+
+  function reqSummary(r){
+    if(r.type==='請假') return `${r.leaveType}　${r.startTime} ~ ${r.endTime}　${r.hours}小時`;
+    return `加班日期 ${String(r.startTime).split(' ')[0]}　${r.hours}小時`;
+  }
+
+  return (
+    <div className="page">
+      {balances && (
+        <div className="balance-row">
+          <div className="balance-cell"><div className="num">{balances.annualRemain}</div><div className="lbl">特休剩餘（小時）</div></div>
+          <div className="balance-cell"><div className="num">{balances.compRemain}</div><div className="lbl">補休剩餘（小時）</div></div>
+        </div>
+      )}
+
+      <div className="form-actions">
+        <button className="leave" onClick={()=>setLeaveBox({leaveType:'', startDate:'', startTime:'09:00', endDate:'', endTime:'18:00', hours:'', reason:''})}>
+          <span className="material-icons">event_available</span>請假申請
+        </button>
+        <button className="comp" onClick={()=>setCompBox({date:'', hours:'', reason:''})}>
+          <span className="material-icons">swap_horiz</span>加班換補休
+        </button>
+      </div>
+
+      {isManager && pending.length > 0 && (
+        <>
+          <h2><span className="material-icons" style={{color:'var(--gold)'}}>pending_actions</span>待我審核（{pending.length}）</h2>
+          {pending.map(r=>(
+            <div className="card req-item" key={r.id}>
+              <div className="title-row">
+                <div className="type">{r.name}　<span style={{color:'var(--gold)'}}>{r.type==='請假'?r.leaveType:'加班換補休'}</span></div>
+                <span className="status-badge pending">待審核</span>
+              </div>
+              <div className="meta">{reqSummary(r)}{r.reason && <><br/>事由：{r.reason}</>}<br/>申請於 {r.createdAt}</div>
+              <div className="req-actions">
+                <button className="btn-approve" onClick={()=>setReviewBox({req:r, mode:'approve', comment:''})}>核准</button>
+                <button className="btn-reject" onClick={()=>setReviewBox({req:r, mode:'reject', comment:''})}>駁回</button>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      <h2><span className="material-icons" style={{color:'var(--muted)'}}>list_alt</span>我的申請</h2>
+      {loading ? <div className="hint">載入中...</div> : myList.length===0 ? (
+        <div className="card hint" style={{textAlign:'center', padding:'26px 14px'}}>尚無申請紀錄</div>
+      ) : myList.map(r=>(
+        <div className="card req-item" key={r.id}>
+          <div className="title-row">
+            <div className="type">{r.type==='請假' ? r.leaveType : '加班換補休'}</div>
+            <span className={'status-badge ' + (STATUS_CLASS[r.status]||'cancel')}>{r.status}</span>
+          </div>
+          <div className="meta">
+            {reqSummary(r)}
+            {r.reason && <><br/>事由：{r.reason}</>}
+            {r.reviewer && <><br/>審核：{r.reviewer}{r.reviewComment ? '（' + r.reviewComment + '）' : ''}</>}
+          </div>
+          {r.status==='待審核' && (
+            <div className="req-actions">
+              <button className="btn-cancel-req" onClick={()=>cancelReq(r.id)}>取消申請</button>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {leaveBox && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setLeaveBox(null); }}>
+          <div className="modal">
+            <h3><span className="material-icons">event_available</span>請假申請</h3>
+            <div className="field"><label>假別</label>
+              <select value={leaveBox.leaveType} onChange={e=>setLeaveBox({...leaveBox, leaveType:e.target.value})}>
+                <option value="">請選擇</option>
+                {LEAVE_TYPES.map(t=>{
+                  let extra = '';
+                  if(t==='特休' && balances) extra = `（剩 ${balances.annualRemain} 小時）`;
+                  if(t==='補休' && balances) extra = `（剩 ${balances.compRemain} 小時）`;
+                  return <option key={t} value={t}>{t}{extra}</option>;
+                })}
+              </select>
+            </div>
+            <div className="grid-2m">
+              <div className="field"><label>開始日期</label><input type="date" value={leaveBox.startDate} onChange={e=>setLeaveBox({...leaveBox, startDate:e.target.value, endDate: leaveBox.endDate || e.target.value})} /></div>
+              <div className="field"><label>開始時間</label><input type="time" value={leaveBox.startTime} onChange={e=>setLeaveBox({...leaveBox, startTime:e.target.value})} /></div>
+              <div className="field"><label>結束日期</label><input type="date" value={leaveBox.endDate} onChange={e=>setLeaveBox({...leaveBox, endDate:e.target.value})} /></div>
+              <div className="field"><label>結束時間</label><input type="time" value={leaveBox.endTime} onChange={e=>setLeaveBox({...leaveBox, endTime:e.target.value})} /></div>
+            </div>
+            <div className="field"><label>請假時數（最小單位 {unit} 小時）</label><input type="number" step={unit} min={unit} value={leaveBox.hours} onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} /></div>
+            <div className="field"><label>事由</label><textarea rows="2" value={leaveBox.reason} onChange={e=>setLeaveBox({...leaveBox, reason:e.target.value})}></textarea></div>
+            <div className="modal-actions">
+              <button className="stay" onClick={()=>setLeaveBox(null)}>取消</button>
+              <button className="go" onClick={submitLeave} disabled={busy}>{busy?'送出中...':'送出申請'}</button>
             </div>
           </div>
         </div>
       )}
 
+      {compBox && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setCompBox(null); }}>
+          <div className="modal">
+            <h3><span className="material-icons">swap_horiz</span>加班換補休</h3>
+            <div className="hint" style={{marginBottom:12}}>將已加班的時數轉換為補休額度，經主管核准後即可於請假時選擇「補休」使用。</div>
+            <div className="field"><label>加班日期</label><input type="date" value={compBox.date} onChange={e=>setCompBox({...compBox, date:e.target.value})} /></div>
+            <div className="field"><label>換補休時數（最小單位 {unit} 小時）</label><input type="number" step={unit} min={unit} value={compBox.hours} onChange={e=>setCompBox({...compBox, hours:e.target.value})} /></div>
+            <div className="field"><label>說明</label><textarea rows="2" value={compBox.reason} onChange={e=>setCompBox({...compBox, reason:e.target.value})}></textarea></div>
+            <div className="modal-actions">
+              <button className="stay" onClick={()=>setCompBox(null)}>取消</button>
+              <button className="go" onClick={submitComp} disabled={busy}>{busy?'送出中...':'送出申請'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reviewBox && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setReviewBox(null); }}>
+          <div className="modal">
+            <h3><span className="material-icons">{reviewBox.mode==='approve'?'check_circle':'cancel'}</span>{reviewBox.mode==='approve'?'核准':'駁回'}申請</h3>
+            <div className="card req-item" style={{marginBottom:12}}>
+              <div className="type">{reviewBox.req.name}　{reviewBox.req.type==='請假'?reviewBox.req.leaveType:'加班換補休'}</div>
+              <div className="meta">{reqSummary(reviewBox.req)}{reviewBox.req.reason && <><br/>事由：{reviewBox.req.reason}</>}</div>
+            </div>
+            <div className="field"><label>審核意見（選填）</label><textarea rows="2" value={reviewBox.comment} onChange={e=>setReviewBox({...reviewBox, comment:e.target.value})}></textarea></div>
+            <div className="modal-actions">
+              <button className="stay" onClick={()=>setReviewBox(null)}>取消</button>
+              <button className="go" style={reviewBox.mode==='reject'?{background:'var(--red)', color:'#fff'}:{}} onClick={doReview} disabled={busy}>
+                {busy?'處理中...':(reviewBox.mode==='approve'?'確認核准':'確認駁回')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ========================= 即將推出 ========================= */
+function ComingSoon({icon, label}){
+  return (
+    <div className="page">
+      <div className="coming">
+        <div><span className="material-icons">{icon}</span></div>
+        <div style={{fontSize:15, fontWeight:700, color:'var(--text)'}}>{label}</div>
+        <div className="hint" style={{marginTop:6}}>功能即將推出，敬請期待</div>
+      </div>
+    </div>
+  );
+}
+
+/* ========================= App ========================= */
+function App(){
+  const [configError] = useState(GAS_URL.indexOf('請填入') !== -1);
+  const [session, setSession] = useState(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [tab, setTab] = useState('home');
+  const [settings, setSettings] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [pending, setPending] = useState([]);
+  const [toast, setToast] = useState(null);
+
+  function showToast(msg, type){
+    setToast({msg, type});
+    setTimeout(()=>setToast(null), 3500);
+  }
+
+  useEffect(()=>{
+    if(configError){ setCheckingSession(false); return; }
+    if(!CURRENT_TOKEN){ setCheckingSession(false); return; }
+    let cached = null;
+    try{ cached = JSON.parse(localStorage.getItem(SESSION_CACHE_KEY) || 'null'); }catch(e){}
+    apiGet('getSettings').then(s=>{
+      setSettings(s);
+      if(cached && cached.employeeId){ setSession(cached); }
+      else { setToken(null); }
+    }).catch(()=>{ setToken(null); }).finally(()=>setCheckingSession(false));
+  }, []);
+
+  useEffect(()=>{
+    if(!session) return;
+    if(!settings) apiGet('getSettings').then(setSettings).catch(()=>{});
+    refreshStatus();
+    refreshPending();
+  }, [session]);
+
+  function refreshStatus(){
+    if(!session?.employeeId) return;
+    apiGet('getTodayStatus', {employeeId: session.employeeId}).then(setStatus).catch(e=>showToast(e.message,'err'));
+  }
+  function refreshPending(){
+    if(!session?.isManager) { setPending([]); return; }
+    apiGet('listPendingApprovals').then(setPending).catch(()=>{});
+  }
+
+  function onLoggedIn(data){ setSession(data); setTab('home'); }
+  function logout(){
+    setToken(null);
+    setSession(null); setStatus(null); setPending([]); setTab('home');
+  }
+
+  if(configError){
+    return <div className="config-warn">尚未設定 GAS 後端網址。請先部署 <code>Code.gs</code>，並將網址貼到本檔案頂端的 <code>GAS_URL</code> 常數中。</div>;
+  }
+  if(checkingSession){
+    return <div style={{padding:80, textAlign:'center', color:'var(--muted)'}}>載入中...</div>;
+  }
+
+  const TABS = [
+    {id:'home', label:'首頁', icon:'home'},
+    {id:'punch', label:'打卡', icon:'fingerprint'},
+    {id:'forms', label:'表單', icon:'description'},
+    {id:'schedule', label:'班表', icon:'calendar_month'},
+    {id:'news', label:'公告', icon:'campaign'},
+  ];
+
+  return (
+    <div className="app">
+      {!session ? (
+        <>
+          <div className="topbar"><div className="store">員工專區</div></div>
+          <LoginScreen onLoggedIn={onLoggedIn} />
+        </>
+      ) : (
+        <>
+          <div className="topbar">
+            <div className="store">{settings?.storeName || '員工專區'}</div>
+          </div>
+
+          {tab==='home' && <HomePage session={session} status={status} pendingCount={pending.length} goForms={()=>setTab('forms')} onLogout={logout} showToast={showToast} />}
+          {tab==='punch' && <PunchPage session={session} status={status} refreshStatus={refreshStatus} showToast={showToast} />}
+          {tab==='forms' && <FormsPage session={session} isManager={!!session.isManager} pending={pending} refreshPending={refreshPending} showToast={showToast} settings={settings} />}
+          {tab==='schedule' && <ComingSoon icon="calendar_month" label="班表 / 行事曆" />}
+          {tab==='news' && <ComingSoon icon="campaign" label="公司公告" />}
+
+          <div className="tabbar">
+            <div className="tabbar-inner">
+              {TABS.map(t=>(
+                <div key={t.id} className={'tab'+(tab===t.id?' active':'')} onClick={()=>setTab(t.id)}>
+                  <span className="material-icons">{t.icon}</span>
+                  {t.label}
+                  {t.id==='forms' && pending.length>0 && <span className="reddot">{pending.length}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
       {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
     </div>
   );
@@ -369,7 +809,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
   window.addEventListener('unhandledrejection', function(e){
     showError('未處理的錯誤：' + (e.reason && e.reason.message ? e.reason.message : e.reason));
   });
-
   function loadScript(src){
     return new Promise(function(resolve, reject){
       var s = document.createElement('script');
@@ -382,13 +821,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
     if(idx >= urls.length) return Promise.reject(new Error('所有來源皆載入失敗：' + urls.join(' / ')));
     return loadScript(urls[idx]).catch(function(){ return loadWithFallback(urls, idx+1); });
   }
-
   var CDN = {
     react: ['https://unpkg.com/react@18/umd/react.production.min.js', 'https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js'],
     reactDom: ['https://unpkg.com/react-dom@18/umd/react-dom.production.min.js', 'https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js'],
     babel: ['https://unpkg.com/@babel/standalone/babel.min.js', 'https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js']
   };
-
   loadWithFallback(CDN.react)
     .then(function(){ return loadWithFallback(CDN.reactDom); })
     .then(function(){ return loadWithFallback(CDN.babel); })
