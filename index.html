@@ -563,17 +563,17 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   function roundToUnit(h){
     return Math.round(h / unit) * unit;
   }
-  function computeHours(startDate, startTime, endDate, endTime){
-    if(!startDate || !startTime || !endDate || !endTime) return '';
-    const start = new Date(startDate+'T'+startTime+':00');
-    const end = new Date(endDate+'T'+endTime+':00');
+  function computeHours(startDT, endDT){
+    if(!startDT || !endDT) return '';
+    const start = new Date(startDT);
+    const end = new Date(endDT);
     if(isNaN(start.getTime()) || isNaN(end.getTime()) || end<=start) return '';
     const diff = (end-start)/3600000;
     return roundToUnit(diff);
   }
   function updateLeaveField(patch){
     const next = {...leaveBox, ...patch};
-    const auto = computeHours(next.startDate, next.startTime, next.endDate, next.endTime);
+    const auto = computeHours(next.startDT, next.endDT);
     if(auto !== '') next.hours = auto;
     setLeaveBox(next);
   }
@@ -588,9 +588,11 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
 
   async function submitLeave(){
     if(!leaveBox.leaveType){ showToast('請選擇假別','err'); return; }
-    if(!leaveBox.startDate || !leaveBox.startTime || !leaveBox.endDate || !leaveBox.endTime){ showToast('請填寫起訖時間','err'); return; }
-    if(new Date(leaveBox.endDate+'T'+leaveBox.endTime+':00') <= new Date(leaveBox.startDate+'T'+leaveBox.startTime+':00')){ showToast('結束時間必須晚於開始時間','err'); return; }
-    if(leaveBox.startTime < shiftStart || leaveBox.endTime > shiftEnd){
+    if(!leaveBox.startDT || !leaveBox.endDT){ showToast('請填寫起訖時間','err'); return; }
+    if(new Date(leaveBox.endDT) <= new Date(leaveBox.startDT)){ showToast('結束時間必須晚於開始時間','err'); return; }
+    const startTimeOnly = leaveBox.startDT.slice(11,16);
+    const endTimeOnly = leaveBox.endDT.slice(11,16);
+    if(startTimeOnly < shiftStart || endTimeOnly > shiftEnd){
       showToast(`請假時間需在班別時間內（${shiftStart}~${shiftEnd}），請重新選擇`, 'err');
       return;
     }
@@ -599,8 +601,8 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
     try{
       await apiPost('submitRequest', {
         type:'請假', leaveType: leaveBox.leaveType,
-        startTime: leaveBox.startDate + ' ' + leaveBox.startTime,
-        endTime: leaveBox.endDate + ' ' + leaveBox.endTime,
+        startTime: leaveBox.startDT.replace('T',' '),
+        endTime: leaveBox.endDT.replace('T',' '),
         hours: Number(leaveBox.hours), reason: leaveBox.reason || ''
       });
       showToast('請假申請已送出','ok');
@@ -649,7 +651,10 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
       )}
 
       <div className="form-actions">
-        <button className="leave" onClick={()=>setLeaveBox({leaveType:'', startDate:'', startTime:'09:00', endDate:'', endTime:'18:00', hours:'', reason:''})}>
+        <button className="leave" onClick={()=>{
+          const today = new Date().toISOString().slice(0,10);
+          setLeaveBox({leaveType:'', startDT: today+'T'+shiftStart, endDT: today+'T'+shiftEnd, hours:'', reason:''});
+        }}>
           <span className="material-icons">event_available</span>請假申請
         </button>
         <button className="comp" onClick={()=>setCompBox({date:'', hours:'', reason:''})}>
@@ -714,12 +719,8 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
               </select>
             </div>
             <div className="hint" style={{marginBottom:10}}>班別時間 {shiftStart}~{shiftEnd}，請假時段需在此範圍內</div>
-            <div className="grid-2m">
-              <div className="field"><label>開始日期</label><input type="date" value={leaveBox.startDate} onChange={e=>updateLeaveField({startDate:e.target.value, endDate: leaveBox.endDate || e.target.value})} /></div>
-              <div className="field"><label>開始時間</label><input type="time" min={shiftStart} max={shiftEnd} value={leaveBox.startTime} onChange={e=>updateLeaveField({startTime:e.target.value})} /></div>
-              <div className="field"><label>結束日期</label><input type="date" value={leaveBox.endDate} onChange={e=>updateLeaveField({endDate:e.target.value})} /></div>
-              <div className="field"><label>結束時間</label><input type="time" min={shiftStart} max={shiftEnd} value={leaveBox.endTime} onChange={e=>updateLeaveField({endTime:e.target.value})} /></div>
-            </div>
+            <div className="field"><label>開始時間</label><input type="datetime-local" value={leaveBox.startDT} onChange={e=>updateLeaveField({startDT:e.target.value, endDT: leaveBox.endDT || e.target.value})} /></div>
+            <div className="field"><label>結束時間</label><input type="datetime-local" value={leaveBox.endDT} onChange={e=>updateLeaveField({endDT:e.target.value})} /></div>
             <div className="field"><label>請假時數（依起訖時間自動計算，最小單位 {unit} 小時，可手動調整）</label><input type="number" step={unit} min={unit} value={leaveBox.hours} onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} /></div>
             <div className="field"><label>事由</label><textarea rows="2" value={leaveBox.reason} onChange={e=>setLeaveBox({...leaveBox, reason:e.target.value})}></textarea></div>
             <div className="modal-actions">
