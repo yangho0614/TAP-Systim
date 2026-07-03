@@ -608,7 +608,7 @@ function EmployeesTab({employees, loading, reload}){
       )}
 
       {editing && (
-        <div className="modal-bg" onClick={(e)=>{ if(e.target===e.currentTarget) setEditing(null); }}>
+        <div className="modal-bg">
           <div className="modal">
             <h3><span className="material-icons">badge</span>{isNew ? '新增員工' : '編輯員工：' + editing.name}</h3>
             <div className="grid-2">
@@ -669,7 +669,7 @@ function EmployeesTab({employees, loading, reload}){
       )}
 
       {accountBox && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setAccountBox(null); }}>
+        <div className="modal-bg">
           <div className="modal" style={{width:400}}>
             <h3><span className="material-icons">vpn_key</span>建立登入帳號：{accountBox.name}</h3>
             <div className="field"><label>帳號（建議用手機號碼或員工編號）</label><input value={accountBox.account} onChange={e=>setAccountBox({...accountBox, account:e.target.value})} /></div>
@@ -739,7 +739,7 @@ function RecordsTab({employees, month}){
       </div>
 
       {manual && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setManual(null); }}>
+        <div className="modal-bg">
           <div className="modal">
             <h3>補登打卡紀錄</h3>
             <div className="field"><label>員工</label>
@@ -760,7 +760,7 @@ function RecordsTab({employees, month}){
         </div>
       )}
       {editing && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setEditing(null); }}>
+        <div className="modal-bg">
           <div className="modal">
             <h3>修改打卡紀錄</h3>
             <div className="grid-2">
@@ -1210,7 +1210,7 @@ function CompanyTab(){
         )}
       </div>
       {editing && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setEditing(null); }}>
+        <div className="modal-bg">
           <div className="modal">
             <h3><span className="material-icons">business</span>{isNew?'新增公司':'編輯公司'}</h3>
             <div className="grid-2">
@@ -1289,7 +1289,7 @@ function DepartmentTab({employees}){
       </div>
       <div className="hint">部門主管未來會用在請假簽核流程，請先指定好，之後開通請假功能就能直接使用。</div>
       {editing && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setEditing(null); }}>
+        <div className="modal-bg">
           <div className="modal">
             <h3><span className="material-icons">apartment</span>{isNew?'新增部門':'編輯部門'}</h3>
             <div className="field"><label>部門名稱 *</label><input value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} /></div>
@@ -1366,7 +1366,7 @@ function ShiftTab({employees}){
         )}
       </div>
       {editing && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setEditing(null); }}>
+        <div className="modal-bg">
           <div className="modal">
             <h3><span className="material-icons">schedule_send</span>{isNew?'新增班別':'編輯班別'}</h3>
             <div className="field"><label>班別名稱 *</label><input value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} placeholder="例：早班" /></div>
@@ -1516,7 +1516,7 @@ function AccountsTab({employees}){
         )}
       </div>
       {resetBox && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setResetBox(null); }}>
+        <div className="modal-bg">
           <div className="modal" style={{width:380}}>
             <h3><span className="material-icons">lock_reset</span>重設密碼：{resetBox.account}</h3>
             <div className="field"><label>新密碼</label><input value={resetBox.newPassword} onChange={e=>setResetBox({...resetBox,newPassword:e.target.value})} /></div>
@@ -1598,7 +1598,7 @@ function RequestsTab({month}){
         )}
       </div>
       {reviewBox && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setReviewBox(null); }}>
+        <div className="modal-bg">
           <div className="modal" style={{width:420}}>
             <h3><span className="material-icons">{reviewBox.mode==='approve'?'check_circle':'cancel'}</span>{reviewBox.mode==='approve'?'核准':'駁回'}：{reviewBox.req.name} 的{reviewBox.req.type==='請假'?reviewBox.req.leaveType:'加班換補休'}</h3>
             <div className="field"><label>審核意見（選填）</label><input value={reviewBox.comment} onChange={e=>setReviewBox({...reviewBox, comment:e.target.value})} style={{width:'100%'}} /></div>
@@ -1878,7 +1878,7 @@ function AnnouncementsTab(){
       ))}
 
       {editing && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setEditing(null); }}>
+        <div className="modal-bg">
           <div className="modal">
             <h3><span className="material-icons">campaign</span>{isNew?'發布公告':'編輯公告'}</h3>
             <div className="field"><label>標題 *</label><input value={editing.title} onChange={e=>setEditing({...editing,title:e.target.value})} style={{width:'100%'}} /></div>

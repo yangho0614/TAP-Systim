@@ -161,6 +161,14 @@
     background:#101915; color:var(--text); font-size:14px; font-family:'Noto Sans TC',sans-serif;
   }
   select{ appearance:none; }
+  input[type=date],input[type=time],input[type=datetime-local]{
+    padding-right:8px; color-scheme:dark;
+  }
+  input[type=date]::-webkit-calendar-picker-indicator,
+  input[type=time]::-webkit-calendar-picker-indicator,
+  input[type=datetime-local]::-webkit-calendar-picker-indicator{
+    margin-right:2px; padding:4px; filter:invert(0.75);
+  }
   .primary-btn{
     width:100%; padding:13px 0; border-radius:9px; border:none; background:var(--gold); color:#1c1305;
     font-size:15px; font-weight:700; cursor:pointer; margin-top:4px;
@@ -218,24 +226,38 @@
 
   /* ===== 桌機版（寬螢幕）：維持單一卡片樣式，整體放大 ===== */
   @media (min-width: 900px){
-    body{ display:flex; align-items:flex-start; justify-content:center; padding:40px 20px; }
-    .app{
-      max-width:640px; width:100%; min-height:auto;
+    body{ display:block; padding:40px 20px; }
+
+    /* 登入畫面：直接置中在整個畫面，不包外層卡片 */
+    .app:not(:has(.tabbar)){
+      width:auto; max-width:none; height:auto; min-height:100vh; min-height:100dvh;
+      background:transparent; border:none; box-shadow:none; margin:0; overflow:visible;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .app:not(:has(.tabbar)) .topbar{ position:fixed; top:0; left:0; padding:20px 28px; }
+    .login-wrap{
+      padding:20px 40px; margin:0; min-height:0; width:auto;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+    }
+    .login-card{ width:360px; box-shadow:0 20px 50px rgba(0,0,0,.35); }
+
+    /* 登入後：固定大小的卡片外殼 */
+    .app:has(.tabbar){
+      width:640px; max-width:640px; margin:0 auto; height:830px; min-height:0;
       background:var(--panel); border:1px solid var(--line); border-radius:22px;
       box-shadow:0 24px 60px rgba(0,0,0,.35); overflow:hidden; padding-bottom:0;
     }
-    .login-wrap{ padding:60px 40px; margin:0; }
-    .topbar{ padding:22px 32px 14px 32px; }
+    .topbar{ padding:22px 32px 14px 32px; flex-shrink:0; }
     .topbar .store{ font-size:17px; }
-    .page{ padding:10px 32px 32px 32px; }
-    .tabbar{ position:static; border-radius:0 0 22px 22px; }
+    .page{ padding:10px 32px 32px 32px; flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+    .tabbar{ position:static; border-radius:0 0 22px 22px; flex-shrink:0; }
     .tabbar-inner{ max-width:none; }
     .tab{ padding:14px 0 calc(14px + env(safe-area-inset-bottom)) 0; font-size:12px; }
     .tab .material-icons{ font-size:24px; }
 
     .clock-big .time{ font-size:60px; }
     .status-grid{ grid-template-columns:repeat(4,1fr); }
-    .balance-row{ max-width:520px; margin-left:auto; margin-right:auto; }
+    .balance-row{ margin-left:0; margin-right:0; }
     .profile{ padding-top:14px; }
     .big-btn{ font-size:21px; padding:22px 0; }
   }
@@ -430,7 +452,7 @@ function HomePage({session, status, pendingCount, goForms, onLogout, showToast})
       </div>
 
       {pwBox && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setPwBox(false); }}>
+        <div className="modal-bg">
           <div className="modal">
             <h3><span className="material-icons">lock_reset</span>修改密碼</h3>
             <div className="field"><label>原密碼</label><input type="password" value={pw.oldPassword} onChange={e=>setPw({...pw,oldPassword:e.target.value})} /></div>
@@ -544,8 +566,11 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
 
   const unit = Number(settings?.leaveUnit) || 1;
   const shift = session.employee?.shift;
-  const shiftStart = shift?.workStart || settings?.workStart || '09:00';
-  const shiftEnd = shift?.workEnd || settings?.workEnd || '18:00';
+  function safeHHMM(v, fallback){
+    return (typeof v === 'string' && /^\d{2}:\d{2}$/.test(v)) ? v : fallback;
+  }
+  const shiftStart = safeHHMM(shift?.workStart, safeHHMM(settings?.workStart, '09:00'));
+  const shiftEnd = safeHHMM(shift?.workEnd, safeHHMM(settings?.workEnd, '18:00'));
 
   function roundToUnit(h){
     return Math.round(h / unit) * unit;
@@ -691,7 +716,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
       ))}
 
       {leaveBox && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setLeaveBox(null); }}>
+        <div className="modal-bg">
           <div className="modal">
             <h3><span className="material-icons">event_available</span>請假申請</h3>
             <div className="field"><label>假別</label>
@@ -719,7 +744,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
       )}
 
       {compBox && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setCompBox(null); }}>
+        <div className="modal-bg">
           <div className="modal">
             <h3><span className="material-icons">swap_horiz</span>加班換補休</h3>
             <div className="hint" style={{marginBottom:12}}>將已加班的時數轉換為補休額度，經主管核准後即可於請假時選擇「補休」使用。</div>
@@ -735,7 +760,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
       )}
 
       {reviewBox && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setReviewBox(null); }}>
+        <div className="modal-bg">
           <div className="modal">
             <h3><span className="material-icons">{reviewBox.mode==='approve'?'check_circle':'cancel'}</span>{reviewBox.mode==='approve'?'核准':'駁回'}申請</h3>
             <div className="card req-item" style={{marginBottom:12}}>
@@ -930,7 +955,7 @@ function PayslipModal({onClose, showToast}){
   const money = v => Math.round(Number(v)||0).toLocaleString('zh-TW');
 
   return (
-    <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+    <div className="modal-bg">
       <div className="modal">
         <h3><span className="material-icons">receipt_long</span>我的薪資條</h3>
         <div className="field"><label>月份</label><input type="month" value={month} onChange={e=>setMonth(e.target.value)} /></div>
