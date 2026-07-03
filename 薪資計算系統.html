@@ -1041,7 +1041,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
     .then(function(){ return loadWithFallback(CDN.babel); })
     .then(function(){
       var src = document.getElementById('app-src').textContent;
-      var compiled = Babel.transform(src, {presets:['react']}).code;
+      var compiled = Babel.transform(src, {presets:[['react',{runtime:'classic'}]]}).code;
       var statusEl = document.getElementById('boot-status');
       if(statusEl) statusEl.remove();
       (0, eval)(compiled);
