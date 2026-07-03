@@ -6,6 +6,7 @@
 <title>員工打卡</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
   :root{
     --ink:#1c2420;
@@ -27,36 +28,72 @@
     min-height:100vh; display:flex; flex-direction:column; align-items:center;
     padding:20px 14px 40px 14px;
   }
+  .material-icons{vertical-align:middle; line-height:1;}
+
   .clock-head{ text-align:center; margin:18px 0 26px 0; }
   .clock-head .store{ font-family:'Noto Serif TC',serif; font-size:15px; letter-spacing:4px; color:var(--gold); text-transform:uppercase; }
   .clock-head .time{ font-family:'Roboto Mono',monospace; font-size:min(15vw,64px); font-weight:700; letter-spacing:2px; margin-top:6px; }
   .clock-head .date{ font-size:14px; color:var(--muted); margin-top:4px; }
 
-  .mode-switch{ display:flex; gap:8px; margin-bottom:18px; }
-  .mode-switch button{
+  /* 登入畫面 */
+  .login-wrap{ width:100%; max-width:360px; margin-top:6vh; }
+  .login-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:32px 28px; text-align:center;
+  }
+  .login-card .mark-icon{
+    width:52px; height:52px; border-radius:14px; background:var(--gold); color:#1c1305;
+    display:flex; align-items:center; justify-content:center; margin:0 auto 14px auto;
+  }
+  .login-card h2{ font-family:'Noto Serif TC',serif; font-size:18px; margin:0 0 4px 0; }
+  .login-card .sub{ font-size:12px; color:var(--muted); margin-bottom:22px; }
+  .login-card .field{ text-align:left; margin-bottom:14px; }
+  .login-card label{ font-size:12px; color:var(--muted); display:block; margin-bottom:5px; }
+  .login-card input{
+    width:100%; padding:12px 13px; border-radius:8px; border:1px solid var(--line);
+    background:#101915; color:var(--text); font-size:14px;
+  }
+  .login-card button{
+    width:100%; padding:13px 0; border-radius:8px; border:none; background:var(--gold); color:#1c1305;
+    font-size:15px; font-weight:700; cursor:pointer; margin-top:6px;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .login-card .err{ color:#f3c9c2; font-size:12.5px; margin-top:12px; min-height:16px; }
+
+  /* 打卡主畫面（單一員工） */
+  .punch-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:18px;
+    padding:32px 28px; width:100%; max-width:400px; text-align:center;
+  }
+  .punch-card .avatar{
+    width:64px; height:64px; border-radius:50%; background:var(--gold); color:#1c1305;
+    display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto;
+    font-size:24px; font-weight:800;
+  }
+  .punch-card .name{ font-size:20px; font-weight:700; }
+  .punch-card .dept{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .punch-card .status-row{ display:flex; justify-content:center; gap:22px; margin:20px 0; font-size:12.5px; color:var(--muted); }
+  .punch-card .status-row b{ color:var(--text); font-family:'Roboto Mono',monospace; font-size:15px; display:block; margin-top:2px; }
+  .big-btn{
+    width:100%; padding:20px 0; border-radius:14px; border:none; cursor:pointer;
+    font-size:20px; font-weight:800; font-family:'Noto Serif TC',serif; letter-spacing:3px;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    transition:transform .1s;
+  }
+  .big-btn:active{ transform:scale(0.97); }
+  .big-btn.in{ background:var(--green); color:#082018; }
+  .big-btn.out{ background:var(--gold); color:#1c1305; }
+  .big-btn.done{ background:var(--line); color:var(--muted); cursor:default; }
+  .big-btn .material-icons{ font-size:26px; }
+
+  .logout-row{ margin-top:22px; }
+  .logout-row button{
     background:transparent; border:1px solid var(--line); color:var(--muted);
-    padding:7px 16px; border-radius:20px; font-size:12.5px; cursor:pointer;
+    padding:8px 16px; border-radius:20px; font-size:12.5px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:6px;
   }
-  .mode-switch button.active{ background:var(--gold); color:#1c1305; border-color:var(--gold); font-weight:700; }
 
-  .grid{
-    display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
-    gap:12px; width:100%; max-width:960px;
-  }
-  .emp-card{
-    background:var(--panel); border:1px solid var(--line); border-radius:10px;
-    padding:18px 10px; text-align:center; cursor:pointer; transition:transform .1s, border-color .15s;
-    position:relative;
-  }
-  .emp-card:active{ transform:scale(0.96); }
-  .emp-card .name{ font-size:16px; font-weight:700; }
-  .emp-card .dept{ font-size:11px; color:var(--muted); margin-top:3px; }
-  .emp-card .dot{ position:absolute; top:10px; right:10px; width:9px; height:9px; border-radius:50%; background:var(--line); }
-  .emp-card.done-in .dot{ background:var(--green); }
-  .emp-card.done-out .dot{ box-shadow:0 0 0 2px var(--gold); background:var(--gold); }
-  .emp-card.remembered{ border-color:var(--gold); }
-
-  .footer-note{ margin-top:28px; font-size:11.5px; color:var(--muted); text-align:center; max-width:520px; }
+  .footer-note{ margin-top:24px; font-size:11.5px; color:var(--muted); text-align:center; max-width:400px; }
   .footer-note a{ color:var(--gold); }
 
   .modal-bg{
@@ -81,7 +118,6 @@
   }
   .modal .confirm{ background:var(--gold); color:#1c1305; }
   .modal .cancel{ background:transparent; color:var(--muted); border:1px solid var(--line); }
-  .modal .remember-row{ margin-top:14px; font-size:12px; color:var(--muted); display:flex; align-items:center; justify-content:center; gap:6px; }
   .modal.loading .btn-row{ opacity:.5; pointer-events:none; }
   .spinner{ display:inline-block; width:14px; height:14px; border:2px solid var(--muted); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
@@ -106,21 +142,28 @@
 <div id="boot-error" style="display:none; position:fixed; left:12px; right:12px; bottom:12px; max-width:640px; margin:0 auto; background:#3a1717; color:#fbd7d0; border:1px solid #7a3b34; padding:14px 18px; border-radius:8px; font-size:12px; font-family:monospace; white-space:pre-wrap; z-index:9999;"></div>
 
 <script type="text/plain" id="app-src">
-
 const {useState, useEffect, useRef} = React;
 
 /* ⚠️ 部署 Code.gs 為網頁應用程式後，把網址貼在這裡 */
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzW7073VQtPGa9cIn-pBNdfLClDdkEn8eBGVzDSkv26ZZWiHGcD5wikhx7KL5l4mlsC/exec';
+const TOKEN_KEY = 'employee_session_token';
+
+let CURRENT_TOKEN = null;
+try{ CURRENT_TOKEN = localStorage.getItem(TOKEN_KEY) || null; }catch(e){}
+function setToken(t){
+  CURRENT_TOKEN = t;
+  try{ if(t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); }catch(e){}
+}
 
 async function apiGet(action, params={}){
-  const qs = new URLSearchParams({action, ...params}).toString();
+  const qs = new URLSearchParams({action, token: CURRENT_TOKEN||'', ...params}).toString();
   const res = await fetch(`${GAS_URL}?${qs}`);
   const json = await res.json();
   if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
   return json.data;
 }
 async function apiPost(action, body={}){
-  const res = await fetch(GAS_URL, {method:'POST', body: JSON.stringify({action, ...body})});
+  const res = await fetch(GAS_URL, {method:'POST', body: JSON.stringify({action, token: CURRENT_TOKEN, ...body})});
   const json = await res.json();
   if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
   return json.data;
@@ -136,66 +179,104 @@ function getLocation(){
     );
   });
 }
-
 function useClock(){
   const [now, setNow] = useState(new Date());
   useEffect(()=>{ const t = setInterval(()=>setNow(new Date()), 1000); return ()=>clearInterval(t); }, []);
   return now;
 }
-function pad(n){ return String(n).padStart(2,'0'); }
+function pad(v){ return String(v).padStart(2,'0'); }
 
+/* ========================= 登入畫面 ========================= */
+function LoginScreen({onLoggedIn}){
+  const [account, setAccount] = useState('');
+  const [password, setPassword] = useState('');
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function submit(ev){
+    ev.preventDefault();
+    setErr(''); setLoading(true);
+    try{
+      const data = await apiPost('login', {account, password});
+      setToken(data.token);
+      onLoggedIn(data);
+    }catch(e){ setErr(e.message); }
+    finally{ setLoading(false); }
+  }
+
+  return (
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="mark-icon"><span className="material-icons" style={{fontSize:28}}>fingerprint</span></div>
+        <h2>員工打卡登入</h2>
+        <div className="sub">請輸入帳號密碼進行打卡</div>
+        <form onSubmit={submit}>
+          <div className="field"><label>帳號</label><input value={account} onChange={e=>setAccount(e.target.value)} autoFocus /></div>
+          <div className="field"><label>密碼</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} /></div>
+          <button type="submit" disabled={loading}><span className="material-icons" style={{fontSize:18}}>login</span>{loading?'登入中...':'登入'}</button>
+          <div className="err">{err}</div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ========================= 打卡主畫面 ========================= */
 function App(){
   const now = useClock();
-  const [employees, setEmployees] = useState([]);
+  const [configError] = useState(GAS_URL.indexOf('請填入') !== -1);
+  const [session, setSession] = useState(null);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [settings, setSettings] = useState(null);
-  const [statusMap, setStatusMap] = useState({});
-  const [configError, setConfigError] = useState(false);
-  const [modal, setModal] = useState(null); // {emp, type, time}
-  const [modalState, setModalState] = useState('confirm'); // confirm | loading | result
-  const [locInfo, setLocInfo] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [modal, setModal] = useState(null); // 'in' | 'out' | null
+  const [modalState, setModalState] = useState('confirm');
   const [toast, setToast] = useState(null);
-  const [remembered, setRemembered] = useState(localStorage.getItem('punch_remember_id') || '');
-  const [rememberToggle, setRememberToggle] = useState(true);
 
   useEffect(()=>{
-    if(GAS_URL.indexOf('請填入') !== -1){ setConfigError(true); return; }
-    Promise.all([apiGet('getEmployees'), apiGet('getSettings')])
-      .then(([emps, set])=>{ setEmployees(emps); setSettings(set); })
-      .catch(e => showToast(e.message, 'err'));
+    if(configError){ setCheckingSession(false); return; }
+    if(!CURRENT_TOKEN){ setCheckingSession(false); return; }
+    apiGet('getSettings').then(s=>{ setSettings(s); setSession({token:CURRENT_TOKEN, restored:true}); })
+      .catch(()=>{ setToken(null); }).finally(()=>setCheckingSession(false));
   }, []);
 
+  useEffect(()=>{
+    if(!session) return;
+    apiGet('getSettings').then(setSettings).catch(()=>{});
+    refreshStatus();
+  }, [session]);
+
+  function refreshStatus(){
+    if(!session || !session.employeeId) return;
+    apiGet('getTodayStatus', {employeeId: session.employeeId}).then(setStatus).catch(e=>showToast(e.message,'err'));
+  }
   function showToast(msg, type){
     setToast({msg, type});
     setTimeout(()=>setToast(null), 3500);
   }
-
-  async function openCard(emp){
-    let st = statusMap[emp.id];
-    if(!st){
-      try{ st = await apiGet('getTodayStatus', {employeeId: emp.id}); setStatusMap(prev=>({...prev,[emp.id]:st})); }
-      catch(e){ showToast(e.message,'err'); return; }
-    }
-    const type = !st.clockedIn ? 'in' : (!st.clockedOut ? 'out' : 'done');
-    setModal({emp, type});
-    setModalState('confirm');
-    setLocInfo(null);
+  function onLoggedIn(data){
+    if(!data.employeeId){ showToast('此帳號沒有綁定員工資料，無法打卡，請聯繫管理者', 'err'); setToken(null); return; }
+    setSession(data);
+  }
+  function logout(){
+    setToken(null);
+    setSession(null);
+    setStatus(null);
   }
 
+  function openModal(type){
+    setModal(type);
+    setModalState('confirm');
+  }
   async function confirmPunch(){
     setModalState('loading');
     const loc = await getLocation();
-    setLocInfo(loc);
     try{
-      const action = modal.type === 'in' ? 'clockIn' : 'clockOut';
-      const data = await apiPost(action, {employeeId: modal.emp.id, lat: loc.lat, lng: loc.lng, source: window.innerWidth < 700 ? 'mobile' : 'kiosk'});
-      setStatusMap(prev => ({...prev, [modal.emp.id]: {
-        clockedIn: true, clockedOut: modal.type==='out' ? true : (prev[modal.emp.id]?.clockedOut||false),
-        checkInTime: modal.type==='in'?data.time:prev[modal.emp.id]?.checkInTime,
-        checkOutTime: modal.type==='out'?data.time:null
-      }}));
-      if(rememberToggle){ localStorage.setItem('punch_remember_id', modal.emp.id); setRemembered(modal.emp.id); }
-      showToast(`${modal.emp.name} ${modal.type==='in'?'上班':'下班'}打卡成功（${data.statusTag}）`, data.statusTag.indexOf('超出')===0 ? 'err':'ok');
+      const action = modal === 'in' ? 'clockIn' : 'clockOut';
+      const data = await apiPost(action, {employeeId: session.employeeId, lat: loc.lat, lng: loc.lng, source: window.innerWidth < 700 ? 'mobile' : 'kiosk'});
+      showToast(`${modal==='in'?'上班':'下班'}打卡成功（${data.statusTag}）`, data.statusTag.indexOf('超出')===0 ? 'err':'ok');
       setModal(null);
+      refreshStatus();
     }catch(e){
       showToast(e.message, 'err');
       setModalState('confirm');
@@ -203,74 +284,68 @@ function App(){
   }
 
   if(configError){
-    return (
-      <div style={{padding:40, maxWidth:600}}>
-        <div className="config-warn">
-          尚未設定 GAS 後端網址。請先部署 <code>Code.gs</code> 為網頁應用程式，
-          並將網址貼到本檔案頂端的 <code>GAS_URL</code> 常數中。
-        </div>
-      </div>
-    );
+    return <div style={{padding:40, maxWidth:600}}><div className="config-warn">尚未設定 GAS 後端網址。請先部署 <code>Code.gs</code> 為網頁應用程式，並將網址貼到本檔案頂端的 <code>GAS_URL</code> 常數中。</div></div>;
   }
 
   const dateStr = `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())}　${'日一二三四五六'[now.getDay()]}`;
 
   return (
-    <div>
+    <div style={{width:'100%', display:'flex', flexDirection:'column', alignItems:'center'}}>
       <div className="clock-head">
         <div className="store">{settings?.storeName || '打卡系統'}</div>
         <div className="time">{pad(now.getHours())}:{pad(now.getMinutes())}:{pad(now.getSeconds())}</div>
         <div className="date">星期{dateStr}</div>
       </div>
 
-      <div className="grid">
-        {employees.length===0 && <div style={{gridColumn:'1/-1', textAlign:'center', color:'var(--muted)'}}>載入員工資料中...</div>}
-        {employees.map(emp=>{
-          const st = statusMap[emp.id];
-          const cls = st?.clockedOut ? 'done-out' : (st?.clockedIn ? 'done-in' : '');
-          return (
-            <div key={emp.id} className={`emp-card ${cls} ${remembered===emp.id?'remembered':''}`} onClick={()=>openCard(emp)}>
-              <div className="dot"></div>
-              <div className="name">{emp.name}</div>
-              <div className="dept">{emp.department}</div>
-            </div>
-          );
-        })}
-      </div>
+      {checkingSession ? (
+        <div style={{color:'var(--muted)'}}>載入中...</div>
+      ) : !session ? (
+        <LoginScreen onLoggedIn={onLoggedIn} />
+      ) : (
+        <div className="punch-card">
+          <div className="avatar">{(session.employee?.name || '').slice(0,1)}</div>
+          <div className="name">{session.employee?.name || session.account}</div>
+          <div className="dept">{session.employee?.department}{session.employee?.company ? ' · ' + session.employee.company : ''}</div>
+
+          <div className="status-row">
+            <div>上班<b>{status?.checkInTime ? status.checkInTime.split(' ')[1] : '—'}</b></div>
+            <div>下班<b>{status?.checkOutTime ? status.checkOutTime.split(' ')[1] : '—'}</b></div>
+          </div>
+
+          {!status ? (
+            <div style={{color:'var(--muted)', fontSize:13}}>載入打卡狀態中...</div>
+          ) : !status.clockedIn ? (
+            <button className="big-btn in" onClick={()=>openModal('in')}><span className="material-icons">login</span>上班打卡</button>
+          ) : !status.clockedOut ? (
+            <button className="big-btn out" onClick={()=>openModal('out')}><span className="material-icons">logout</span>下班打卡</button>
+          ) : (
+            <button className="big-btn done"><span className="material-icons">check_circle</span>今日已完成打卡</button>
+          )}
+
+          <div className="logout-row">
+            <button onClick={logout}><span className="material-icons" style={{fontSize:15}}>switch_account</span>登出（換人打卡）</button>
+          </div>
+        </div>
+      )}
 
       <div className="footer-note">
-        點選你的名字即可打卡，系統會自動判斷上班／下班卡。<br/>
-        本裝置若為個人手機，可於打卡確認視窗勾選「記住我」，下次開啟會標示你的卡片方便尋找。<br/>
+        {session && <>如需修改密碼或查詢紀錄，請聯繫管理者。<br/></>}
         <a href="admin.html">後台管理</a>
       </div>
 
       {modal && (
         <div className="modal-bg" onClick={(e)=>{ if(e.target===e.currentTarget && modalState!=='loading') setModal(null); }}>
           <div className={`modal ${modalState==='loading'?'loading':''}`}>
-            <div className="who">{modal.emp.name}</div>
-            {modal.type === 'done' ? (
-              <>
-                <div className="action-label" style={{color:'var(--muted)'}}>今日已完成打卡</div>
-                <div className="status-line">上班 {statusMap[modal.emp.id]?.checkInTime} ／ 下班 {statusMap[modal.emp.id]?.checkOutTime}</div>
-                <div className="btn-row"><button className="cancel" onClick={()=>setModal(null)} style={{flex:1}}>關閉</button></div>
-              </>
-            ) : (
-              <>
-                <div className={`action-label ${modal.type}`}>{modal.type==='in' ? '上班打卡' : '下班打卡'}</div>
-                <div className="time">{pad(now.getHours())}:{pad(now.getMinutes())}:{pad(now.getSeconds())}</div>
-                <div className="status-line">
-                  {modalState==='loading' ? <span><span className="spinner"></span> 定位中並送出紀錄...</span> : '請確認身分無誤後按下確認'}
-                </div>
-                <div className="btn-row">
-                  <button className="cancel" onClick={()=>setModal(null)}>取消</button>
-                  <button className="confirm" onClick={confirmPunch}>確認{modal.type==='in'?'上班':'下班'}</button>
-                </div>
-                <div className="remember-row">
-                  <input type="checkbox" checked={rememberToggle} onChange={e=>setRememberToggle(e.target.checked)} id="rm" />
-                  <label htmlFor="rm">記住我（個人手機建議勾選）</label>
-                </div>
-              </>
-            )}
+            <div className="who">{session.employee?.name}</div>
+            <div className={`action-label ${modal}`}>{modal==='in' ? '上班打卡' : '下班打卡'}</div>
+            <div className="time">{pad(now.getHours())}:{pad(now.getMinutes())}:{pad(now.getSeconds())}</div>
+            <div className="status-line">
+              {modalState==='loading' ? <span><span className="spinner"></span> 定位中並送出紀錄...</span> : '請確認後按下確認'}
+            </div>
+            <div className="btn-row">
+              <button className="cancel" onClick={()=>setModal(null)}>取消</button>
+              <button className="confirm" onClick={confirmPunch}>確認{modal==='in'?'上班':'下班'}</button>
+            </div>
           </div>
         </div>
       )}

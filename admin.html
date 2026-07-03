@@ -6,6 +6,7 @@
 <title>後台管理 · 出缺勤與薪資系統</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=Roboto+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
   :root{
     --ink:#1f2a24; --paper:#f6f4ee; --paper-2:#ffffff; --line:#d9d3c3;
@@ -16,28 +17,33 @@
   body{margin:0; background:var(--paper); color:var(--ink); font-family:'Noto Sans TC',sans-serif; font-size:14px;}
   h1,h2,h3{font-family:'Noto Serif TC',serif; margin:0 0 6px 0;}
   .mono{font-family:'Roboto Mono',monospace;}
+  .material-icons{font-size:19px; vertical-align:middle; line-height:1;}
   .app-shell{display:flex; min-height:100vh;}
-  .sidebar{width:200px; flex-shrink:0; background:var(--brand-dark); color:#eee7d9; padding:22px 0; display:flex; flex-direction:column;}
+  .sidebar{width:212px; flex-shrink:0; background:var(--brand-dark); color:#eee7d9; padding:22px 0; display:flex; flex-direction:column;}
   .brand{padding:0 18px 18px 18px; border-bottom:1px solid rgba(255,255,255,.12); margin-bottom:10px;}
   .brand .mark{font-family:'Noto Serif TC',serif; font-size:19px; font-weight:700; color:#f3ead3;}
   .brand .sub{font-size:11px; color:#b9c9bf; margin-top:2px;}
-  .navitem{padding:11px 18px; cursor:pointer; font-size:13px; border-left:3px solid transparent; color:#d9dfd5;}
+  .navitem{padding:10px 18px; cursor:pointer; font-size:13px; border-left:3px solid transparent; color:#d9dfd5; display:flex; align-items:center; gap:9px;}
   .navitem:hover{background:rgba(255,255,255,.06);}
   .navitem.active{background:rgba(255,255,255,.1); border-left-color:var(--accent); color:#fff; font-weight:700;}
+  .navitem .material-icons{font-size:18px; color:#9fb3a5;}
+  .navitem.active .material-icons{color:var(--accent);}
   .nav-group-label{padding:14px 18px 4px 18px; font-size:10.5px; letter-spacing:1px; color:#8fa397; text-transform:uppercase;}
   .main{flex:1; min-width:0;}
   .topbar{background:var(--paper-2); border-bottom:1px solid var(--line); padding:12px 26px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;}
-  .topbar h1{font-size:17px;}
+  .topbar h1{font-size:17px; display:flex; align-items:center; gap:8px;}
   .content{padding:22px 26px 60px 26px; overflow-x:auto;}
-  button{font-size:13px; background:var(--brand); color:#fff; border:none; padding:8px 14px; border-radius:3px; cursor:pointer;}
+  button{font-size:13px; background:var(--brand); color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;}
   button:hover{background:var(--brand-dark);}
   button.ghost{background:transparent; color:var(--brand); border:1px solid var(--brand);}
   button.ghost:hover{background:var(--brand); color:#fff;}
   button.danger{background:transparent; color:var(--danger); border:1px solid var(--danger);}
   button.danger:hover{background:var(--danger); color:#fff;}
   button.sm{padding:4px 9px; font-size:12px;}
+  button.icon-btn{background:transparent; color:var(--muted); padding:5px; border-radius:50%;}
+  button.icon-btn:hover{background:#eef0e7; color:var(--brand-dark);}
   button:disabled{opacity:.45; cursor:not-allowed;}
-  input,select{font-size:13px; border:1px solid var(--line); border-radius:3px; padding:6px 8px; background:#fff; color:var(--ink);}
+  input,select{font-size:13px; border:1px solid var(--line); border-radius:6px; padding:7px 9px; background:#fff; color:var(--ink);}
   input[type=number]{font-family:'Roboto Mono',monospace;}
   label{font-size:12px; color:var(--muted); display:block; margin-bottom:3px;}
   .field{margin-bottom:10px;}
@@ -49,19 +55,20 @@
   tr.total-row td{background:#eef0e7; font-weight:700;}
   .num-pos{color:var(--income);}
   .num-neg{color:var(--outcome);}
-  .card{background:var(--paper-2); border:1px solid var(--line); border-radius:6px; padding:18px; margin-bottom:18px;}
+  .card{background:var(--paper-2); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:18px;}
   .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:0 18px;}
-  .badge{display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; background:#e4e9de; color:var(--brand-dark); font-weight:700;}
+  .badge{display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:2px 9px; border-radius:20px; background:#e4e9de; color:var(--brand-dark); font-weight:700;}
   .badge.warn{background:#f6d9ce; color:#7a3b1e;}
+  .badge .material-icons{font-size:13px;}
   .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px;}
   .toolbar .grow{flex:1;}
   .hint{font-size:11.5px; color:var(--muted); margin-top:4px;}
   .empty{padding:40px; text-align:center; color:var(--muted);}
   .modal-bg{position:fixed; inset:0; background:rgba(20,26,20,.45); display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto; z-index:50;}
-  .modal{background:#fff; border-radius:6px; padding:22px 26px; width:640px; max-width:100%;}
-  .modal h3{margin-bottom:14px;}
+  .modal{background:#fff; border-radius:10px; padding:22px 26px; width:640px; max-width:100%;}
+  .modal h3{margin-bottom:14px; display:flex; align-items:center; gap:8px;}
   .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:16px; border-top:1px solid var(--line); padding-top:14px;}
-  .config-warn{background:#3a2317; border:1px solid #6b4326; color:#f0caa0; padding:14px 18px; border-radius:8px; max-width:640px; font-size:13px; margin-bottom:20px;}
+  .config-warn{background:#3a2317; border:1px solid #6b4326; color:#f0caa0; padding:14px 18px; border-radius:10px; max-width:640px; font-size:13px; margin-bottom:20px;}
   .config-warn code{background:#00000030; padding:1px 5px; border-radius:3px;}
   .flag{color:var(--danger); font-weight:700;}
 
@@ -79,6 +86,27 @@
     font-family:'Roboto Mono',monospace; font-size:16px; font-weight:700; color:var(--brand-dark);
   }
   .payslip .foot-note{font-size:11px; color:var(--muted); margin-top:10px;}
+
+  /* 登入畫面 */
+  .login-wrap{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% -10%, #1c2b23, #0f1712 65%);
+    padding:20px;
+  }
+  .login-card{
+    background:#fff; border-radius:14px; padding:38px 34px; width:360px; max-width:100%;
+    box-shadow:0 20px 50px rgba(0,0,0,.35); text-align:center;
+  }
+  .login-card .mark-icon{
+    width:52px; height:52px; border-radius:14px; background:var(--brand); color:#fff;
+    display:flex; align-items:center; justify-content:center; margin:0 auto 14px auto;
+  }
+  .login-card h2{font-size:17px; margin-bottom:4px;}
+  .login-card .sub{font-size:12px; color:var(--muted); margin-bottom:22px;}
+  .login-card .field{text-align:left;}
+  .login-card input{width:100%; padding:11px 12px;}
+  .login-card button{width:100%; justify-content:center; padding:11px 0; font-size:14px; margin-top:6px;}
+  .login-card .err{color:var(--danger); font-size:12.5px; margin-top:10px; min-height:16px;}
 
   @media print{
     .no-print{display:none !important;}
@@ -98,16 +126,24 @@
 const {useState, useEffect, useMemo, useRef} = React;
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzW7073VQtPGa9cIn-pBNdfLClDdkEn8eBGVzDSkv26ZZWiHGcD5wikhx7KL5l4mlsC/exec';
+const TOKEN_KEY = 'admin_session_token';
+
+let CURRENT_TOKEN = null;
+try{ CURRENT_TOKEN = localStorage.getItem(TOKEN_KEY) || null; }catch(e){}
+function setToken(t){
+  CURRENT_TOKEN = t;
+  try{ if(t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); }catch(e){}
+}
 
 async function apiGet(action, params={}){
-  const qs = new URLSearchParams({action, ...params}).toString();
+  const qs = new URLSearchParams({action, token: CURRENT_TOKEN||'', ...params}).toString();
   const res = await fetch(`${GAS_URL}?${qs}`);
   const json = await res.json();
   if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
   return json.data;
 }
 async function apiPost(action, body={}){
-  const res = await fetch(GAS_URL, {method:'POST', body: JSON.stringify({action, ...body})});
+  const res = await fetch(GAS_URL, {method:'POST', body: JSON.stringify({action, token: CURRENT_TOKEN, ...body})});
   const json = await res.json();
   if(json.status !== 'success') throw new Error(json.message || '發生錯誤');
   return json.data;
@@ -146,7 +182,7 @@ function tenureText(hireDate){
   return `到職年資約 ${y} 年 ${m} 個月，依勞基法第 38 條參考特休天數：約 ${leave} 天（僅供參考，請以實際規定核算）`;
 }
 
-/* ========================= 勞健保投保級距對照表 ========================= */
+/* ========================= 勞健保投保級距對照表與薪資計算引擎 ========================= */
 const INSURANCE_TABLE = [{"grade": 1500, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 90, "compTotal": 2506, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 3000, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 180, "compTotal": 2596, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 4500, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 270, "compTotal": 2686, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 6000, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 360, "compTotal": 2776, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 7500, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 450, "compTotal": 2866, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 8700, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 522, "compTotal": 2938, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 9900, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 594, "compTotal": 3010, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 11100, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 666, "compTotal": 3082, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 12540, "compLabor": 1097, "compHealth": 1384, "compOccu": 60, "compPension": 752, "compTotal": 3293, "empLabor": 313, "empHealth": 443, "empTotal": 756}, {"grade": 13500, "compLabor": 1182, "compHealth": 1384, "compOccu": 60, "compPension": 810, "compTotal": 3436, "empLabor": 338, "empHealth": 443, "empTotal": 781}, {"grade": 15840, "compLabor": 1386, "compHealth": 1384, "compOccu": 60, "compPension": 950, "compTotal": 3780, "empLabor": 396, "empHealth": 443, "empTotal": 839}, {"grade": 16500, "compLabor": 1444, "compHealth": 1384, "compOccu": 60, "compPension": 990, "compTotal": 3878, "empLabor": 413, "empHealth": 443, "empTotal": 856}, {"grade": 17280, "compLabor": 1512, "compHealth": 1384, "compOccu": 60, "compPension": 1037, "compTotal": 3993, "empLabor": 432, "empHealth": 443, "empTotal": 875}, {"grade": 17880, "compLabor": 1564, "compHealth": 1384, "compOccu": 60, "compPension": 1073, "compTotal": 4081, "empLabor": 447, "empHealth": 443, "empTotal": 890}, {"grade": 19047, "compLabor": 1666, "compHealth": 1384, "compOccu": 60, "compPension": 1143, "compTotal": 4253, "empLabor": 476, "empHealth": 443, "empTotal": 919}, {"grade": 20008, "compLabor": 1751, "compHealth": 1384, "compOccu": 60, "compPension": 1200, "compTotal": 4395, "empLabor": 500, "empHealth": 443, "empTotal": 943}, {"grade": 21009, "compLabor": 1838, "compHealth": 1384, "compOccu": 60, "compPension": 1261, "compTotal": 4543, "empLabor": 525, "empHealth": 443, "empTotal": 968}, {"grade": 22000, "compLabor": 1925, "compHealth": 1384, "compOccu": 60, "compPension": 1320, "compTotal": 4689, "empLabor": 550, "empHealth": 443, "empTotal": 993}, {"grade": 23100, "compLabor": 2022, "compHealth": 1384, "compOccu": 60, "compPension": 1386, "compTotal": 4852, "empLabor": 577, "empHealth": 443, "empTotal": 1020}, {"grade": 24000, "compLabor": 2100, "compHealth": 1384, "compOccu": 60, "compPension": 1440, "compTotal": 4984, "empLabor": 600, "empHealth": 443, "empTotal": 1043}, {"grade": 25250, "compLabor": 2210, "compHealth": 1384, "compOccu": 60, "compPension": 1515, "compTotal": 5169, "empLabor": 632, "empHealth": 443, "empTotal": 1075}, {"grade": 26400, "compLabor": 2310, "compHealth": 1384, "compOccu": 60, "compPension": 1584, "compTotal": 5338, "empLabor": 660, "empHealth": 443, "empTotal": 1103}, {"grade": 27600, "compLabor": 2415, "compHealth": 1384, "compOccu": 60, "compPension": 1656, "compTotal": 5515, "empLabor": 690, "empHealth": 443, "empTotal": 1133}, {"grade": 28590, "compLabor": 2501, "compHealth": 1384, "compOccu": 60, "compPension": 1715, "compTotal": 5660, "empLabor": 715, "empHealth": 443, "empTotal": 1158}, {"grade": 28800, "compLabor": 2520, "compHealth": 1394, "compOccu": 60, "compPension": 1728, "compTotal": 5702, "empLabor": 720, "empHealth": 447, "empTotal": 1167}, {"grade": 30300, "compLabor": 2651, "compHealth": 1466, "compOccu": 64, "compPension": 1818, "compTotal": 5999, "empLabor": 758, "empHealth": 470, "empTotal": 1228}, {"grade": 31800, "compLabor": 2783, "compHealth": 1539, "compOccu": 67, "compPension": 1908, "compTotal": 6297, "empLabor": 795, "empHealth": 493, "empTotal": 1288}, {"grade": 33300, "compLabor": 2914, "compHealth": 1611, "compOccu": 70, "compPension": 1998, "compTotal": 6593, "empLabor": 833, "empHealth": 516, "empTotal": 1349}, {"grade": 34800, "compLabor": 3045, "compHealth": 1684, "compOccu": 73, "compPension": 2088, "compTotal": 6890, "empLabor": 870, "empHealth": 540, "empTotal": 1410}, {"grade": 36300, "compLabor": 3176, "compHealth": 1757, "compOccu": 76, "compPension": 2178, "compTotal": 7187, "empLabor": 908, "empHealth": 563, "empTotal": 1471}, {"grade": 38200, "compLabor": 3342, "compHealth": 1849, "compOccu": 80, "compPension": 2292, "compTotal": 7563, "empLabor": 955, "empHealth": 592, "empTotal": 1547}, {"grade": 40100, "compLabor": 3509, "compHealth": 1940, "compOccu": 84, "compPension": 2406, "compTotal": 7939, "empLabor": 1002, "empHealth": 622, "empTotal": 1624}, {"grade": 42000, "compLabor": 3675, "compHealth": 2032, "compOccu": 88, "compPension": 2520, "compTotal": 8315, "empLabor": 1050, "empHealth": 651, "empTotal": 1701}, {"grade": 43900, "compLabor": 3841, "compHealth": 2124, "compOccu": 92, "compPension": 2634, "compTotal": 8691, "empLabor": 1098, "empHealth": 681, "empTotal": 1779}, {"grade": 45800, "compLabor": 4008, "compHealth": 2216, "compOccu": 96, "compPension": 2748, "compTotal": 9068, "empLabor": 1145, "empHealth": 710, "empTotal": 1855}, {"grade": 48200, "compLabor": 4008, "compHealth": 2332, "compOccu": 101, "compPension": 2892, "compTotal": 9333, "empLabor": 1145, "empHealth": 748, "empTotal": 1893}, {"grade": 50600, "compLabor": 4008, "compHealth": 2449, "compOccu": 106, "compPension": 3036, "compTotal": 9599, "empLabor": 1145, "empHealth": 785, "empTotal": 1930}, {"grade": 53000, "compLabor": 4008, "compHealth": 2565, "compOccu": 111, "compPension": 3180, "compTotal": 9864, "empLabor": 1145, "empHealth": 822, "empTotal": 1967}, {"grade": 55400, "compLabor": 4008, "compHealth": 2681, "compOccu": 116, "compPension": 3324, "compTotal": 10129, "empLabor": 1145, "empHealth": 859, "empTotal": 2004}, {"grade": 57800, "compLabor": 4008, "compHealth": 2797, "compOccu": 121, "compPension": 3468, "compTotal": 10394, "empLabor": 1145, "empHealth": 896, "empTotal": 2041}, {"grade": 60800, "compLabor": 4008, "compHealth": 2942, "compOccu": 128, "compPension": 3648, "compTotal": 10726, "empLabor": 1145, "empHealth": 943, "empTotal": 2088}, {"grade": 63800, "compLabor": 4008, "compHealth": 3087, "compOccu": 134, "compPension": 3828, "compTotal": 11057, "empLabor": 1145, "empHealth": 990, "empTotal": 2135}, {"grade": 66800, "compLabor": 4008, "compHealth": 3233, "compOccu": 140, "compPension": 4008, "compTotal": 11389, "empLabor": 1145, "empHealth": 1036, "empTotal": 2181}, {"grade": 69800, "compLabor": 4008, "compHealth": 3378, "compOccu": 147, "compPension": 4188, "compTotal": 11721, "empLabor": 1145, "empHealth": 1083, "empTotal": 2228}, {"grade": 72800, "compLabor": 4008, "compHealth": 3523, "compOccu": 153, "compPension": 4368, "compTotal": 12052, "empLabor": 1145, "empHealth": 1129, "empTotal": 2274}, {"grade": 76500, "compLabor": 4008, "compHealth": 3702, "compOccu": 153, "compPension": 4590, "compTotal": 12453, "empLabor": 1145, "empHealth": 1187, "empTotal": 2332}, {"grade": 80200, "compLabor": 4008, "compHealth": 3881, "compOccu": 153, "compPension": 4812, "compTotal": 12854, "empLabor": 1145, "empHealth": 1244, "empTotal": 2389}, {"grade": 83900, "compLabor": 4008, "compHealth": 4060, "compOccu": 153, "compPension": 5034, "compTotal": 13255, "empLabor": 1145, "empHealth": 1301, "empTotal": 2446}, {"grade": 87600, "compLabor": 4008, "compHealth": 4239, "compOccu": 153, "compPension": 5256, "compTotal": 13656, "empLabor": 1145, "empHealth": 1359, "empTotal": 2504}, {"grade": 92100, "compLabor": 4008, "compHealth": 4457, "compOccu": 153, "compPension": 5526, "compTotal": 14144, "empLabor": 1145, "empHealth": 1428, "empTotal": 2573}, {"grade": 96600, "compLabor": 4008, "compHealth": 4675, "compOccu": 153, "compPension": 5796, "compTotal": 14632, "empLabor": 1145, "empHealth": 1498, "empTotal": 2643}, {"grade": 101100, "compLabor": 4008, "compHealth": 4892, "compOccu": 153, "compPension": 6066, "compTotal": 15119, "empLabor": 1145, "empHealth": 1568, "empTotal": 2713}, {"grade": 105600, "compLabor": 4008, "compHealth": 5110, "compOccu": 153, "compPension": 6336, "compTotal": 15607, "empLabor": 1145, "empHealth": 1638, "empTotal": 2783}, {"grade": 110100, "compLabor": 4008, "compHealth": 5328, "compOccu": 153, "compPension": 6606, "compTotal": 16095, "empLabor": 1145, "empHealth": 1708, "empTotal": 2853}, {"grade": 115500, "compLabor": 4008, "compHealth": 5589, "compOccu": 153, "compPension": 6930, "compTotal": 16680, "empLabor": 1145, "empHealth": 1791, "empTotal": 2936}, {"grade": 120900, "compLabor": 4008, "compHealth": 5850, "compOccu": 153, "compPension": 7254, "compTotal": 17265, "empLabor": 1145, "empHealth": 1875, "empTotal": 3020}, {"grade": 126300, "compLabor": 4008, "compHealth": 6112, "compOccu": 153, "compPension": 7578, "compTotal": 17851, "empLabor": 1145, "empHealth": 1959, "empTotal": 3104}, {"grade": 131700, "compLabor": 4008, "compHealth": 6373, "compOccu": 153, "compPension": 7902, "compTotal": 18436, "empLabor": 1145, "empHealth": 2043, "empTotal": 3188}, {"grade": 137100, "compLabor": 4008, "compHealth": 6634, "compOccu": 153, "compPension": 8226, "compTotal": 19021, "empLabor": 1145, "empHealth": 2126, "empTotal": 3271}, {"grade": 142500, "compLabor": 4008, "compHealth": 6896, "compOccu": 153, "compPension": 8550, "compTotal": 19607, "empLabor": 1145, "empHealth": 2210, "empTotal": 3355}, {"grade": 147900, "compLabor": 4008, "compHealth": 7157, "compOccu": 153, "compPension": 8874, "compTotal": 20192, "empLabor": 1145, "empHealth": 2294, "empTotal": 3439}, {"grade": 150000, "compLabor": 4008, "compHealth": 7259, "compOccu": 153, "compPension": 9000, "compTotal": 20420, "empLabor": 1145, "empHealth": 2327, "empTotal": 3472}, {"grade": 156400, "compLabor": 4008, "compHealth": 7568, "compOccu": 153, "compPension": 9000, "compTotal": 20729, "empLabor": 1145, "empHealth": 2426, "empTotal": 3571}, {"grade": 162800, "compLabor": 4008, "compHealth": 7878, "compOccu": 153, "compPension": 9000, "compTotal": 21039, "empLabor": 1145, "empHealth": 2525, "empTotal": 3670}, {"grade": 169200, "compLabor": 4008, "compHealth": 8188, "compOccu": 153, "compPension": 9000, "compTotal": 21349, "empLabor": 1145, "empHealth": 2624, "empTotal": 3769}, {"grade": 175600, "compLabor": 4008, "compHealth": 8497, "compOccu": 153, "compPension": 9000, "compTotal": 21658, "empLabor": 1145, "empHealth": 2724, "empTotal": 3869}, {"grade": 182000, "compLabor": 4008, "compHealth": 8807, "compOccu": 153, "compPension": 9000, "compTotal": 21968, "empLabor": 1145, "empHealth": 2823, "empTotal": 3968}, {"grade": 189500, "compLabor": 4008, "compHealth": 9170, "compOccu": 153, "compPension": 9000, "compTotal": 22331, "empLabor": 1145, "empHealth": 2939, "empTotal": 4084}, {"grade": 197000, "compLabor": 4008, "compHealth": 9533, "compOccu": 153, "compPension": 9000, "compTotal": 22694, "empLabor": 1145, "empHealth": 3055, "empTotal": 4200}, {"grade": 204500, "compLabor": 4008, "compHealth": 9896, "compOccu": 153, "compPension": 9000, "compTotal": 23057, "empLabor": 1145, "empHealth": 3172, "empTotal": 4317}, {"grade": 212000, "compLabor": 4008, "compHealth": 10259, "compOccu": 153, "compPension": 9000, "compTotal": 23420, "empLabor": 1145, "empHealth": 3288, "empTotal": 4433}, {"grade": 219500, "compLabor": 4008, "compHealth": 10622, "compOccu": 153, "compPension": 9000, "compTotal": 23783, "empLabor": 1145, "empHealth": 3404, "empTotal": 4549}, {"grade": 228200, "compLabor": 4008, "compHealth": 11043, "compOccu": 153, "compPension": 9000, "compTotal": 24204, "empLabor": 1145, "empHealth": 3539, "empTotal": 4684}, {"grade": 236900, "compLabor": 4008, "compHealth": 11464, "compOccu": 153, "compPension": 9000, "compTotal": 24625, "empLabor": 1145, "empHealth": 3674, "empTotal": 4819}, {"grade": 245600, "compLabor": 4008, "compHealth": 11885, "compOccu": 153, "compPension": 9000, "compTotal": 25046, "empLabor": 1145, "empHealth": 3809, "empTotal": 4954}, {"grade": 254300, "compLabor": 4008, "compHealth": 12306, "compOccu": 153, "compPension": 9000, "compTotal": 25467, "empLabor": 1145, "empHealth": 3944, "empTotal": 5089}, {"grade": 263000, "compLabor": 4008, "compHealth": 12727, "compOccu": 153, "compPension": 9000, "compTotal": 25888, "empLabor": 1145, "empHealth": 4079, "empTotal": 5224}, {"grade": 273000, "compLabor": 4008, "compHealth": 13211, "compOccu": 153, "compPension": 9000, "compTotal": 26372, "empLabor": 1145, "empHealth": 4234, "empTotal": 5379}, {"grade": 283000, "compLabor": 4008, "compHealth": 13695, "compOccu": 153, "compPension": 9000, "compTotal": 26856, "empLabor": 1145, "empHealth": 4389, "empTotal": 5534}, {"grade": 293000, "compLabor": 4008, "compHealth": 14179, "compOccu": 153, "compPension": 9000, "compTotal": 27340, "empLabor": 1145, "empHealth": 4544, "empTotal": 5689}, {"grade": 303000, "compLabor": 4008, "compHealth": 14663, "compOccu": 153, "compPension": 9000, "compTotal": 27824, "empLabor": 1145, "empHealth": 4700, "empTotal": 5845}, {"grade": 313000, "compLabor": 4008, "compHealth": 15146, "compOccu": 153, "compPension": 9000, "compTotal": 28307, "empLabor": 1145, "empHealth": 4855, "empTotal": 6000}];
 function findInsurance(grade){
   if(!grade) return null;
@@ -237,10 +273,74 @@ function calcForEmployee(emp, entryRaw){
   };
 }
 
+
+/* ========================= 登入畫面 ========================= */
+function LoginScreen({onLoggedIn, storeName}){
+  const [account, setAccount] = useState('');
+  const [password, setPassword] = useState('');
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function submit(ev){
+    ev.preventDefault();
+    setErr(''); setLoading(true);
+    try{
+      const data = await apiPost('login', {account, password});
+      if(data.role !== 'admin'){ setErr('此帳號沒有後台管理權限'); setLoading(false); return; }
+      setToken(data.token);
+      onLoggedIn(data);
+    }catch(e){ setErr(e.message); }
+    finally{ setLoading(false); }
+  }
+
+  return (
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="mark-icon"><span className="material-icons" style={{fontSize:28}}>admin_panel_settings</span></div>
+        <h2>後台管理登入</h2>
+        <div className="sub">{storeName || '出缺勤與薪資系統'}</div>
+        <form onSubmit={submit}>
+          <div className="field">
+            <label>帳號</label>
+            <input value={account} onChange={e=>setAccount(e.target.value)} autoFocus />
+          </div>
+          <div className="field">
+            <label>密碼</label>
+            <input type="password" value={password} onChange={e=>setPassword(e.target.value)} />
+          </div>
+          <button type="submit" disabled={loading}>
+            <span className="material-icons" style={{fontSize:18}}>login</span>
+            {loading ? '登入中...' : '登入'}
+          </button>
+          <div className="err">{err}</div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 /* ========================= App ========================= */
+const NAV = [
+  {group:'出缺勤', id:'employees', label:'員工資料', icon:'people'},
+  {group:'出缺勤', id:'records', label:'打卡紀錄 / 補登', icon:'schedule'},
+  {group:'出缺勤', id:'attendance', label:'出缺勤彙總', icon:'fact_check'},
+  {group:'薪資', id:'payroll', label:'薪資計算 / 明細', icon:'calculate'},
+  {group:'薪資', id:'payslip', label:'薪資條', icon:'receipt_long'},
+  {group:'薪資', id:'transfer', label:'匯款明細表', icon:'account_balance_wallet'},
+  {group:'薪資', id:'insurance', label:'勞健保級距表', icon:'health_and_safety'},
+  {group:'組織設定', id:'companies', label:'公司管理', icon:'business'},
+  {group:'組織設定', id:'departments', label:'部門管理', icon:'apartment'},
+  {group:'組織設定', id:'shifts', label:'班別設定', icon:'schedule_send'},
+  {group:'組織設定', id:'holidays', label:'公司休假設定', icon:'event_busy'},
+  {group:'組織設定', id:'accounts', label:'帳號管理', icon:'manage_accounts'},
+  {group:'組織設定', id:'settings', label:'系統設定', icon:'settings'},
+];
+
 function App(){
-  const [tab, setTab] = useState('employees');
   const [configError] = useState(GAS_URL.indexOf('請填入') !== -1);
+  const [session, setSession] = useState(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [tab, setTab] = useState('employees');
   const [month, setMonth] = useState(todayMonth());
 
   const [employees, setEmployees] = useState([]);
@@ -250,6 +350,15 @@ function App(){
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // 頁面載入時，若本機已有登入 token，嘗試驗證是否還有效
+  useEffect(()=>{
+    if(configError){ setCheckingSession(false); return; }
+    if(!CURRENT_TOKEN){ setCheckingSession(false); return; }
+    apiGet('getSettings').then(()=>{
+      setSession({token: CURRENT_TOKEN, restored: true});
+    }).catch(()=>{ setToken(null); }).finally(()=>setCheckingSession(false));
+  }, []);
+
   function reloadEmployees(){
     setEmployeesLoading(true);
     return apiGet('getEmployees').then(setEmployees).catch(e=>alert(e.message)).finally(()=>setEmployeesLoading(false));
@@ -258,8 +367,8 @@ function App(){
     setPayrollLoading(true);
     return apiGet('getPayrollEntries', {month:m}).then(data=>{ setPayrollEntries(data||{}); setDirty(false); }).catch(e=>alert(e.message)).finally(()=>setPayrollLoading(false));
   }
-  useEffect(()=>{ if(!configError) reloadEmployees(); }, []);
-  useEffect(()=>{ if(!configError) reloadPayroll(month); }, [month]);
+  useEffect(()=>{ if(session) reloadEmployees(); }, [session]);
+  useEffect(()=>{ if(session) reloadPayroll(month); }, [session, month]);
 
   function setEntry(empId, patch){
     setPayrollEntries(prev => ({...prev, [empId]: {...emptyEntry(), ...(prev[empId]||{}), ...patch}}));
@@ -267,10 +376,8 @@ function App(){
   }
   async function savePayroll(){
     setSaving(true);
-    try{
-      await apiPost('savePayrollMonth', {month, entries: payrollEntries});
-      setDirty(false);
-    }catch(e){ alert(e.message); }
+    try{ await apiPost('savePayrollMonth', {month, entries: payrollEntries}); setDirty(false); }
+    catch(e){ alert(e.message); }
     finally{ setSaving(false); }
   }
   async function applyAttendanceToPayroll(){
@@ -296,20 +403,22 @@ function App(){
     return {emp, entry, calc: calcForEmployee(emp, entry)};
   }), [employees, payrollEntries]);
 
-  const NAV = [
-    {group:'出缺勤', id:'employees', label:'員工資料'},
-    {group:'出缺勤', id:'records', label:'打卡紀錄 / 補登'},
-    {group:'出缺勤', id:'attendance', label:'出缺勤彙總'},
-    {group:'薪資', id:'payroll', label:'薪資計算 / 明細'},
-    {group:'薪資', id:'payslip', label:'薪資條'},
-    {group:'薪資', id:'transfer', label:'匯款明細表'},
-    {group:'薪資', id:'insurance', label:'勞健保級距表'},
-    {group:'系統', id:'settings', label:'系統設定'},
-  ];
   const needsMonth = ['records','attendance','payroll','payslip','transfer'].includes(tab);
+
+  function logout(){
+    setToken(null);
+    setSession(null);
+    setEmployees([]); setPayrollEntries({});
+  }
 
   if(configError){
     return <div style={{padding:40}}><div className="config-warn">尚未設定 GAS 後端網址，請先部署 <code>Code.gs</code>，並將網址貼到本檔案頂端 <code>GAS_URL</code> 常數。</div></div>;
+  }
+  if(checkingSession){
+    return <div style={{padding:60, textAlign:'center', color:'var(--muted)'}}>載入中...</div>;
+  }
+  if(!session){
+    return <LoginScreen onLoggedIn={setSession} />;
   }
 
   let lastGroup = null;
@@ -323,17 +432,24 @@ function App(){
           return (
             <React.Fragment key={item.id}>
               {showLabel && <div className="nav-group-label">{item.group}</div>}
-              <div className={'navitem'+(tab===item.id?' active':'')} onClick={()=>setTab(item.id)}>{item.label}</div>
+              <div className={'navitem'+(tab===item.id?' active':'')} onClick={()=>setTab(item.id)}>
+                <span className="material-icons">{item.icon}</span>{item.label}
+              </div>
             </React.Fragment>
           );
         })}
-        <div style={{padding:'14px 18px', fontSize:11, color:'#9fb3a5', marginTop:'auto'}}><a href="index.html" style={{color:'#eee7d9'}}>← 回到打卡頁</a></div>
+        <div style={{padding:'14px 18px', marginTop:'auto', display:'flex', flexDirection:'column', gap:8}}>
+          <div style={{fontSize:11, color:'#9fb3a5'}}><a href="index.html" style={{color:'#eee7d9'}}>← 回到打卡頁</a></div>
+          <button className="ghost sm" style={{background:'transparent', color:'#eee7d9', borderColor:'#5c7568', justifyContent:'center'}} onClick={logout}>
+            <span className="material-icons" style={{fontSize:16}}>logout</span>登出
+          </button>
+        </div>
       </div>
       <div className="main">
         <div className="topbar">
-          <h1>{NAV.find(x=>x.id===tab)?.label}</h1>
+          <h1><span className="material-icons">{NAV.find(x=>x.id===tab)?.icon}</span>{NAV.find(x=>x.id===tab)?.label}</h1>
           <div style={{display:'flex', gap:10, alignItems:'center'}}>
-            {dirty && <span className="badge warn">尚有未儲存的薪資異動</span>}
+            {dirty && <span className="badge warn"><span className="material-icons">warning</span>尚有未儲存的薪資異動</span>}
             {needsMonth && (
               <>
                 <label style={{marginBottom:0}}>月份</label>
@@ -351,6 +467,11 @@ function App(){
           {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
           {tab==='insurance' && <InsuranceTab/>}
+          {tab==='companies' && <CompanyTab/>}
+          {tab==='departments' && <DepartmentTab employees={employees}/>}
+          {tab==='shifts' && <ShiftTab employees={employees}/>}
+          {tab==='holidays' && <HolidaysTab/>}
+          {tab==='accounts' && <AccountsTab employees={employees}/>}
           {tab==='settings' && <SettingsTab/>}
         </div>
       </div>
@@ -363,10 +484,22 @@ function EmployeesTab({employees, loading, reload}){
   const [editing, setEditing] = useState(null);
   const [isNew, setIsNew] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [shifts, setShifts] = useState([]);
+  const [accountBox, setAccountBox] = useState(null); // {employeeId, name, account, password}
+
+  function loadRefs(){
+    Promise.all([apiGet('getCompanies'), apiGet('getDepartments'), apiGet('getShifts')])
+      .then(([co,dept,sh])=>{ setCompanies(co); setDepartments(dept); setShifts(sh); })
+      .catch(e=>alert(e.message));
+  }
+  useEffect(loadRefs, []);
 
   function openNew(){
     setEditing({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
-      mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:''});
+      mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
+      companyId:'', departmentId:'', shiftId:''});
     setIsNew(true);
   }
   function openEdit(emp){ setEditing({...emp}); setIsNew(false); }
@@ -374,10 +507,16 @@ function EmployeesTab({employees, loading, reload}){
     if(!editing.name.trim()){ alert('請輸入姓名'); return; }
     setSaving(true);
     try{
-      if(isNew) await apiPost('addEmployee', editing);
+      let id = editing.id;
+      if(isNew){ const r = await apiPost('addEmployee', editing); id = r.id; }
       else await apiPost('updateEmployee', editing);
       setEditing(null);
       await reload();
+      if(isNew){
+        if(confirm('員工已新增，要不要現在就幫他建立登入帳號？')){
+          setAccountBox({employeeId:id, name:editing.name, account:'', password: Math.random().toString(36).slice(2,8)});
+        }
+      }
     }catch(e){ alert(e.message); }
     finally{ setSaving(false); }
   }
@@ -386,29 +525,37 @@ function EmployeesTab({employees, loading, reload}){
     try{ await apiPost('deleteEmployee', {...emp}); await reload(); }
     catch(e){ alert(e.message); }
   }
+  async function createAccountSubmit(){
+    if(!accountBox.account.trim()){ alert('請輸入帳號'); return; }
+    try{
+      await apiPost('createAccount', {employeeId: accountBox.employeeId, account: accountBox.account, password: accountBox.password, role:'employee'});
+      alert(`帳號建立完成！\n帳號：${accountBox.account}\n初始密碼：${accountBox.password}\n請告知員工，登入後可自行修改密碼。`);
+      setAccountBox(null);
+    }catch(e){ alert(e.message); }
+  }
 
-  const companies = [...new Set(employees.map(e=>e.company).filter(Boolean))];
+  const companiesByCo = [...new Set(employees.map(e=>e.company).filter(Boolean))];
 
   return (
     <div>
       <div className="toolbar">
-        <button onClick={openNew}>＋ 新增員工</button>
+        <button onClick={openNew}><span className="material-icons">person_add</span>新增員工</button>
         <span className="grow"></span>
-        <button className="ghost sm" onClick={reload}>重新整理</button>
+        <button className="ghost sm" onClick={reload}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
         <span className="hint">共 {employees.length} 位在職員工</span>
       </div>
 
       {loading ? <div className="hint">載入中...</div> : (
         <>
           {employees.length===0 && <div className="empty card">尚無員工資料，請點擊「＋ 新增員工」開始建立。</div>}
-          {companies.concat(employees.some(e=>!e.company)?['(未分類)']:[]).map(co => (
+          {companiesByCo.concat(employees.some(e=>!e.company)?['(未分類)']:[]).map(co => (
             <div className="card" key={co}>
-              <h3>{co} <span className="badge">{employees.filter(e=>(e.company||'(未分類)')===co).length} 人</span></h3>
+              <h3><span className="material-icons" style={{fontSize:17, color:'var(--brand)'}}>business</span> {co} <span className="badge">{employees.filter(e=>(e.company||'(未分類)')===co).length} 人</span></h3>
               <table>
                 <thead>
                   <tr>
-                    <th className="left">部門</th><th className="left">姓名</th><th>到職日</th>
-                    <th>投保級距</th><th>本薪</th><th>伙食</th><th>交通</th><th>職務加給</th><th>全勤</th><th className="left">銀行帳號</th><th>操作</th>
+                    <th className="left">部門</th><th className="left">姓名</th><th>班別</th><th>到職日</th>
+                    <th>投保級距</th><th>本薪</th><th className="left">銀行帳號</th><th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -416,17 +563,15 @@ function EmployeesTab({employees, loading, reload}){
                     <tr key={emp.id}>
                       <td className="left">{emp.department}</td>
                       <td className="left"><b>{emp.name}</b></td>
+                      <td>{emp.shift ? emp.shift.name : <span className="hint">預設</span>}</td>
                       <td>{emp.hireDate || '-'}</td>
                       <td>{emp.insuranceGrade || 0}</td>
                       <td>{money(emp.baseSalary)}</td>
-                      <td>{money(emp.mealAllowance)}</td>
-                      <td>{money(emp.transportAllowance)}</td>
-                      <td>{money(emp.positionAllowance)}</td>
-                      <td>{money(emp.fullAttendanceBonus)}</td>
                       <td className="left mono">{emp.bankAccount}</td>
                       <td>
                         <button className="ghost sm" onClick={()=>openEdit(emp)}>編輯</button>{' '}
-                        <button className="danger sm" onClick={()=>setLeft(emp)}>設為離職</button>
+                        <button className="ghost sm" onClick={()=>setAccountBox({employeeId:emp.id, name:emp.name, account:'', password: Math.random().toString(36).slice(2,8)})}>帳號</button>{' '}
+                        <button className="danger sm" onClick={()=>setLeft(emp)}>離職</button>
                       </td>
                     </tr>
                   ))}
@@ -440,15 +585,29 @@ function EmployeesTab({employees, loading, reload}){
       {editing && (
         <div className="modal-bg" onClick={(e)=>{ if(e.target===e.currentTarget) setEditing(null); }}>
           <div className="modal">
-            <h3>{isNew ? '新增員工' : '編輯員工：' + editing.name}</h3>
+            <h3><span className="material-icons">badge</span>{isNew ? '新增員工' : '編輯員工：' + editing.name}</h3>
             <div className="grid-2">
-              <div className="field"><label>所屬公司</label><input list="co-list" value={editing.company} onChange={e=>setEditing({...editing, company:e.target.value})} placeholder="例：媽咪小站有限公司" />
-                <datalist id="co-list">{companies.map(c=><option key={c} value={c} />)}</datalist>
+              <div className="field"><label>所屬公司</label>
+                <select value={editing.companyId} onChange={e=>{ const c=companies.find(x=>x.id===e.target.value); setEditing({...editing, companyId:e.target.value, company: c?c.name:''}); }}>
+                  <option value="">請選擇</option>
+                  {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
               </div>
-              <div className="field"><label>部門</label><input value={editing.department} onChange={e=>setEditing({...editing, department:e.target.value})} placeholder="例：業務部" /></div>
+              <div className="field"><label>部門</label>
+                <select value={editing.departmentId} onChange={e=>{ const d=departments.find(x=>x.id===e.target.value); setEditing({...editing, departmentId:e.target.value, department: d?d.name:''}); }}>
+                  <option value="">請選擇</option>
+                  {departments.filter(d=>!editing.companyId || d.companyId===editing.companyId).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
               <div className="field"><label>姓名 *</label><input value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} /></div>
               <div className="field"><label>到職日</label><input type="date" value={editing.hireDate} onChange={e=>setEditing({...editing, hireDate:e.target.value})} /></div>
 
+              <div className="field"><label>班別</label>
+                <select value={editing.shiftId} onChange={e=>setEditing({...editing, shiftId:e.target.value})}>
+                  <option value="">依系統預設班別</option>
+                  {shifts.map(s=><option key={s.id} value={s.id}>{s.name}（{s.workStart}-{s.workEnd}）</option>)}
+                </select>
+              </div>
               <div className="field">
                 <label>投保級距</label>
                 <div style={{display:'flex', gap:6}}>
@@ -482,11 +641,25 @@ function EmployeesTab({employees, loading, reload}){
           </div>
         </div>
       )}
+
+      {accountBox && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setAccountBox(null); }}>
+          <div className="modal" style={{width:400}}>
+            <h3><span className="material-icons">vpn_key</span>建立登入帳號：{accountBox.name}</h3>
+            <div className="field"><label>帳號（建議用手機號碼或員工編號）</label><input value={accountBox.account} onChange={e=>setAccountBox({...accountBox, account:e.target.value})} /></div>
+            <div className="field"><label>初始密碼</label><input value={accountBox.password} onChange={e=>setAccountBox({...accountBox, password:e.target.value})} /></div>
+            <div className="hint">建立後請把帳號密碼告訴員工，員工登入後可自行修改密碼。</div>
+            <div className="modal-actions">
+              <button className="ghost" onClick={()=>setAccountBox(null)}>取消</button>
+              <button onClick={createAccountSubmit}>建立帳號</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ========================= 打卡紀錄 / 補登 ========================= */
 function RecordsTab({employees, month}){
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -783,7 +956,6 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   );
 }
 
-/* ========================= 薪資條 ========================= */
 function Payslip({emp, entry, calc, month}){
   return (
     <div className="payslip">
@@ -957,21 +1129,361 @@ function InsuranceTab(){
   );
 }
 
+
+
+/* ========================= 公司管理 ========================= */
+function CompanyTab(){
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null);
+  const [isNew, setIsNew] = useState(false);
+
+  function load(){ setLoading(true); apiGet('getCompanies').then(setList).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
+  useEffect(load, []);
+
+  function openNew(){ setEditing({id:null, name:'', taxId:'', address:'', owner:'', phone:''}); setIsNew(true); }
+  function openEdit(c){ setEditing({...c}); setIsNew(false); }
+  async function save(){
+    if(!editing.name.trim()){ alert('請輸入公司名稱'); return; }
+    try{
+      if(isNew) await apiPost('addCompany', editing);
+      else await apiPost('updateCompany', editing);
+      setEditing(null); load();
+    }catch(e){ alert(e.message); }
+  }
+  async function remove(id){
+    if(!confirm('確定刪除這間公司？（若仍有員工使用會無法刪除）')) return;
+    try{ await apiPost('deleteCompany', {id}); load(); }catch(e){ alert(e.message); }
+  }
+
+  return (
+    <div>
+      <div className="toolbar">
+        <button onClick={openNew}><span className="material-icons">add_business</span>新增公司</button>
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
+      </div>
+      <div className="card">
+        {loading ? <div className="hint">載入中...</div> : (
+          <table>
+            <thead><tr><th className="left">公司名稱</th><th className="left">統一編號</th><th className="left">地址</th><th className="left">負責人</th><th className="left">電話</th><th>操作</th></tr></thead>
+            <tbody>
+              {list.map(c=>(
+                <tr key={c.id}>
+                  <td className="left"><b>{c.name}</b></td>
+                  <td className="left mono">{c.taxId}</td>
+                  <td className="left">{c.address}</td>
+                  <td className="left">{c.owner}</td>
+                  <td className="left">{c.phone}</td>
+                  <td><button className="ghost sm" onClick={()=>openEdit(c)}>編輯</button>{' '}<button className="danger sm" onClick={()=>remove(c.id)}>刪除</button></td>
+                </tr>
+              ))}
+              {list.length===0 && <tr><td colSpan="6" className="hint" style={{textAlign:'center'}}>尚無公司資料</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {editing && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setEditing(null); }}>
+          <div className="modal">
+            <h3><span className="material-icons">business</span>{isNew?'新增公司':'編輯公司'}</h3>
+            <div className="grid-2">
+              <div className="field"><label>公司名稱 *</label><input value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} /></div>
+              <div className="field"><label>統一編號</label><input value={editing.taxId} onChange={e=>setEditing({...editing,taxId:e.target.value})} /></div>
+              <div className="field"><label>負責人</label><input value={editing.owner} onChange={e=>setEditing({...editing,owner:e.target.value})} /></div>
+              <div className="field"><label>電話</label><input value={editing.phone} onChange={e=>setEditing({...editing,phone:e.target.value})} /></div>
+            </div>
+            <div className="field"><label>地址</label><input value={editing.address} onChange={e=>setEditing({...editing,address:e.target.value})} style={{width:'100%'}} /></div>
+            <div className="modal-actions"><button className="ghost" onClick={()=>setEditing(null)}>取消</button><button onClick={save}>儲存</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ========================= 部門管理 ========================= */
+function DepartmentTab({employees}){
+  const [list, setList] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null);
+  const [isNew, setIsNew] = useState(false);
+
+  function load(){
+    setLoading(true);
+    Promise.all([apiGet('getDepartments'), apiGet('getCompanies')])
+      .then(([d,c])=>{ setList(d); setCompanies(c); })
+      .catch(e=>alert(e.message)).finally(()=>setLoading(false));
+  }
+  useEffect(load, []);
+
+  function companyName(id){ const c = companies.find(x=>x.id===id); return c?c.name:'（未指定公司）'; }
+  function managerName(id){ const e = employees.find(x=>x.id===id); return e?e.name:'（未指定）'; }
+
+  function openNew(){ setEditing({id:null, name:'', companyId:'', managerId:''}); setIsNew(true); }
+  function openEdit(d){ setEditing({...d}); setIsNew(false); }
+  async function save(){
+    if(!editing.name.trim()){ alert('請輸入部門名稱'); return; }
+    try{
+      if(isNew) await apiPost('addDepartment', editing);
+      else await apiPost('updateDepartment', editing);
+      setEditing(null); load();
+    }catch(e){ alert(e.message); }
+  }
+  async function remove(id){
+    if(!confirm('確定刪除這個部門？（若仍有員工使用會無法刪除）')) return;
+    try{ await apiPost('deleteDepartment', {id}); load(); }catch(e){ alert(e.message); }
+  }
+
+  return (
+    <div>
+      <div className="toolbar">
+        <button onClick={openNew}><span className="material-icons">add</span>新增部門</button>
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
+      </div>
+      <div className="card">
+        {loading ? <div className="hint">載入中...</div> : (
+          <table>
+            <thead><tr><th className="left">部門名稱</th><th className="left">所屬公司</th><th className="left">部門主管</th><th>操作</th></tr></thead>
+            <tbody>
+              {list.map(d=>(
+                <tr key={d.id}>
+                  <td className="left"><b>{d.name}</b></td>
+                  <td className="left">{companyName(d.companyId)}</td>
+                  <td className="left">{managerName(d.managerId)}</td>
+                  <td><button className="ghost sm" onClick={()=>openEdit(d)}>編輯</button>{' '}<button className="danger sm" onClick={()=>remove(d.id)}>刪除</button></td>
+                </tr>
+              ))}
+              {list.length===0 && <tr><td colSpan="4" className="hint" style={{textAlign:'center'}}>尚無部門資料</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+      <div className="hint">部門主管未來會用在請假簽核流程，請先指定好，之後開通請假功能就能直接使用。</div>
+      {editing && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setEditing(null); }}>
+          <div className="modal">
+            <h3><span className="material-icons">apartment</span>{isNew?'新增部門':'編輯部門'}</h3>
+            <div className="field"><label>部門名稱 *</label><input value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} /></div>
+            <div className="field"><label>所屬公司</label>
+              <select value={editing.companyId} onChange={e=>setEditing({...editing,companyId:e.target.value})}>
+                <option value="">未指定</option>
+                {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="field"><label>部門主管</label>
+              <select value={editing.managerId} onChange={e=>setEditing({...editing,managerId:e.target.value})}>
+                <option value="">未指定</option>
+                {employees.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            </div>
+            <div className="modal-actions"><button className="ghost" onClick={()=>setEditing(null)}>取消</button><button onClick={save}>儲存</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ========================= 班別設定 ========================= */
+function ShiftTab({employees}){
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null);
+  const [isNew, setIsNew] = useState(false);
+
+  function load(){ setLoading(true); apiGet('getShifts').then(setList).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
+  useEffect(load, []);
+
+  function openNew(){ setEditing({id:null, name:'', workStart:'09:00', workEnd:'18:00', lunchBreak:60}); setIsNew(true); }
+  function openEdit(s){ setEditing({...s}); setIsNew(false); }
+  async function save(){
+    if(!editing.name.trim()){ alert('請輸入班別名稱'); return; }
+    try{
+      if(isNew) await apiPost('addShift', editing);
+      else await apiPost('updateShift', editing);
+      setEditing(null); load();
+    }catch(e){ alert(e.message); }
+  }
+  async function remove(id){
+    if(!confirm('確定刪除這個班別？（若仍有員工使用會無法刪除）')) return;
+    try{ await apiPost('deleteShift', {id}); load(); }catch(e){ alert(e.message); }
+  }
+  function countEmp(id){ return employees.filter(e=>e.shiftId===id).length; }
+
+  return (
+    <div>
+      <div className="toolbar">
+        <button onClick={openNew}><span className="material-icons">add</span>新增班別</button>
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
+      </div>
+      <div className="hint" style={{marginBottom:12}}>目前每位員工固定對應一種班別；每天輪班不同班別的排班表功能之後有需要再開發。</div>
+      <div className="card">
+        {loading ? <div className="hint">載入中...</div> : (
+          <table>
+            <thead><tr><th className="left">班別名稱</th><th>上班時間</th><th>下班時間</th><th>午休扣除(分)</th><th>使用人數</th><th>操作</th></tr></thead>
+            <tbody>
+              {list.map(s=>(
+                <tr key={s.id}>
+                  <td className="left"><b>{s.name}</b></td>
+                  <td>{s.workStart}</td><td>{s.workEnd}</td><td>{s.lunchBreak}</td>
+                  <td>{countEmp(s.id)}</td>
+                  <td><button className="ghost sm" onClick={()=>openEdit(s)}>編輯</button>{' '}<button className="danger sm" onClick={()=>remove(s.id)}>刪除</button></td>
+                </tr>
+              ))}
+              {list.length===0 && <tr><td colSpan="6" className="hint" style={{textAlign:'center'}}>尚無班別，未指定班別的員工會套用「系統設定」裡的預設班表</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {editing && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setEditing(null); }}>
+          <div className="modal">
+            <h3><span className="material-icons">schedule_send</span>{isNew?'新增班別':'編輯班別'}</h3>
+            <div className="field"><label>班別名稱 *</label><input value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} placeholder="例：早班" /></div>
+            <div className="grid-2">
+              <div className="field"><label>上班時間</label><input value={editing.workStart} onChange={e=>setEditing({...editing,workStart:e.target.value})} placeholder="09:00" /></div>
+              <div className="field"><label>下班時間</label><input value={editing.workEnd} onChange={e=>setEditing({...editing,workEnd:e.target.value})} placeholder="18:00" /></div>
+              <div className="field"><label>午休扣除（分鐘）</label><input type="number" value={editing.lunchBreak} onChange={e=>setEditing({...editing,lunchBreak:Number(e.target.value)})} /></div>
+            </div>
+            <div className="modal-actions"><button className="ghost" onClick={()=>setEditing(null)}>取消</button><button onClick={save}>儲存</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ========================= 公司休假設定 ========================= */
+function HolidaysTab(){
+  const [holidays, setHolidays] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({date:'', name:'', type:'國定假日'});
+
+  function load(){ setLoading(true); apiGet('getHolidays').then(setHolidays).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
+  useEffect(load, []);
+
+  async function add(){
+    if(!form.date){ alert('請選擇日期'); return; }
+    try{ await apiPost('addHoliday', form); setForm({date:'',name:'',type:'國定假日'}); load(); }
+    catch(e){ alert(e.message); }
+  }
+  async function remove(date){
+    try{ await apiPost('deleteHoliday', {date}); load(); }catch(e){ alert(e.message); }
+  }
+
+  return (
+    <div>
+      <div className="card">
+        <h3><span className="material-icons">event_busy</span> 新增假日</h3>
+        <div className="hint">國定假日出勤依法加發一日工資；公司自訂休假日（例如店休日）出勤則比照休息日，依4/8/12小時級距加成計算。</div>
+        <div className="toolbar" style={{marginTop:10}}>
+          <input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})} />
+          <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="假日名稱（例：中秋節）" />
+          <select value={form.type} onChange={e=>setForm({...form,type:e.target.value})}>
+            <option value="國定假日">國定假日</option>
+            <option value="公司休假日">公司休假日</option>
+          </select>
+          <button onClick={add}><span className="material-icons" style={{fontSize:16}}>add</span>新增</button>
+        </div>
+      </div>
+      <div className="card">
+        {loading ? <div className="hint">載入中...</div> : (
+          <table>
+            <thead><tr><th className="left">日期</th><th className="left">名稱</th><th className="left">類型</th><th>操作</th></tr></thead>
+            <tbody>
+              {holidays.sort((a,b)=>a.date.localeCompare(b.date)).map(h=>(
+                <tr key={h.date}>
+                  <td className="left">{h.date}</td><td className="left">{h.name}</td>
+                  <td className="left">{h.type==='公司休假日' ? <span className="badge warn">公司休假日</span> : <span className="badge">國定假日</span>}</td>
+                  <td><button className="danger sm" onClick={()=>remove(h.date)}>刪除</button></td>
+                </tr>
+              ))}
+              {holidays.length===0 && <tr><td colSpan="4" className="hint" style={{textAlign:'center'}}>尚未設定假日</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ========================= 帳號管理 ========================= */
+function AccountsTab({employees}){
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [resetBox, setResetBox] = useState(null);
+
+  function load(){ setLoading(true); apiGet('getAccounts').then(setList).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
+  useEffect(load, []);
+
+  function empName(id){ const e = employees.find(x=>x.id===id); return e ? e.name : (id ? '（已離職員工）' : '（未綁定員工，如：管理者帳號）'); }
+  async function toggleStatus(a){
+    try{ await apiPost('setAccountStatus', {accountId:a.id, status: a.status==='啟用'?'停用':'啟用'}); load(); }
+    catch(e){ alert(e.message); }
+  }
+  async function doReset(){
+    try{
+      await apiPost('resetPassword', {accountId: resetBox.id, newPassword: resetBox.newPassword});
+      alert('密碼已重設為：' + resetBox.newPassword);
+      setResetBox(null);
+    }catch(e){ alert(e.message); }
+  }
+
+  return (
+    <div>
+      <div className="toolbar">
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
+      </div>
+      <div className="hint" style={{marginBottom:12}}>要新增員工登入帳號，請至「員工資料」頁籤，編輯該位員工後點選「帳號」按鈕建立。</div>
+      <div className="card">
+        {loading ? <div className="hint">載入中...</div> : (
+          <table>
+            <thead><tr><th className="left">帳號</th><th className="left">對應員工</th><th>角色</th><th>狀態</th><th className="left">最後登入</th><th>操作</th></tr></thead>
+            <tbody>
+              {list.map(a=>(
+                <tr key={a.id}>
+                  <td className="left mono">{a.account}</td>
+                  <td className="left">{empName(a.employeeId)}</td>
+                  <td>{a.role==='admin' ? <span className="badge">管理者</span> : '員工'}</td>
+                  <td>{a.status==='啟用' ? <span className="badge">啟用</span> : <span className="badge warn">停用</span>}</td>
+                  <td className="left">{a.lastLogin || '尚未登入'}</td>
+                  <td>
+                    <button className="ghost sm" onClick={()=>setResetBox({id:a.id, account:a.account, newPassword: Math.random().toString(36).slice(2,8)})}>重設密碼</button>{' '}
+                    <button className="danger sm" onClick={()=>toggleStatus(a)}>{a.status==='啟用'?'停用':'啟用'}</button>
+                  </td>
+                </tr>
+              ))}
+              {list.length===0 && <tr><td colSpan="6" className="hint" style={{textAlign:'center'}}>尚無帳號資料</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {resetBox && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setResetBox(null); }}>
+          <div className="modal" style={{width:380}}>
+            <h3><span className="material-icons">lock_reset</span>重設密碼：{resetBox.account}</h3>
+            <div className="field"><label>新密碼</label><input value={resetBox.newPassword} onChange={e=>setResetBox({...resetBox,newPassword:e.target.value})} /></div>
+            <div className="modal-actions"><button className="ghost" onClick={()=>setResetBox(null)}>取消</button><button onClick={doReset}>確認重設</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ========================= 系統設定 ========================= */
 function SettingsTab(){
   const [s, setS] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
-  const [holidays, setHolidays] = useState([]);
-  const [newHoliday, setNewHoliday] = useState({date:'', name:''});
   const DOW = ['日','一','二','三','四','五','六'];
 
-  function load(){
-    setLoading(true);
-    Promise.all([apiGet('getSettings'), apiGet('getHolidays')])
-      .then(([set,h])=>{ setS(set); setHolidays(h); })
-      .catch(e=>alert(e.message)).finally(()=>setLoading(false));
-  }
+  function load(){ setLoading(true); apiGet('getSettings').then(setS).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
   useEffect(load, []);
 
   async function save(){
@@ -985,24 +1497,15 @@ function SettingsTab(){
       {enableHighAccuracy:true, timeout:8000}
     );
   }
-  async function addHoliday(){
-    if(!newHoliday.date){ alert('請選擇日期'); return; }
-    try{ await apiPost('addHoliday', newHoliday); setNewHoliday({date:'',name:''}); const h = await apiGet('getHolidays'); setHolidays(h); }
-    catch(e){ alert(e.message); }
-  }
-  async function removeHoliday(date){
-    try{ await apiPost('deleteHoliday', {date}); const h = await apiGet('getHolidays'); setHolidays(h); }
-    catch(e){ alert(e.message); }
-  }
 
   if(loading || !s) return <div className="hint">載入中...</div>;
   return (
     <div>
     <div className="card" style={{maxWidth:560}}>
-      <h3>店家 / 公司資訊</h3>
+      <h3><span className="material-icons">storefront</span> 店家 / 公司資訊</h3>
       <div className="field"><label>顯示名稱</label><input value={s.storeName} onChange={e=>setS({...s,storeName:e.target.value})} style={{width:'100%'}} /></div>
 
-      <h3 style={{marginTop:18}}>地理圍籬（GPS 打卡範圍）</h3>
+      <h3 style={{marginTop:18}}><span className="material-icons">my_location</span> 地理圍籬（GPS 打卡範圍）</h3>
       <div className="grid-2">
         <div className="field"><label>緯度</label><input value={s.lat} onChange={e=>setS({...s,lat:e.target.value})} /></div>
         <div className="field"><label>經度</label><input value={s.lng} onChange={e=>setS({...s,lng:e.target.value})} /></div>
@@ -1011,7 +1514,8 @@ function SettingsTab(){
       <div className="field" style={{marginTop:10}}><label>允許誤差半徑（公尺）</label><input type="number" value={s.radius} onChange={e=>setS({...s,radius:e.target.value})} /></div>
       <div className="hint">超出範圍不會擋下打卡，但紀錄會標示「超出範圍」讓後台核對，避免員工在店外因訊號誤差被卡住。</div>
 
-      <h3 style={{marginTop:18}}>標準班表</h3>
+      <h3 style={{marginTop:18}}><span className="material-icons">schedule</span> 預設班表</h3>
+      <div className="hint" style={{marginTop:-4, marginBottom:8}}>員工若在「員工資料」未指定班別，會套用這裡的預設班表。</div>
       <div className="grid-2">
         <div className="field"><label>上班時間</label><input value={s.workStart} onChange={e=>setS({...s,workStart:e.target.value})} placeholder="09:00" /></div>
         <div className="field"><label>下班時間</label><input value={s.workEnd} onChange={e=>setS({...s,workEnd:e.target.value})} placeholder="18:00" /></div>
@@ -1020,7 +1524,7 @@ function SettingsTab(){
         <div className="field"><label>早退寬限（分鐘）</label><input type="number" value={s.earlyGrace} onChange={e=>setS({...s,earlyGrace:e.target.value})} /></div>
       </div>
 
-      <h3 style={{marginTop:18}}>一例一休（勞基法第36條）</h3>
+      <h3 style={{marginTop:18}}><span className="material-icons">event_repeat</span> 一例一休（勞基法第36條）</h3>
       <div className="grid-2">
         <div className="field"><label>休息日（可出勤，需依加成給薪）</label>
           <select value={s.restDay} onChange={e=>setS({...s,restDay:Number(e.target.value)})}>{DOW.map((d,i)=><option key={i} value={i}>星期{d}</option>)}</select>
@@ -1032,27 +1536,7 @@ function SettingsTab(){
       </div>
       <div className="hint">依勞基法第32條，平日延長工時原則每月不得超過46小時（經工會或無工會則經勞資會議同意可延長至54小時，但每3個月不得逾138小時）；此上限不含國定假日與例假日出勤。</div>
 
-      <div style={{marginTop:16}}><button onClick={save}>儲存設定</button></div>
-    </div>
-
-    <div className="card" style={{maxWidth:560}}>
-      <h3>國定假日清單</h3>
-      <div className="hint">於此新增當年度國定假日日期，系統會自動將該日出勤歸類為「國定假日出勤」，依法加發一日工資。</div>
-      <div className="toolbar">
-        <input type="date" value={newHoliday.date} onChange={e=>setNewHoliday({...newHoliday,date:e.target.value})} />
-        <input value={newHoliday.name} onChange={e=>setNewHoliday({...newHoliday,name:e.target.value})} placeholder="假日名稱（例：中秋節）" />
-        <button className="ghost sm" onClick={addHoliday}>＋ 新增</button>
-      </div>
-      <table>
-        <thead><tr><th className="left">日期</th><th className="left">名稱</th><th>操作</th></tr></thead>
-        <tbody>
-          {holidays.map(h=>(
-            <tr key={h.date}><td className="left">{h.date}</td><td className="left">{h.name}</td>
-              <td><button className="danger sm" onClick={()=>removeHoliday(h.date)}>刪除</button></td></tr>
-          ))}
-          {holidays.length===0 && <tr><td colSpan="3" className="hint" style={{textAlign:'center'}}>尚未設定國定假日</td></tr>}
-        </tbody>
-      </table>
+      <div style={{marginTop:16}}><button onClick={save}><span className="material-icons" style={{fontSize:16}}>save</span>儲存設定</button></div>
     </div>
     </div>
   );
