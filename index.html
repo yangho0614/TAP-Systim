@@ -50,6 +50,13 @@
     padding:16px; margin-bottom:12px;
   }
   .hint{ font-size:11.5px; color:var(--muted); }
+  .pl-row{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:6px 0; font-size:14px; }
+  .pl-row .lbl{ color:var(--muted); display:flex; align-items:center; gap:2px; }
+  .pl-row .val{ color:var(--text); font-weight:500; font-variant-numeric:tabular-nums; }
+  .pl-row.total{ font-size:15px; }
+  .pl-row.total .lbl, .pl-row.total .val{ color:var(--text); font-weight:700; }
+  .pl-sub{ display:flex; justify-content:space-between; padding:4px 0 4px 6px; font-size:12.5px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .pl-note{ font-size:11px; color:var(--muted); margin:0 0 4px 6px; }
   .row-between{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
 
   /* 首頁 */
@@ -1312,6 +1319,7 @@ function PayslipModal({onClose, showToast}){
   useEffect(()=>{ load(month); }, [month]);
 
   const money = v => Math.round(Number(v)||0).toLocaleString('zh-TW');
+  const negMoney = v => { const rv = Math.round(Number(v)||0); return rv===0 ? money(0) : '-'+money(rv); };
   const n = v => Number(v)||0;
   const [my, mm] = month.split('-');
 
@@ -1349,14 +1357,14 @@ function PayslipModal({onClose, showToast}){
     {label:'其他扣款', value:-n(entry.deduction26)}
   ].filter(it=>it.value!==0) : [];
 
-  function SectionHeader({label, amount, amountStyle, sectionKey, hasDetail}){
+  function SectionHeader({label, amount, amountColor, sectionKey, hasDetail, total}){
     return (
-      <div className="row-between" style={{cursor: hasDetail?'pointer':'default'}} onClick={hasDetail?()=>toggleSection(sectionKey):undefined}>
-        <span className="hint" style={{display:'flex', alignItems:'center', gap:2}}>
+      <div className={total?'pl-row total':'pl-row'} style={{cursor: hasDetail?'pointer':'default'}} onClick={hasDetail?()=>toggleSection(sectionKey):undefined}>
+        <span className="lbl">
           {label}
-          {hasDetail && <span className="material-icons" style={{fontSize:18, color:'var(--muted)'}}>{expanded[sectionKey]?'expand_less':'expand_more'}</span>}
+          {hasDetail && <span className="material-icons" style={{fontSize:18}}>{expanded[sectionKey]?'expand_less':'expand_more'}</span>}
         </span>
-        <span style={amountStyle}>{amount}</span>
+        <span className="val" style={amountColor?{color:amountColor}:undefined}>{amount}</span>
       </div>
     );
   }
@@ -1374,6 +1382,12 @@ function PayslipModal({onClose, showToast}){
         </div>
         {loading ? <div className="hint">載入中...</div> : !data ? (
           <div className="hint">查無資料</div>
+        ) : data.hasRecord===false ? (
+          <div className="coming" style={{padding:'30px 10px'}}>
+            <div><span className="material-icons">event_busy</span></div>
+            <div style={{fontSize:15, fontWeight:700, color:'var(--text)'}}>這個月尚無薪資資料</div>
+            <div className="hint" style={{marginTop:6}}>管理者尚未儲存 {my}年{Number(mm)}月 的薪資紀錄</div>
+          </div>
         ) : (
           <>
             <div className="balance-row">
@@ -1383,49 +1397,55 @@ function PayslipModal({onClose, showToast}){
             <div className="card" style={{padding:14}}>
               <SectionHeader label="本薪" amount={money(emp.baseSalary)} sectionKey="base" hasDetail={allowanceItems.length>0} />
               {expanded.base && allowanceItems.length>0 && (
-                <div style={{padding:'2px 0 8px 4px'}}>
-                  <div className="hint" style={{fontSize:11, marginBottom:4}}>已含在本薪內，僅供對照</div>
+                <div style={{padding:'0 0 6px'}}>
+                  <div className="pl-note">已含在本薪內，僅供對照</div>
                   {allowanceItems.map(it=>(
-                    <div className="row-between" key={it.label} style={{fontSize:13, color:'var(--muted)', padding:'2px 0'}}><span>{it.label}</span><span>{money(it.value)}</span></div>
+                    <div className="pl-sub" key={it.label}><span>{it.label}</span><span>{money(it.value)}</span></div>
                   ))}
                 </div>
               )}
 
               {overtimeItems.length>0 && (
                 <>
-                  <SectionHeader label="加班費" amount={money(calc.overtimePay)} amountStyle={{color:'var(--green)'}} sectionKey="overtime" hasDetail={true} />
+                  <SectionHeader label="加班費" amount={money(calc.overtimePay)} amountColor="var(--green)" sectionKey="overtime" hasDetail={true} />
                   {expanded.overtime && (
-                    <div style={{padding:'2px 0 8px 4px'}}>
+                    <div style={{padding:'0 0 6px'}}>
                       {overtimeItems.map(it=>(
-                        <div className="row-between" key={it.label} style={{fontSize:13, color:'var(--muted)', padding:'2px 0'}}><span>{it.label}</span><span>{money(it.value)}</span></div>
+                        <div className="pl-sub" key={it.label}><span>{it.label}</span><span>{money(it.value)}</span></div>
                       ))}
                     </div>
                   )}
                 </>
               )}
 
-              {n(calc.bonusTotal)>0 && <div className="row-between"><span className="hint">獎金合計</span><span>{money(calc.bonusTotal)}</span></div>}
-              {n(entry.annualLeaveSettlement)>0 && <div className="row-between"><span className="hint">特休結算</span><span>{money(entry.annualLeaveSettlement)}</span></div>}
-              <div className="row-between"><span className="hint" style={{fontWeight:700}}>應發合計</span><span style={{fontWeight:700}}>{money(calc.payableTotal)}</span></div>
+              {n(calc.bonusTotal)>0 && <div className="pl-row"><span className="lbl">獎金合計</span><span className="val">{money(calc.bonusTotal)}</span></div>}
+              {n(entry.annualLeaveSettlement)>0 && <div className="pl-row"><span className="lbl">特休結算</span><span className="val">{money(entry.annualLeaveSettlement)}</span></div>}
+              <SectionHeader label="應發合計" amount={money(calc.payableTotal)} total={true} />
               <div style={{borderTop:'1px solid var(--line)', margin:'8px 0'}}></div>
-              <div className="row-between"><span className="hint">勞保費{data.calc.insFullMonth===false && <span style={{fontSize:11}}>（按{data.calc.insLaborDays}天計）</span>}</span><span style={{color:'var(--red)'}}>-{money(data.calc.laborFee)}</span></div>
-              <div className="row-between"><span className="hint">健保費{data.calc.insActiveAtMonthEnd===false && <span style={{fontSize:11}}>（月底已離職不收）</span>}{data.calc.insActiveAtMonthEnd!==false && Number(data.employee.dependentCount)>0 && <span style={{fontSize:11}}>（含眷屬{Math.min(Number(data.employee.dependentCount),3)}人）</span>}</span><span style={{color:'var(--red)'}}>-{money(data.calc.healthFee)}</span></div>
+              <div className="pl-row">
+                <span className="lbl">勞保費{data.calc.insFullMonth===false && <span style={{fontSize:11}}>（按{data.calc.insLaborDays}天計）</span>}</span>
+                <span className="val" style={{color:'var(--red)'}}>{negMoney(data.calc.laborFee)}</span>
+              </div>
+              <div className="pl-row">
+                <span className="lbl">健保費{data.calc.insActiveAtMonthEnd===false && <span style={{fontSize:11}}>（月底已離職不收）</span>}{data.calc.insActiveAtMonthEnd!==false && Number(data.employee.dependentCount)>0 && <span style={{fontSize:11}}>（含眷屬{Math.min(Number(data.employee.dependentCount),3)}人）</span>}</span>
+                <span className="val" style={{color:'var(--red)'}}>{negMoney(data.calc.healthFee)}</span>
+              </div>
 
               {leaveItems.length>0 && (
                 <>
-                  <SectionHeader label="請假扣款" amount={`-${money(calc.leaveDeduct)}`} amountStyle={{color:'var(--red)'}} sectionKey="leave" hasDetail={true} />
+                  <SectionHeader label="請假扣款" amount={negMoney(calc.leaveDeduct)} amountColor="var(--red)" sectionKey="leave" hasDetail={true} />
                   {expanded.leave && (
-                    <div style={{padding:'2px 0 8px 4px'}}>
+                    <div style={{padding:'0 0 6px'}}>
                       {leaveItems.map(it=>(
-                        <div className="row-between" key={it.label} style={{fontSize:13, color:'var(--muted)', padding:'2px 0'}}><span>{it.label}</span><span>-{money(it.value)}</span></div>
+                        <div className="pl-sub" key={it.label}><span>{it.label}</span><span>{negMoney(it.value)}</span></div>
                       ))}
                     </div>
                   )}
                 </>
               )}
 
-              {n(entry.otherDeduction)>0 && <div className="row-between"><span className="hint">其他扣款</span><span style={{color:'var(--red)'}}>-{money(entry.otherDeduction)}</span></div>}
-              <div className="row-between"><span className="hint" style={{fontWeight:700}}>應扣合計</span><span style={{fontWeight:700, color:'var(--red)'}}>-{money(calc.deductTotal)}</span></div>
+              {n(entry.otherDeduction)>0 && <div className="pl-row"><span className="lbl">其他扣款</span><span className="val" style={{color:'var(--red)'}}>{negMoney(entry.otherDeduction)}</span></div>}
+              <SectionHeader label="應扣合計" amount={negMoney(calc.deductTotal)} amountColor="var(--red)" total={true} />
             </div>
 
             {sales26Items.length>0 && (
@@ -1434,9 +1454,9 @@ function PayslipModal({onClose, showToast}){
                 {expanded.sales26 && (
                   <div style={{marginTop:2}}>
                     {sales26Items.map(it=>(
-                      <div className="row-between" key={it.label} style={{padding:'3px 0'}}>
-                        <span className="hint">{it.label}</span>
-                        <span style={{color: it.value<0?'var(--red)':undefined}}>{it.value<0?'-':''}{money(Math.abs(it.value))}</span>
+                      <div className="pl-sub" key={it.label}>
+                        <span>{it.label}</span>
+                        <span style={{color: it.value<0?'var(--red)':undefined}}>{it.value<0? negMoney(-it.value) : money(it.value)}</span>
                       </div>
                     ))}
                   </div>
