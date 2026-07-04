@@ -419,7 +419,8 @@ function App(){
   function openNewEmployee(){
     setEditingEmployee({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
       mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
-      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false});
+      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false,
+      nationalId:'', householdAddress:''});
     setIsNewEmployee(true);
   }
   function openEditEmployee(emp){ setEditingEmployee({...emp}); setIsNewEmployee(false); }
@@ -637,6 +638,8 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           </div>
           <div className="field"><label>姓名 *</label><input value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} /></div>
           <div className="field"><label>手機</label><input value={editing.phone} onChange={e=>setEditing({...editing, phone:e.target.value})} placeholder="09xxxxxxxx" /></div>
+          <div className="field"><label>身分證字號</label><input value={editing.nationalId} onChange={e=>setEditing({...editing, nationalId:e.target.value})} placeholder="A123456789" /></div>
+          <div className="field" style={{gridColumn:'span 2'}}><label>戶籍地</label><input value={editing.householdAddress} onChange={e=>setEditing({...editing, householdAddress:e.target.value})} style={{width:'100%'}} /></div>
           <div className="field"><label>到職日</label><input type="date" value={editing.hireDate} onChange={e=>setEditing({...editing, hireDate:e.target.value})} /></div>
 
           <div className="field"><label>班別</label>
@@ -1422,7 +1425,7 @@ function PayrollRegisterTab(){
               <tbody>
                 {list.map(emp=>(
                   <React.Fragment key={emp.employeeId}>
-                    <tr><td colSpan="14" className="left" style={{background:'#F2F0E8', fontWeight:700}}>{emp.name}　<span className="hint" style={{fontWeight:400}}>{emp.department}</span></td></tr>
+                    <tr><td colSpan="14" className="left" style={{background:'#F2F0E8', fontWeight:700}}>{emp.name}　<span className="hint" style={{fontWeight:400}}>{emp.department}　身分證字號：{emp.nationalId || '未填寫'}　戶籍地：{emp.householdAddress || '未填寫'}</span></td></tr>
                     {REGISTER_ROW_DEFS.map(def=>(
                       <tr key={def.key}>
                         <td className="left">{def.label}</td>
