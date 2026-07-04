@@ -218,7 +218,7 @@
   .toast{
     position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
     background:#282E38f0; border:1px solid var(--line); padding:12px 20px; border-radius:10px;
-    font-size:13.5px; z-index:90; max-width:88vw; text-align:center;
+    font-size:13.5px; z-index:90; max-width:88vw; text-align:center; white-space:pre-line; line-height:1.6;
   }
   .toast.ok{ border-color:var(--green); }
   .toast.err{ border-color:var(--red); color:#f3c9c2; }
@@ -573,7 +573,9 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
     if(loc.lat) setDeviceLoc(loc);
     try{
       const data = await apiPost(ACTION[modal], {employeeId: session.employeeId, lat: loc.lat, lng: loc.lng, source:'mobile'});
-      showToast(`${LABEL[modal]}成功（${data.statusTag}）`, String(data.statusTag).indexOf('超出')===0 ? 'err':'ok');
+      const isOutOfRange = String(data.statusTag).indexOf('超出')===0;
+      const msg = isOutOfRange ? `${LABEL[modal]}成功\n${data.statusTag}` : `${LABEL[modal]}成功`;
+      showToast(msg, isOutOfRange ? 'err':'ok');
       setModal(null);
       refreshStatus();
     }catch(e){
@@ -598,7 +600,7 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
             <div className="status-cell"><div className="lbl">外出</div><div className="val">{hhmm(status?.outgoTime)}</div></div>
             <div className="status-cell"><div className="lbl">返回</div><div className="val">{hhmm(status?.returnTime)}</div></div>
           </div>
-          <div className="hint" style={{marginTop:8}}>打卡會記錄 GPS 位置；如超出公司設定範圍仍會完成打卡，但紀錄將標示供管理者核對。</div>
+          <div className="hint" style={{marginTop:8}}>打卡位置，如超出公司設定範圍仍會完成，仍須經過供管理者核對。</div>
         </div>
 
         <div style={{position:'absolute', left:8, right:8, bottom:8, background:'rgba(57,62,70,0.8)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)', border:'1px solid var(--line)', borderRadius:14, padding:'14px', boxShadow:'0 10px 28px rgba(0,0,0,.4)'}}>
