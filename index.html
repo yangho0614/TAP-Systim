@@ -1144,8 +1144,8 @@ function CalendarPage({session, showToast}){
                 const isRestDay = settings && dow === Number(settings.restDay);
                 const isCompanyHoliday = hol && hol.type === '公司休假日';
                 const isNationalOrWeeklyOff = (hol && hol.type === '國定假日') || isMandatoryRest || isRestDay;
-                let bg = '#ffffff0d'; // 上班日：淺灰底
-                if(isCompanyHoliday) bg = '#5b8db826';
+                let bg = '#5b8db826'; // 上班日：藍色底
+                if(isCompanyHoliday) bg = '#9575cd26'; // 公司休假日：紫色底
                 else if(isNationalOrWeeklyOff) bg = '#c05a4f26';
                 return (
                   <div key={idx} style={{
@@ -1160,9 +1160,9 @@ function CalendarPage({session, showToast}){
               })}
             </div>
             <div style={{display:'flex', gap:12, marginTop:12, fontSize:11, color:'var(--muted)', flexWrap:'wrap'}}>
-              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'#ffffff1a',marginRight:4}}></span>上班日</span>
+              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--blue)',marginRight:4}}></span>上班日</span>
               <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--red)',marginRight:4}}></span>休息日／例假日／國定假日</span>
-              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--blue)',marginRight:4}}></span>公司休假日</span>
+              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'#9575cd',marginRight:4}}></span>公司休假日</span>
               <span><span style={{display:'inline-block',width:5,height:5,borderRadius:3,background:'var(--green)',marginRight:4}}></span>已核准請假</span>
             </div>
           </>
