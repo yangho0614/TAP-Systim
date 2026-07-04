@@ -1037,6 +1037,8 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
             <th rowSpan="2">本薪</th>
             <th rowSpan="2">伙食津貼</th>
             <th rowSpan="2">交通津貼</th>
+            <th rowSpan="2">職務加給</th>
+            <th rowSpan="2">全勤獎金</th>
             <th className="col-add" colSpan="4">加班時數</th>
             <th className="col-add" rowSpan="2">加班費</th>
             <th className="col-add" colSpan="4">獎金</th>
@@ -1045,7 +1047,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <button type="button" className="ghost sm no-print" style={{fontWeight:400, marginTop:4}} onClick={openSettleEstimate}>結算試算</button>
             </th>
             <th className="col-add" rowSpan="2">應付小計</th>
-            <th className="col-deduct" colSpan="4">請假時數</th>
+            <th className="col-deduct" colSpan="6">請假時數</th>
             <th className="col-deduct" rowSpan="2">勞保</th>
             <th className="col-deduct" rowSpan="2">健保</th>
             <th className="col-deduct" rowSpan="2">其他扣款</th>
@@ -1065,6 +1067,8 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td>{money(emp.baseSalary)}</td>
               <td className="hint">{money(emp.mealAllowance)}</td>
               <td className="hint">{money(emp.transportAllowance)}</td>
+              <td className="hint">{money(emp.positionAllowance)}</td>
+              <td className="hint">{money(emp.fullAttendanceBonus)}</td>
               <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} /></td>
               <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} /></td>
               <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} /></td>
@@ -1092,13 +1096,13 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
           <tr className="total-row">
             <td className="left">合計</td>
             <td>{money(totals.base)}</td>
-            <td colSpan="2"></td>
+            <td colSpan="4"></td>
             <td colSpan="4"></td>
             <td className="num-pos">{money(totals.overtime)}</td>
             <td colSpan="4"></td>
             <td></td>
             <td className="num-pos">{money(totals.payable)}</td>
-            <td colSpan="4"></td>
+            <td colSpan="6"></td>
             <td>{money(totals.labor)}</td>
             <td>{money(totals.health)}</td>
             <td></td>
