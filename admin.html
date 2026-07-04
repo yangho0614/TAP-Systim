@@ -1285,10 +1285,10 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
         <thead><tr><th className="col-deduct" colSpan="2"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>remove_circle</span> 應扣項目</th></tr></thead>
         <tbody>
           <tr><td className="left col-deduct">勞保費{!calc.insFullMonth && <span style={{fontWeight:400}}>（按{calc.insLaborDays}天計）</span>}</td><td className="col-deduct">{money(calc.laborFee)}</td></tr>
-          <tr><td className="left col-deduct">健保費{!calc.insActiveAtMonthEnd && <span style={{fontWeight:400}}>（月底已離職不收）</span>}</td><td className="col-deduct">{money(calc.healthFee)}</td></tr>
+          <tr><td className="left col-deduct">健保費{!calc.insActiveAtMonthEnd && <span style={{fontWeight:400}}>（月底已離職不收）</span>}{calc.insActiveAtMonthEnd && n(emp.dependentCount)>0 && <span style={{fontWeight:400}}>（含眷屬{Math.min(n(emp.dependentCount),3)}人）</span>}</td><td className="col-deduct">{money(calc.healthFee)}</td></tr>
           {show(n(entry.personalLeave)) && <tr><td className="left col-deduct">事假({n(entry.personalLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*n(entry.personalLeave))}</td></tr>}
           {show(n(entry.sickLeave)) && <tr><td className="left col-deduct">病假({n(entry.sickLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*0.5*n(entry.sickLeave))}</td></tr>}
-          {show(n(entry.menstrualLeave)) && <tr><td className="left col-deduct">生理假半薪({calc.menstrualHalfHours}hr，全薪{calc.menstrualPaidHours}hr不扣)</td><td className="col-deduct">{money(calc.hourly*0.5*calc.menstrualHalfHours)}</td></tr>}
+          {show(n(entry.menstrualLeave)) && <tr><td className="left col-deduct">生理假（半薪{calc.menstrualHalfHours}hr／全薪{calc.menstrualPaidHours}hr不扣）</td><td className="col-deduct">{money(calc.hourly*0.5*calc.menstrualHalfHours)}</td></tr>}
           {show(n(entry.disasterLeave)) && <tr><td className="left col-deduct">災防假({n(entry.disasterLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*0*n(entry.disasterLeave))}</td></tr>}
           {show(n(entry.otherDeduction)) && <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct">{money(entry.otherDeduction)}</td></tr>}
           <tr className="total-row"><td className="left">應扣合計</td><td>{money(calc.deductTotal)}</td></tr>
