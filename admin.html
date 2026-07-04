@@ -375,6 +375,7 @@ const NAV = [
   {group:'薪資', id:'payroll', label:'薪資計算 / 明細', icon:'calculate'},
   {group:'薪資', id:'payslip', label:'薪資條', icon:'receipt_long'},
   {group:'薪資', id:'transfer', label:'匯款明細表', icon:'account_balance_wallet'},
+  {group:'薪資', id:'register', label:'薪資印領清冊', icon:'fact_check'},
   {group:'薪資', id:'insurance', label:'勞健保級距表', icon:'health_and_safety'},
   {group:'組織設定', id:'companies', label:'公司管理', icon:'business'},
   {group:'組織設定', id:'departments', label:'部門管理', icon:'apartment'},
@@ -598,6 +599,7 @@ function App(){
           {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee}/>}
           {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month} settings={settings} menstrualBaseline={menstrualBaseline}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
+          {tab==='register' && <PayrollRegisterTab/>}
           {tab==='insurance' && <InsuranceTab/>}
           {tab==='companies' && <CompanyTab/>}
           {tab==='departments' && <DepartmentTab employees={employees}/>}
@@ -1354,6 +1356,89 @@ function TransferTab({rows, month}){
           </table>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ========================= 薪資印領清冊(全年度) ========================= */
+const REGISTER_ROW_DEFS = [
+  {key:'base', label:'本薪'},
+  {key:'overtimePay', label:'加班費'},
+  {key:'allowanceBonus', label:'津貼獎金'},
+  {key:'payableTotal', label:'應發合計', bold:true},
+  {key:'laborFee', label:'勞保費'},
+  {key:'healthFee', label:'健保費'},
+  {key:'leaveDeduct', label:'請假扣款'},
+  {key:'otherDeduction', label:'其他扣款'},
+  {key:'deductTotal', label:'應扣合計', bold:true},
+  {key:'netPay', label:'實發淨額', bold:true, highlight:true}
+];
+function PayrollRegisterTab(){
+  const [year, setYear] = useState(String(new Date().getFullYear()));
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  function load(){
+    setLoading(true);
+    apiGet('getAnnualPayrollRegister', {year}).then(setData).catch(e=>alert(e.message)).finally(()=>setLoading(false));
+  }
+  useEffect(load, [year]);
+
+  const years = [];
+  const thisYear = new Date().getFullYear();
+  for(let y = thisYear + 1; y >= thisYear - 2; y--) years.push(String(y));
+  const rocYear = Number(year) - 1911;
+
+  return (
+    <div>
+      <div className="toolbar no-print">
+        <label style={{marginBottom:0}}>年度</label>
+        <select value={year} onChange={e=>setYear(e.target.value)}>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
+        <button className="ghost" onClick={()=>window.print()}>列印本頁</button>
+      </div>
+      <div className="hint" style={{marginBottom:12}}>
+        依勞基法第23條規定製作，記載工資總額、各項目金額、扣除項目金額與實發金額，須保存5年。每人每月留一欄供簽名或蓋章確認領取。
+      </div>
+      {loading ? <div className="hint">載入中...</div> : !data || Object.keys(data).length===0 ? <div className="empty card">尚無資料</div> : (
+        Object.entries(data).map(([company, list])=>(
+          <div className="card" key={company} style={{overflowX:'auto'}}>
+            <h3 style={{marginBottom:2}}>{company}</h3>
+            <div className="hint" style={{marginBottom:10}}>民國{rocYear}年度（{year}年）薪資印領清冊</div>
+            <table style={{minWidth:1400}}>
+              <thead>
+                <tr>
+                  <th className="left" style={{minWidth:90}}>項目</th>
+                  {Array.from({length:12},(_,i)=>i+1).map(m=><th key={m}>{m}月</th>)}
+                  <th>全年合計</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map(emp=>(
+                  <React.Fragment key={emp.employeeId}>
+                    <tr><td colSpan="14" className="left" style={{background:'#F2F0E8', fontWeight:700}}>{emp.name}　<span className="hint" style={{fontWeight:400}}>{emp.department}</span></td></tr>
+                    {REGISTER_ROW_DEFS.map(def=>(
+                      <tr key={def.key}>
+                        <td className="left">{def.label}</td>
+                        {emp.monthly.map(mo=>(
+                          <td key={mo.month} className={def.highlight?'num-pos':''} style={{fontWeight:def.bold?700:400}}>{money(mo[def.key])}</td>
+                        ))}
+                        <td style={{fontWeight:def.bold?700:400}} className={def.highlight?'num-pos':''}>{money(emp.yearTotal[def.key])}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td className="left">簽名／蓋章</td>
+                      {Array.from({length:12},(_,i)=><td key={i} style={{height:34}}></td>)}
+                      <td></td>
+                    </tr>
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))
+      )}
     </div>
   );
 }
