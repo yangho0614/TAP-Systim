@@ -60,6 +60,11 @@
   tr.total-row td{background:#EDEDED; font-weight:700;}
   .num-pos{color:var(--income);}
   .num-neg{color:var(--outcome);}
+  .freeze-1, .freeze-2{ position:sticky; z-index:2; background:var(--paper-2); }
+  .freeze-1{ left:0; min-width:110px; }
+  .freeze-2{ left:110px; min-width:80px; border-right:2px solid var(--brand); }
+  th.freeze-1, th.freeze-2{ z-index:3; background:#EDEDED; }
+  tr.total-row .freeze-1, tr.total-row .freeze-2{ background:#EDEDED; }
   .col-add{background:#EAF6ED;}
   .col-deduct{background:#FBEDEA;}
   .col-result{background:#FBF3D9; font-weight:700;}
@@ -232,7 +237,7 @@ function emptyEntry(){
   return {
     otWeekday134:0, otWeekday167:0, otRestDayHours:0, otHolidayHours:0, otMandatoryRestHours:0,
     festivalBonus:0, yearEndBonus:0, otherBonus:0, performanceBonus:0,
-    personalLeave:0, sickLeave:0, menstrualLeavePaid:0, menstrualLeaveHalf:0, disasterLeave:0, otherLeave:0,
+    personalLeave:0, sickLeave:0, menstrualLeave:0, disasterLeave:0, otherLeave:0,
     annualLeaveSettlement:0,
     businessExpense:0, salesPerformance:0, otherExpense26:0, salesBonus26:0, deduction26:0,
     otherDeduction:0, note:''
@@ -264,7 +269,7 @@ function calcMandatoryRestPay(hourly, dailyWage, hours, mode){
   }
   return hourly*2*h; // 優於勞基法：時薪×2
 }
-function calcForEmployee(emp, entryRaw, settings){
+function calcForEmployee(emp, entryRaw, settings, menstrualUsedBefore){
   const entry = {...emptyEntry(), ...(entryRaw||{})};
   const base = n(emp.baseSalary);
   const wageBase = base + n(emp.mealAllowance) + n(emp.transportAllowance) + n(emp.positionAllowance) + n(emp.fullAttendanceBonus);
@@ -289,7 +294,11 @@ function calcForEmployee(emp, entryRaw, settings){
   const laborFee = ins ? ins.empLabor : 0;
   const healthFee = ins ? ins.empHealth : 0;
 
-  const leaveDeduct = hourly*1.0*n(entry.personalLeave) + hourly*0.5*n(entry.sickLeave) + hourly*0.5*n(entry.menstrualLeaveHalf) + hourly*0*n(entry.disasterLeave) + hourly*1.0*n(entry.otherLeave);
+  const MENSTRUAL_FULL_PAY_HOURS = 24; // 每年前3天(以8hr/天計)生理假全薪
+  const remainFullPay = Math.max(0, MENSTRUAL_FULL_PAY_HOURS - n(menstrualUsedBefore));
+  const menstrualPaidHours = Math.min(n(entry.menstrualLeave), remainFullPay);
+  const menstrualHalfHours = n(entry.menstrualLeave) - menstrualPaidHours;
+  const leaveDeduct = hourly*1.0*n(entry.personalLeave) + hourly*0.5*n(entry.sickLeave) + hourly*0.5*menstrualHalfHours + hourly*0*n(entry.disasterLeave) + hourly*1.0*n(entry.otherLeave);
   const deductTotal = laborFee + healthFee + leaveDeduct + n(entry.otherDeduction);
 
   const pay06 = payableTotal - deductTotal;
@@ -303,7 +312,7 @@ function calcForEmployee(emp, entryRaw, settings){
     hourly, dailyWage, overtimePay, weekdayOtPay, restDayPay:restDay.pay, holidayPay:holiday.pay, mandatoryRestPay,
     restDayCountedHours: restDay.countedHours, restDayOverCap: restDay.overCap, monthlyOtHours,
     allowanceTotal, bonusTotal, payableA, payableTotal,
-    laborFee, healthFee, leaveDeduct, deductTotal, pay06, pay26, grandTotal, belowMinWage
+    laborFee, healthFee, leaveDeduct, deductTotal, menstrualPaidHours, menstrualHalfHours, pay06, pay26, grandTotal, belowMinWage
   };
 }
 
@@ -473,9 +482,23 @@ function App(){
     catch(e){ alert(e.message); }
     finally{ setSaving(false); }
   }
+  const [menstrualBaseline, setMenstrualBaseline] = useState({});
+
+  function refreshMenstrualBaseline(){
+    apiGet('getMonthlySummary', {month}).then(summary=>{
+      const map = {};
+      summary.forEach(s=>{ map[s.employeeId] = s.menstrualLeaveUsedBefore || 0; });
+      setMenstrualBaseline(map);
+    }).catch(()=>{});
+  }
+  useEffect(()=>{ if(session) refreshMenstrualBaseline(); }, [session, month]);
+
   async function applyAttendanceToPayroll(){
     try{
       const summary = await apiGet('getMonthlySummary', {month});
+      const map = {};
+      summary.forEach(s=>{ map[s.employeeId] = s.menstrualLeaveUsedBefore || 0; });
+      setMenstrualBaseline(map);
       setPayrollEntries(prev => {
         const next = {...prev};
         summary.forEach(s=>{
@@ -484,7 +507,7 @@ function App(){
             otWeekday134: s.otWeekday134, otWeekday167: s.otWeekday167,
             otRestDayHours: s.otRestDayHours, otHolidayHours: s.otHolidayHours, otMandatoryRestHours: s.otMandatoryRestHours,
             personalLeave: s.personalLeave || 0, sickLeave: s.sickLeave || 0, disasterLeave: s.disasterLeave || 0,
-            menstrualLeavePaid: s.menstrualLeavePaid || 0, menstrualLeaveHalf: s.menstrualLeaveHalf || 0};
+            menstrualLeave: s.menstrualLeave || 0};
         });
         return next;
       });
@@ -495,8 +518,8 @@ function App(){
 
   const rows = useMemo(()=> employees.map(emp=>{
     const entry = payrollEntries[emp.id] || emptyEntry();
-    return {emp, entry, calc: calcForEmployee(emp, entry, settings)};
-  }), [employees, payrollEntries, settings]);
+    return {emp, entry, calc: calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||0)};
+  }), [employees, payrollEntries, settings, menstrualBaseline]);
 
   const needsMonth = ['records','requests','attendance','payroll','payslip','transfer'].includes(tab);
 
@@ -572,7 +595,7 @@ function App(){
           {tab==='comp' && <CompLedgerTab employees={employees}/>}
           {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}/>}
           {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee}/>}
-          {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month} settings={settings}/>}
+          {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month} settings={settings} menstrualBaseline={menstrualBaseline}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
           {tab==='insurance' && <InsuranceTab/>}
           {tab==='companies' && <CompanyTab/>}
@@ -1033,8 +1056,8 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
       <table>
         <thead>
           <tr>
-            <th className="left" rowSpan="2">姓名 / 部門</th>
-            <th rowSpan="2">本薪</th>
+            <th className="left freeze-1" rowSpan="2">姓名 / 部門</th>
+            <th className="freeze-2" rowSpan="2">本薪</th>
             <th rowSpan="2">伙食津貼</th>
             <th rowSpan="2">交通津貼</th>
             <th rowSpan="2">職務加給</th>
@@ -1047,7 +1070,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <button type="button" className="ghost sm no-print" style={{fontWeight:400, marginTop:4}} onClick={openSettleEstimate}>結算試算</button>
             </th>
             <th className="col-add" rowSpan="2">應付小計</th>
-            <th className="col-deduct" colSpan="6">請假時數</th>
+            <th className="col-deduct" colSpan="5">請假時數</th>
             <th className="col-deduct" rowSpan="2">勞保</th>
             <th className="col-deduct" rowSpan="2">健保</th>
             <th className="col-deduct" rowSpan="2">其他扣款</th>
@@ -1057,14 +1080,14 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
           <tr>
             <th className="col-add">平日1.34</th><th className="col-add">平日1.67</th><th className="col-add">休息日</th><th className="col-add">國定假日</th>
             <th className="col-add">三節</th><th className="col-add">年終</th><th className="col-add">績效</th><th className="col-add">其他</th>
-            <th className="col-deduct">事假</th><th className="col-deduct">病假</th><th className="col-deduct">生理(全薪)</th><th className="col-deduct">生理(半薪)</th><th className="col-deduct">災防</th><th className="col-deduct">其他</th>
+            <th className="col-deduct">事假</th><th className="col-deduct">病假</th><th className="col-deduct">生理假</th><th className="col-deduct">災防</th><th className="col-deduct">其他</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(({emp, entry, calc})=>(
             <tr key={emp.id}>
-              <td className="left" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
-              <td>{money(emp.baseSalary)}</td>
+              <td className="left freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
+              <td className="freeze-2">{money(emp.baseSalary)}</td>
               <td className="hint">{money(emp.mealAllowance)}</td>
               <td className="hint">{money(emp.transportAllowance)}</td>
               <td className="hint">{money(emp.positionAllowance)}</td>
@@ -1082,8 +1105,10 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="col-add num-pos"><b>{money(calc.payableTotal)}</b></td>
               <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} /></td>
               <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} /></td>
-              <td className="col-deduct"><NumCell value={entry.menstrualLeavePaid} onChange={v=>setEntry(emp.id,{menstrualLeavePaid:v})} /></td>
-              <td className="col-deduct"><NumCell value={entry.menstrualLeaveHalf} onChange={v=>setEntry(emp.id,{menstrualLeaveHalf:v})} /></td>
+              <td className="col-deduct">
+                <NumCell value={entry.menstrualLeave} onChange={v=>setEntry(emp.id,{menstrualLeave:v})} />
+                {n(entry.menstrualLeave)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全薪{calc.menstrualPaidHours}／半薪{calc.menstrualHalfHours}</div>}
+              </td>
               <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} /></td>
               <td className="col-deduct"><NumCell value={entry.otherLeave} onChange={v=>setEntry(emp.id,{otherLeave:v})} /></td>
               <td className="col-deduct">{money(calc.laborFee)}</td>
@@ -1094,15 +1119,15 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
             </tr>
           ))}
           <tr className="total-row">
-            <td className="left">合計</td>
-            <td>{money(totals.base)}</td>
+            <td className="left freeze-1">合計</td>
+            <td className="freeze-2">{money(totals.base)}</td>
             <td colSpan="4"></td>
             <td colSpan="4"></td>
             <td className="num-pos">{money(totals.overtime)}</td>
             <td colSpan="4"></td>
             <td></td>
             <td className="num-pos">{money(totals.payable)}</td>
-            <td colSpan="6"></td>
+            <td colSpan="5"></td>
             <td>{money(totals.labor)}</td>
             <td>{money(totals.health)}</td>
             <td></td>
@@ -1192,7 +1217,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26}){
           <tr><td className="left">伙食津貼</td><td>{money(emp.mealAllowance)}</td><td className="left">健保費</td><td>{money(calc.healthFee)}</td></tr>
           <tr><td className="left">交通津貼</td><td>{money(emp.transportAllowance)}</td><td className="left">事假({n(entry.personalLeave)}hr)</td><td>{money(calc.hourly*n(entry.personalLeave))}</td></tr>
           <tr><td className="left">職務加給</td><td>{money(emp.positionAllowance)}</td><td className="left">病假({n(entry.sickLeave)}hr)</td><td>{money(calc.hourly*0.5*n(entry.sickLeave))}</td></tr>
-          <tr><td className="left"></td><td></td><td className="left">生理假半薪({n(entry.menstrualLeaveHalf)}hr，全薪{n(entry.menstrualLeavePaid)}hr不扣)</td><td>{money(calc.hourly*0.5*n(entry.menstrualLeaveHalf))}</td></tr>
+          <tr><td className="left"></td><td></td><td className="left">生理假半薪({calc.menstrualHalfHours}hr，全薪{calc.menstrualPaidHours}hr不扣)</td><td>{money(calc.hourly*0.5*calc.menstrualHalfHours)}</td></tr>
           <tr><td className="left">全勤獎金</td><td>{money(emp.fullAttendanceBonus)}</td><td className="left">災防假({n(entry.disasterLeave)}hr)</td><td>{money(calc.hourly*0*n(entry.disasterLeave))}</td></tr>
           <tr><td className="left">三節獎金</td><td>{money(entry.festivalBonus)}</td><td className="left">其他扣款</td><td>{money(entry.otherDeduction)}</td></tr>
           <tr><td className="left">年終獎金</td><td>{money(entry.yearEndBonus)}</td><td className="left"></td><td></td></tr>
@@ -1233,7 +1258,7 @@ function getActualPayDateJS(year, month, day, holidaySet){
     d.setDate(d.getDate()-1);
   }
 }
-function PayslipTab({employees, payrollEntries, month, settings}){
+function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseline}){
   const [selected, setSelected] = useState('all');
   const [holidays, setHolidays] = useState([]);
   useEffect(()=>{ apiGet('getHolidays').then(setHolidays).catch(()=>{}); }, []);
@@ -1256,7 +1281,7 @@ function PayslipTab({employees, payrollEntries, month, settings}){
       {list.length===0 && <div className="empty card">尚無員工資料</div>}
       {list.map(emp=>{
         const entry = payrollEntries[emp.id] || emptyEntry();
-        const calc = calcForEmployee(emp, entry, settings);
+        const calc = calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||0);
         return <Payslip key={emp.id} emp={emp} entry={entry} calc={calc} month={month} payDate06={payDate06} payDate26={payDate26} />;
       })}
     </div>
