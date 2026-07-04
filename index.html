@@ -346,7 +346,14 @@ function useClock(){
   return now;
 }
 function pad(v){ return String(v).padStart(2,'0'); }
-function hhmm(dt){ return dt ? String(dt).split(' ')[1]?.slice(0,5) || '—' : '—'; }
+function hhmm(dt){
+  if(!dt) return '—';
+  const timePart = String(dt).split(' ')[1] || String(dt).split('T')[1];
+  if(!timePart) return '—';
+  const m = timePart.match(/^(\d{1,2}):(\d{2})/);
+  if(!m) return '—';
+  return m[1].padStart(2,'0') + ':' + m[2];
+}
 function formatDateTimeReadable(dtLocalValue){
   if(!dtLocalValue) return '';
   const d = new Date(dtLocalValue);
@@ -398,9 +405,11 @@ function LoginScreen({onLoggedIn}){
 
 /* ========================= 首頁 ========================= */
 function HomePage({session, status, pendingCount, goForms, showToast}){
+  const now = useClock();
   const emp = session.employee || {};
   const shift = emp.shift;
   const [payslipOpen, setPayslipOpen] = useState(false);
+  const dateStr = `${now.getMonth()+1}月${now.getDate()}日　星期${'日一二三四五六'[now.getDay()]}`;
 
   return (
     <div className="page">
@@ -409,6 +418,13 @@ function HomePage({session, status, pendingCount, goForms, showToast}){
         <div>
           <div className="name">{emp.name}</div>
           <div className="dept">{emp.department}{emp.company ? ' · ' + emp.company : ''}</div>
+        </div>
+      </div>
+
+      <div className="card" style={{textAlign:'center'}}>
+        <div className="hint" style={{fontSize:13.5}}>{dateStr}</div>
+        <div style={{fontFamily:'Roboto Mono, monospace', fontSize:38, fontWeight:700, color:'var(--text)', marginTop:2}}>
+          {pad(now.getHours())}:{pad(now.getMinutes())}
         </div>
       </div>
 
