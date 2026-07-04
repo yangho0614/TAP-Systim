@@ -1363,8 +1363,13 @@ function TransferTab({rows, month}){
 /* ========================= 薪資印領清冊(全年度) ========================= */
 const REGISTER_ROW_DEFS = [
   {key:'base', label:'本薪'},
+  {key:'mealAllowance', label:'伙食津貼'},
+  {key:'transportAllowance', label:'交通津貼'},
+  {key:'positionAllowance', label:'職務加給'},
+  {key:'fullAttendanceBonus', label:'全勤獎金'},
   {key:'overtimePay', label:'加班費'},
-  {key:'allowanceBonus', label:'津貼獎金'},
+  {key:'bonusTotal', label:'獎金'},
+  {key:'annualLeaveSettlement', label:'特休結算'},
   {key:'payableTotal', label:'應發合計', bold:true},
   {key:'laborFee', label:'勞保費'},
   {key:'healthFee', label:'健保費'},
