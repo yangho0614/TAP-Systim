@@ -60,6 +60,12 @@
   tr.total-row td{background:#EDEDED; font-weight:700;}
   .num-pos{color:var(--income);}
   .num-neg{color:var(--outcome);}
+  .col-add{background:#EAF6ED;}
+  .col-deduct{background:#FBEDEA;}
+  .col-result{background:#FBF3D9; font-weight:700;}
+  thead .col-add{background:#CDEAD4;}
+  thead .col-deduct{background:#F5D6CE;}
+  thead .col-result{background:#F3E0A0;}
   .card{background:var(--paper-2); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:18px;}
   .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:0 18px;}
   .badge{display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:2px 9px; border-radius:20px; background:#D6F1F2; color:var(--brand-dark); font-weight:700;}
@@ -998,24 +1004,24 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
           <tr>
             <th className="left" rowSpan="2">姓名 / 部門</th>
             <th rowSpan="2">本薪</th>
-            <th colSpan="4">加班時數</th>
-            <th rowSpan="2">加班費</th>
-            <th colSpan="4">獎金</th>
-            <th rowSpan="2">特休結算</th>
-            <th rowSpan="2">應付小計</th>
-            <th colSpan="4">請假時數</th>
-            <th rowSpan="2">勞保</th>
-            <th rowSpan="2">健保</th>
-            <th rowSpan="2">其他扣款</th>
-            <th rowSpan="2">應扣小計</th>
-            <th rowSpan="2">06日應付</th>
-            <th rowSpan="2">26日應付</th>
-            <th rowSpan="2">應付總計</th>
+            <th className="col-add" colSpan="4">加班時數</th>
+            <th className="col-add" rowSpan="2">加班費</th>
+            <th className="col-add" colSpan="4">獎金</th>
+            <th className="col-add" rowSpan="2">特休結算</th>
+            <th className="col-add" rowSpan="2">應付小計</th>
+            <th className="col-deduct" colSpan="4">請假時數</th>
+            <th className="col-deduct" rowSpan="2">勞保</th>
+            <th className="col-deduct" rowSpan="2">健保</th>
+            <th className="col-deduct" rowSpan="2">其他扣款</th>
+            <th className="col-deduct" rowSpan="2">應扣小計</th>
+            <th className="col-result" rowSpan="2">06日應付</th>
+            <th className="col-result" rowSpan="2">26日應付</th>
+            <th className="col-result" rowSpan="2">應付總計</th>
           </tr>
           <tr>
-            <th>平日1.34</th><th>平日1.67</th><th>休息日</th><th>國定假日</th>
-            <th>三節</th><th>年終</th><th>績效</th><th>其他</th>
-            <th>事假</th><th>病假</th><th>生理(全薪)</th><th>生理(半薪)</th><th>災防</th><th>其他</th>
+            <th className="col-add">平日1.34</th><th className="col-add">平日1.67</th><th className="col-add">休息日</th><th className="col-add">國定假日</th>
+            <th className="col-add">三節</th><th className="col-add">年終</th><th className="col-add">績效</th><th className="col-add">其他</th>
+            <th className="col-deduct">事假</th><th className="col-deduct">病假</th><th className="col-deduct">生理(全薪)</th><th className="col-deduct">生理(半薪)</th><th className="col-deduct">災防</th><th className="col-deduct">其他</th>
           </tr>
         </thead>
         <tbody>
@@ -1023,34 +1029,34 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
             <tr key={emp.id}>
               <td className="left"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
               <td>{money(emp.baseSalary)}</td>
-              <td><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} /></td>
-              <td><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} /></td>
-              <td><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} /></td>
-              <td><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} /></td>
-              <td className="num-pos">{money(calc.overtimePay)}</td>
-              <td><NumCell value={entry.festivalBonus} onChange={v=>setEntry(emp.id,{festivalBonus:v})} /></td>
-              <td><NumCell value={entry.yearEndBonus} onChange={v=>setEntry(emp.id,{yearEndBonus:v})} /></td>
-              <td><NumCell value={entry.performanceBonus} onChange={v=>setEntry(emp.id,{performanceBonus:v})} /></td>
-              <td><NumCell value={entry.otherBonus} onChange={v=>setEntry(emp.id,{otherBonus:v})} /></td>
-              <td><NumCell value={entry.annualLeaveSettlement} onChange={v=>setEntry(emp.id,{annualLeaveSettlement:v})} /></td>
-              <td className="num-pos"><b>{money(calc.payableTotal)}</b></td>
-              <td><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} /></td>
-              <td><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} /></td>
-              <td><NumCell value={entry.menstrualLeavePaid} onChange={v=>setEntry(emp.id,{menstrualLeavePaid:v})} /></td>
-              <td><NumCell value={entry.menstrualLeaveHalf} onChange={v=>setEntry(emp.id,{menstrualLeaveHalf:v})} /></td>
-              <td><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} /></td>
-              <td><NumCell value={entry.otherLeave} onChange={v=>setEntry(emp.id,{otherLeave:v})} /></td>
-              <td>{money(calc.laborFee)}</td>
-              <td>{money(calc.healthFee)}</td>
-              <td><NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} /></td>
-              <td className="num-neg">{money(calc.deductTotal)}</td>
-              <td>{money(calc.pay06)}</td>
-              <td>
+              <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} /></td>
+              <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} /></td>
+              <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} /></td>
+              <td className="col-add"><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} /></td>
+              <td className="col-add num-pos">{money(calc.overtimePay)}</td>
+              <td className="col-add"><NumCell value={entry.festivalBonus} onChange={v=>setEntry(emp.id,{festivalBonus:v})} /></td>
+              <td className="col-add"><NumCell value={entry.yearEndBonus} onChange={v=>setEntry(emp.id,{yearEndBonus:v})} /></td>
+              <td className="col-add"><NumCell value={entry.performanceBonus} onChange={v=>setEntry(emp.id,{performanceBonus:v})} /></td>
+              <td className="col-add"><NumCell value={entry.otherBonus} onChange={v=>setEntry(emp.id,{otherBonus:v})} /></td>
+              <td className="col-add"><NumCell value={entry.annualLeaveSettlement} onChange={v=>setEntry(emp.id,{annualLeaveSettlement:v})} /></td>
+              <td className="col-add num-pos"><b>{money(calc.payableTotal)}</b></td>
+              <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} /></td>
+              <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} /></td>
+              <td className="col-deduct"><NumCell value={entry.menstrualLeavePaid} onChange={v=>setEntry(emp.id,{menstrualLeavePaid:v})} /></td>
+              <td className="col-deduct"><NumCell value={entry.menstrualLeaveHalf} onChange={v=>setEntry(emp.id,{menstrualLeaveHalf:v})} /></td>
+              <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} /></td>
+              <td className="col-deduct"><NumCell value={entry.otherLeave} onChange={v=>setEntry(emp.id,{otherLeave:v})} /></td>
+              <td className="col-deduct">{money(calc.laborFee)}</td>
+              <td className="col-deduct">{money(calc.healthFee)}</td>
+              <td className="col-deduct"><NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} /></td>
+              <td className="col-deduct num-neg">{money(calc.deductTotal)}</td>
+              <td className="col-result">{money(calc.pay06)}</td>
+              <td className="col-result">
                 <div style={{display:'flex', gap:3, flexWrap:'wrap', justifyContent:'flex-end'}}>
                   <NumCell value={entry.businessExpense} onChange={v=>setEntry(emp.id,{businessExpense:v})} />
                 </div>
               </td>
-              <td className="mono"><b>{money(calc.grandTotal)}</b></td>
+              <td className="col-result mono"><b>{money(calc.grandTotal)}</b></td>
             </tr>
           ))}
           <tr className="total-row">
@@ -1169,61 +1175,63 @@ function PayslipTab({employees, payrollEntries, month, settings}){
 
 /* ========================= 匯款明細表 ========================= */
 function TransferTab({rows, month}){
+  const [period, setPeriod] = useState('06');
   const byCompany = useMemo(()=>{
     const g = {};
-    rows.forEach(r => { (g[r.emp.company||'(未分類)'] = g[r.emp.company||'(未分類)']||[]).push(r); });
+    rows.forEach(r => { const key = r.emp.company||'其他'; (g[key] = g[key]||[]).push(r); });
     return g;
   }, [rows]);
 
-  function exportGroup(company, period, list){
+  function exportGroup(company, list){
     const headers = ['項次','姓名','銀行','帳號','金額','備註'];
     const data = list.map((r,idx)=>[idx+1, r.emp.name, r.emp.bankName, r.emp.bankAccount, Math.round(period==='06'?r.calc.pay06:r.calc.pay26), r.emp.note]);
     exportCSV(`匯款明細_${company}_${period}日_${month}.csv`, headers, data);
   }
 
+  const companyEntries = Object.entries(byCompany).map(([company, list])=>{
+    const active = list.filter(r => (period==='06'?r.calc.pay06:r.calc.pay26) !== 0);
+    const total = active.reduce((s,r)=>s+(period==='06'?r.calc.pay06:r.calc.pay26),0);
+    return {company, active, total};
+  }).filter(g=>g.active.length>0);
+
   return (
     <div>
       <div className="toolbar no-print">
-        <span className="hint">依公司與發薪日（06日／26日）分組列出應匯款人員與帳號，金額為 0 者仍會列出以利核對。</span>
+        <div style={{display:'flex', gap:6}}>
+          <button className={period==='06'?'':'ghost'} onClick={()=>setPeriod('06')}>6號明細</button>
+          <button className={period==='26'?'':'ghost'} onClick={()=>setPeriod('26')}>26號明細</button>
+        </div>
         <span className="grow"></span>
-        <button className="ghost" onClick={()=>window.print()}>列印全部</button>
+        <span className="hint">依公司分組列出應匯款人員與帳號，金額為 0 者不列出。</span>
+        <button className="ghost" onClick={()=>window.print()}>列印本頁</button>
       </div>
 
-      {Object.keys(byCompany).length===0 && <div className="empty card">尚無資料</div>}
+      {companyEntries.length===0 && <div className="empty card">本期尚無需匯款資料</div>}
 
-      {Object.entries(byCompany).map(([company, list])=>(
-        <React.Fragment key={company}>
-          {['06','26'].map(period=>{
-            const active = list.filter(r => (period==='06'?r.calc.pay06:r.calc.pay26) !== 0);
-            if(active.length===0) return null;
-            const total = active.reduce((s,r)=>s+(period==='06'?r.calc.pay06:r.calc.pay26),0);
-            return (
-              <div className="card" key={company+period}>
-                <div className="toolbar" style={{marginBottom:8}}>
-                  <h3 style={{margin:0}}>{company} — {period}日 薪資轉帳明細表（{monthLabel(month)}）</h3>
-                  <span className="grow"></span>
-                  <button className="ghost sm no-print" onClick={()=>exportGroup(company, period, active)}>匯出 CSV</button>
-                </div>
-                <table>
-                  <thead><tr><th>項次</th><th className="left">姓名</th><th className="left">銀行</th><th className="left">帳號</th><th>金額</th><th className="left">備註</th></tr></thead>
-                  <tbody>
-                    {active.map((r,idx)=>(
-                      <tr key={r.emp.id}>
-                        <td>{idx+1}</td>
-                        <td className="left">{r.emp.name}</td>
-                        <td className="left">{r.emp.bankName}</td>
-                        <td className="left mono">{r.emp.bankAccount || '（未登錄帳號）'}</td>
-                        <td className="mono">{money(period==='06'?r.calc.pay06:r.calc.pay26)}</td>
-                        <td className="left">{r.emp.note}</td>
-                      </tr>
-                    ))}
-                    <tr className="total-row"><td colSpan="4" className="left">總計</td><td className="mono">{money(total)}</td><td></td></tr>
-                  </tbody>
-                </table>
-              </div>
-            );
-          })}
-        </React.Fragment>
+      {companyEntries.map(({company, active, total})=>(
+        <div className="card" key={company}>
+          <div className="toolbar" style={{marginBottom:8}}>
+            <h3 style={{margin:0}}>{company} — {period}日 薪資轉帳明細表（{monthLabel(month)}）</h3>
+            <span className="grow"></span>
+            <button className="ghost sm no-print" onClick={()=>exportGroup(company, active)}>匯出 CSV</button>
+          </div>
+          <table>
+            <thead><tr><th>項次</th><th className="left">姓名</th><th className="left">銀行</th><th className="left">帳號</th><th>金額</th><th className="left">備註</th></tr></thead>
+            <tbody>
+              {active.map((r,idx)=>(
+                <tr key={r.emp.id}>
+                  <td>{idx+1}</td>
+                  <td className="left">{r.emp.name}</td>
+                  <td className="left">{r.emp.bankName}</td>
+                  <td className="left mono">{r.emp.bankAccount || '（未登錄帳號）'}</td>
+                  <td className="mono">{money(period==='06'?r.calc.pay06:r.calc.pay26)}</td>
+                  <td className="left">{r.emp.note}</td>
+                </tr>
+              ))}
+              <tr className="total-row"><td colSpan="4" className="left">總計</td><td className="mono">{money(total)}</td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
       ))}
     </div>
   );
