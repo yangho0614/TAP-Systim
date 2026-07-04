@@ -222,7 +222,7 @@ function emptyEntry(){
   return {
     otWeekday134:0, otWeekday167:0, otRestDayHours:0, otHolidayHours:0, otMandatoryRestHours:0,
     festivalBonus:0, yearEndBonus:0, otherBonus:0, performanceBonus:0,
-    personalLeave:0, sickLeave:0, disasterLeave:0, otherLeave:0,
+    personalLeave:0, sickLeave:0, menstrualLeavePaid:0, menstrualLeaveHalf:0, disasterLeave:0, otherLeave:0,
     annualLeaveSettlement:0,
     businessExpense:0, salesPerformance:0, otherExpense26:0, salesBonus26:0, deduction26:0,
     otherDeduction:0, note:''
@@ -246,7 +246,15 @@ function calcHolidayPay(hourly, dailyWage, hours){
   const ot167 = Math.max(excess-2,0);
   return {pay: dailyWage + hourly*1.34*ot134 + hourly*1.67*ot167};
 }
-function calcForEmployee(emp, entryRaw){
+function calcMandatoryRestPay(hourly, dailyWage, hours, mode){
+  const h = n(hours);
+  if(h<=0) return 0;
+  if(mode === 'legal'){
+    return calcHolidayPay(hourly, dailyWage, h).pay; // 依勞基法：加發一日工資＋超過8小時比照平日加班費
+  }
+  return hourly*2*h; // 優於勞基法：時薪×2
+}
+function calcForEmployee(emp, entryRaw, settings){
   const entry = {...emptyEntry(), ...(entryRaw||{})};
   const base = n(emp.baseSalary);
   const hourly = base>0 ? base/240 : 0;
@@ -255,7 +263,8 @@ function calcForEmployee(emp, entryRaw){
   const weekdayOtPay = hourly*1.34*n(entry.otWeekday134) + hourly*1.67*n(entry.otWeekday167);
   const restDay = calcRestDayPay(hourly, entry.otRestDayHours);
   const holiday = calcHolidayPay(hourly, dailyWage, entry.otHolidayHours);
-  const mandatoryRestPay = hourly*2*n(entry.otMandatoryRestHours);
+  const mandatoryRestMode = (settings && settings.mandatoryRestPayMode) || 'double';
+  const mandatoryRestPay = calcMandatoryRestPay(hourly, dailyWage, entry.otMandatoryRestHours, mandatoryRestMode);
   const overtimePay = weekdayOtPay + restDay.pay + holiday.pay + mandatoryRestPay;
   const monthlyOtHours = n(entry.otWeekday134) + n(entry.otWeekday167);
 
@@ -269,7 +278,7 @@ function calcForEmployee(emp, entryRaw){
   const laborFee = ins ? ins.empLabor : 0;
   const healthFee = ins ? ins.empHealth : 0;
 
-  const leaveDeduct = hourly*1.0*n(entry.personalLeave) + hourly*0.5*n(entry.sickLeave) + hourly*0*n(entry.disasterLeave) + hourly*1.0*n(entry.otherLeave);
+  const leaveDeduct = hourly*1.0*n(entry.personalLeave) + hourly*0.5*n(entry.sickLeave) + hourly*0.5*n(entry.menstrualLeaveHalf) + hourly*0*n(entry.disasterLeave) + hourly*1.0*n(entry.otherLeave);
   const deductTotal = laborFee + healthFee + leaveDeduct + n(entry.otherDeduction);
 
   const pay06 = payableTotal - deductTotal;
@@ -368,6 +377,11 @@ function App(){
   const [payrollLoading, setPayrollLoading] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState(null);
+
+  function reloadSettings(){
+    return apiGet('getSettings').then(setSettings).catch(()=>{});
+  }
 
   // 頁面載入時，若本機已有登入 token，先樂觀還原登入狀態
   // 若 token 其實已逾時，後續任何 API 呼叫都會偵測到並自動導回登入畫面
@@ -387,6 +401,7 @@ function App(){
   }
   useEffect(()=>{ if(session) reloadEmployees(); }, [session]);
   useEffect(()=>{ if(session) reloadPayroll(month); }, [session, month]);
+  useEffect(()=>{ if(session) reloadSettings(); }, [session]);
 
   function setEntry(empId, patch){
     setPayrollEntries(prev => ({...prev, [empId]: {...emptyEntry(), ...(prev[empId]||{}), ...patch}}));
@@ -408,7 +423,8 @@ function App(){
           next[s.employeeId] = {...emptyEntry(), ...cur,
             otWeekday134: s.otWeekday134, otWeekday167: s.otWeekday167,
             otRestDayHours: s.otRestDayHours, otHolidayHours: s.otHolidayHours, otMandatoryRestHours: s.otMandatoryRestHours,
-            personalLeave: s.personalLeave || 0, sickLeave: s.sickLeave || 0, disasterLeave: s.disasterLeave || 0};
+            personalLeave: s.personalLeave || 0, sickLeave: s.sickLeave || 0, disasterLeave: s.disasterLeave || 0,
+            menstrualLeavePaid: s.menstrualLeavePaid || 0, menstrualLeaveHalf: s.menstrualLeaveHalf || 0};
         });
         return next;
       });
@@ -419,8 +435,8 @@ function App(){
 
   const rows = useMemo(()=> employees.map(emp=>{
     const entry = payrollEntries[emp.id] || emptyEntry();
-    return {emp, entry, calc: calcForEmployee(emp, entry)};
-  }), [employees, payrollEntries]);
+    return {emp, entry, calc: calcForEmployee(emp, entry, settings)};
+  }), [employees, payrollEntries, settings]);
 
   const needsMonth = ['records','requests','attendance','payroll','payslip','transfer'].includes(tab);
 
@@ -491,7 +507,7 @@ function App(){
           {tab==='comp' && <CompLedgerTab employees={employees}/>}
           {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}/>}
           {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving}/>}
-          {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month}/>}
+          {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month} settings={settings}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
           {tab==='insurance' && <InsuranceTab/>}
           {tab==='companies' && <CompanyTab/>}
@@ -500,7 +516,7 @@ function App(){
           {tab==='holidays' && <HolidaysTab/>}
           {tab==='announcements' && <AnnouncementsTab/>}
           {tab==='accounts' && <AccountsTab employees={employees}/>}
-          {tab==='settings' && <SettingsTab/>}
+          {tab==='settings' && <SettingsTab onSaved={reloadSettings}/>}
         </div>
       </div>
     </div>
@@ -793,13 +809,14 @@ function AttendanceTab({month, onApply}){
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
+  const [makeupBox, setMakeupBox] = useState(null); // {employeeId, name, dates}
 
   function load(){ setLoading(true); apiGet('getMonthlySummary', {month}).then(setSummary).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
   useEffect(load, [month]);
 
   function doExportCSV(){
-    const headers = ['姓名','出勤天數','遲到次數','遲到分鐘','早退次數','早退分鐘','平日1.34倍(hr)','平日1.67倍(hr)','休息日出勤(hr)','國定假日出勤(hr)','例假日出勤(hr)','總工時(hr)','平日加班上限是否超過','定位異常天數'];
-    const rows = summary.map(e=>[e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,e.otWeekday134,e.otWeekday167,e.otRestDayHours,e.otHolidayHours,e.otMandatoryRestHours,e.workedHoursTotal,e.otCapExceeded?'是':'否',e.flaggedDays]);
+    const headers = ['姓名','出勤天數','遲到次數','遲到分鐘','早退次數','早退分鐘','平日1.34倍(hr)','平日1.67倍(hr)','單日超時天數','單日超時日期','休息日出勤(hr)','國定假日出勤(hr)','例假日出勤(hr)','總工時(hr)','平日加班上限是否超過','定位異常天數'];
+    const rows = summary.map(e=>[e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,e.otWeekday134,e.otWeekday167,e.dailyOtExceedDays.length,e.dailyOtExceedDays.join('、'),e.otRestDayHours,e.otHolidayHours,e.otMandatoryRestHours,e.workedHoursTotal,e.otCapExceeded?'是':'否',e.flaggedDays]);
     exportCSV(`出缺勤彙總_${month}.csv`, headers, rows);
   }
   async function doApply(){
@@ -817,7 +834,7 @@ function AttendanceTab({month, onApply}){
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
-            <thead><tr><th className="left">姓名</th><th>出勤天數</th><th>遲到次數</th><th>遲到分鐘</th><th>早退次數</th><th>早退分鐘</th><th>平日1.34倍(hr)</th><th>平日1.67倍(hr)</th><th>休息日(hr)</th><th>國定假日(hr)</th><th>例假日(hr)</th><th>總工時(hr)</th><th>定位異常</th></tr></thead>
+            <thead><tr><th className="left">姓名</th><th>出勤天數</th><th>遲到次數</th><th>遲到分鐘</th><th>早退次數</th><th>早退分鐘</th><th>平日1.34倍(hr)</th><th>平日1.67倍(hr)</th><th>單日超時</th><th>休息日(hr)</th><th>國定假日(hr)</th><th>例假日(hr)</th><th>總工時(hr)</th><th>定位異常</th></tr></thead>
             <tbody>
               {summary.map(e=>(
                 <tr key={e.employeeId}>
@@ -826,22 +843,78 @@ function AttendanceTab({month, onApply}){
                   <td>{e.earlyLeaveCount}</td><td>{e.earlyLeaveMinutes}</td>
                   <td className={e.otCapExceeded?'flag':''}>{e.otWeekday134}</td>
                   <td className={e.otCapExceeded?'flag':''}>{e.otWeekday167}</td>
+                  <td className={e.dailyOtWarning?'flag':''} title={e.dailyOtExceedDays.join('、')}>
+                    {e.dailyOtWarning ? <span className="material-icons" style={{fontSize:15, verticalAlign:'middle'}}>warning</span> : '-'}
+                    {e.dailyOtWarning ? ` ${e.dailyOtExceedDays.length}天` : ''}
+                  </td>
                   <td>{e.otRestDayHours}</td>
                   <td>{e.otHolidayHours}</td>
-                  <td className={e.otMandatoryRestHours>0?'flag':''}>{e.otMandatoryRestHours}</td>
+                  <td className={e.otMandatoryRestHours>0?'flag':''}>
+                    {e.otMandatoryRestHours}
+                    {e.mandatoryRestDates.length>0 && (
+                      <button className="ghost sm" style={{marginLeft:6, padding:'2px 6px', fontSize:11}} onClick={()=>setMakeupBox({employeeId:e.employeeId, name:e.name, dates:e.mandatoryRestDates, unresolvedDates:e.mandatoryRestUnresolvedDates})}>
+                        {e.mandatoryRestWarning ? '待補假' : '已補假'}
+                      </button>
+                    )}
+                  </td>
                   <td>{e.workedHoursTotal}</td>
                   <td className={e.flaggedDays>0?'flag':''}>{e.flaggedDays}</td>
                 </tr>
               ))}
-              {summary.length===0 && <tr><td colSpan="13" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
+              {summary.length===0 && <tr><td colSpan="14" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
             </tbody>
           </table>
         )}
       </div>
       <div className="hint">
         依勞基法第24條分類計算：平日超時前2小時1.34倍、其後1.67倍；休息日與國定假日出勤時數已依日期自動分類。按「套用出缺勤時數到薪資計算」可直接把這些時數帶入「薪資計算 / 明細」頁籤，帶入後仍可手動調整，最後記得按「儲存薪資紀錄」。<br/>
-        <span className="flag">紅字</span>代表該員工當月平日加班已超過設定的月上限，或有例假日出勤紀錄，請優先確認合法性。
+        <span className="flag">紅字</span>代表該員工當月平日加班已超過設定的月上限，或有例假日出勤紀錄尚未完成補假登記，請優先確認合法性。
       </div>
+      {makeupBox && (
+        <div className="modal-bg">
+          <div className="modal">
+            <h3><span className="material-icons">event_repeat</span>{makeupBox.name} － 例假日補假登記</h3>
+            <div className="hint" style={{marginBottom:10}}>依勞基法第40條，例假日出勤事後須完成補假，請登記每一天實際補假的日期。</div>
+            <MakeupList employeeId={makeupBox.employeeId} dates={makeupBox.dates} onSaved={()=>{ load(); }}/>
+            <div className="modal-actions">
+              <button className="stay" onClick={()=>setMakeupBox(null)}>關閉</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MakeupList({employeeId, dates, onSaved}){
+  const [existing, setExisting] = useState(null);
+  useEffect(()=>{
+    apiGet('getMandatoryRestMakeups').then(list=>{
+      const map = {};
+      list.filter(m=>m.employeeId===employeeId).forEach(m=>{ map[m.workDate] = m.makeupDate || ''; });
+      setExisting(map);
+    }).catch(()=>setExisting({}));
+  }, []);
+  if(existing===null) return <div className="hint">載入中...</div>;
+  return dates.map(d=>(
+    <MakeupRow key={d} employeeId={employeeId} workDate={d} initialValue={existing[d] || ''} onSaved={onSaved}/>
+  ));
+}
+
+function MakeupRow({employeeId, workDate, initialValue, onSaved}){
+  const [makeupDate, setMakeupDate] = useState(initialValue || '');
+  const [saving, setSaving] = useState(false);
+  async function save(){
+    setSaving(true);
+    try{ await apiPost('registerMandatoryRestMakeup', {employeeId, workDate, makeupDate}); onSaved(); }
+    catch(e){ alert(e.message); }
+    finally{ setSaving(false); }
+  }
+  return (
+    <div className="row-between" style={{marginBottom:8, gap:10}}>
+      <div style={{fontSize:13, flexShrink:0}}>出勤日：{workDate}</div>
+      <input type="date" value={makeupDate} onChange={e=>setMakeupDate(e.target.value)} style={{flex:1}} />
+      <button className="ghost sm" onClick={save} disabled={saving}>{saving?'儲存中':'儲存'}</button>
     </div>
   );
 }
@@ -891,7 +964,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   return (
     <div>
       <div className="toolbar no-print">
-        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍／其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資。請假扣款：事假100%、病假/生理假50%、災防假0%</span>
+        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍／其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3天全薪、第4天起50%）、災防假0%</span>
         <span className="grow"></span>
         <button className="ghost" onClick={onApply}>套用出缺勤時數</button>
         <button className="ghost" onClick={()=>window.print()}>列印本頁</button>
@@ -932,7 +1005,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
           <tr>
             <th>平日1.34</th><th>平日1.67</th><th>休息日</th><th>國定假日</th>
             <th>三節</th><th>年終</th><th>績效</th><th>其他</th>
-            <th>事假</th><th>病/生理</th><th>災防</th><th>其他</th>
+            <th>事假</th><th>病假</th><th>生理(全薪)</th><th>生理(半薪)</th><th>災防</th><th>其他</th>
           </tr>
         </thead>
         <tbody>
@@ -953,6 +1026,8 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="num-pos"><b>{money(calc.payableTotal)}</b></td>
               <td><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} /></td>
               <td><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} /></td>
+              <td><NumCell value={entry.menstrualLeavePaid} onChange={v=>setEntry(emp.id,{menstrualLeavePaid:v})} /></td>
+              <td><NumCell value={entry.menstrualLeaveHalf} onChange={v=>setEntry(emp.id,{menstrualLeaveHalf:v})} /></td>
               <td><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} /></td>
               <td><NumCell value={entry.otherLeave} onChange={v=>setEntry(emp.id,{otherLeave:v})} /></td>
               <td>{money(calc.laborFee)}</td>
@@ -994,7 +1069,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   );
 }
 
-function Payslip({emp, entry, calc, month}){
+function Payslip({emp, entry, calc, month, payDate06, payDate26}){
   return (
     <div className="payslip">
       <h2>{emp.company || '（未設定公司）'} · 薪資條</h2>
@@ -1010,7 +1085,8 @@ function Payslip({emp, entry, calc, month}){
           <tr><td className="left">本薪</td><td>{money(emp.baseSalary)}</td><td className="left">勞保費</td><td>{money(calc.laborFee)}</td></tr>
           <tr><td className="left">伙食津貼</td><td>{money(emp.mealAllowance)}</td><td className="left">健保費</td><td>{money(calc.healthFee)}</td></tr>
           <tr><td className="left">交通津貼</td><td>{money(emp.transportAllowance)}</td><td className="left">事假({n(entry.personalLeave)}hr)</td><td>{money(calc.hourly*n(entry.personalLeave))}</td></tr>
-          <tr><td className="left">職務加給</td><td>{money(emp.positionAllowance)}</td><td className="left">病/生理假({n(entry.sickLeave)}hr)</td><td>{money(calc.hourly*0.5*n(entry.sickLeave))}</td></tr>
+          <tr><td className="left">職務加給</td><td>{money(emp.positionAllowance)}</td><td className="left">病假({n(entry.sickLeave)}hr)</td><td>{money(calc.hourly*0.5*n(entry.sickLeave))}</td></tr>
+          <tr><td className="left"></td><td></td><td className="left">生理假半薪({n(entry.menstrualLeaveHalf)}hr，全薪{n(entry.menstrualLeavePaid)}hr不扣)</td><td>{money(calc.hourly*0.5*n(entry.menstrualLeaveHalf))}</td></tr>
           <tr><td className="left">全勤獎金</td><td>{money(emp.fullAttendanceBonus)}</td><td className="left">災防假({n(entry.disasterLeave)}hr)</td><td>{money(calc.hourly*0*n(entry.disasterLeave))}</td></tr>
           <tr><td className="left">三節獎金</td><td>{money(entry.festivalBonus)}</td><td className="left">其他扣款</td><td>{money(entry.otherDeduction)}</td></tr>
           <tr><td className="left">年終獎金</td><td>{money(entry.yearEndBonus)}</td><td className="left"></td><td></td></tr>
@@ -1036,14 +1112,29 @@ function Payslip({emp, entry, calc, month}){
         </tbody>
       </table>
 
-      <div className="grand"><span>06日應付薪資：{money(calc.pay06)}　26日應付薪資：{money(calc.pay26)}</span><span>合計 NT$ {money(calc.grandTotal)}</span></div>
+      <div className="grand"><span>{payDate06||'06日'}應付薪資：{money(calc.pay06)}　{payDate26||'26日'}應付薪資：{money(calc.pay26)}</span><span>合計 NT$ {money(calc.grandTotal)}</span></div>
       <div className="foot-note">如有任何問題請提出，謝謝！本薪資條由系統自動產生，僅供內部核對使用。</div>
     </div>
   );
 }
 
-function PayslipTab({employees, payrollEntries, month}){
+function getActualPayDateJS(year, month, day, holidaySet){
+  let d = new Date(year, month-1, day);
+  while(true){
+    const dow = d.getDay();
+    const dateStr = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if(dow!==0 && dow!==6 && !holidaySet[dateStr]) return dateStr;
+    d.setDate(d.getDate()-1);
+  }
+}
+function PayslipTab({employees, payrollEntries, month, settings}){
   const [selected, setSelected] = useState('all');
+  const [holidays, setHolidays] = useState([]);
+  useEffect(()=>{ apiGet('getHolidays').then(setHolidays).catch(()=>{}); }, []);
+  const holidaySet = {}; holidays.forEach(h=>{ if(h.type==='國定假日') holidaySet[h.date]=true; });
+  const [py, pm] = month.split('-').map(Number);
+  const payDate06 = getActualPayDateJS(py, pm, 6, holidaySet);
+  const payDate26 = getActualPayDateJS(py, pm, 26, holidaySet);
   const list = selected==='all' ? employees : employees.filter(e=>e.id===selected);
   return (
     <div>
@@ -1059,8 +1150,8 @@ function PayslipTab({employees, payrollEntries, month}){
       {list.length===0 && <div className="empty card">尚無員工資料</div>}
       {list.map(emp=>{
         const entry = payrollEntries[emp.id] || emptyEntry();
-        const calc = calcForEmployee(emp, entry);
-        return <Payslip key={emp.id} emp={emp} entry={entry} calc={calc} month={month} />;
+        const calc = calcForEmployee(emp, entry, settings);
+        return <Payslip key={emp.id} emp={emp} entry={entry} calc={calc} month={month} payDate06={payDate06} payDate26={payDate26} />;
       })}
     </div>
   );
@@ -1635,6 +1726,8 @@ function AnnualLeaveTab({employees}){
   const [edits, setEdits] = useState({});
   const [savingId, setSavingId] = useState(null);
   const [estimatingId, setEstimatingId] = useState(null);
+  const [batchBox, setBatchBox] = useState(null); // 批次試算預覽 {items, saving}
+  const [batchLoading, setBatchLoading] = useState(false);
 
   function load(){
     setLoading(true);
@@ -1661,6 +1754,25 @@ function AnnualLeaveTab({employees}){
     finally{ setEstimatingId(null); }
   }
 
+  async function batchEstimate(){
+    setBatchLoading(true);
+    try{
+      const items = await apiGet('batchEstimateAnnualLeave', {year, system});
+      setBatchBox({items, saving:false});
+    }catch(e){ alert(e.message); }
+    finally{ setBatchLoading(false); }
+  }
+  async function batchApply(){
+    setBatchBox({...batchBox, saving:true});
+    try{
+      const items = batchBox.items.filter(it=>it.hours!==null).map(it=>({employeeId:it.employeeId, hours:it.hours}));
+      const r = await apiPost('batchSaveAnnualLeave', {year, items});
+      alert(`批次套用完成，共更新 ${r.saved} 位員工，請個別確認後如需微調可在下方表格調整。`);
+      setBatchBox(null);
+      await load();
+    }catch(e){ alert(e.message); setBatchBox({...batchBox, saving:false}); }
+  }
+
   const years = [];
   const thisYear = new Date().getFullYear();
   for(let y = thisYear + 1; y >= thisYear - 2; y--) years.push(String(y));
@@ -1676,6 +1788,7 @@ function AnnualLeaveTab({employees}){
           <option value="anniversary">週年制（到職日起算）</option>
         </select>
         <span className="grow"></span>
+        <button onClick={batchEstimate} disabled={batchLoading}>{batchLoading?'試算中...':'批次試算全部員工'}</button>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>
@@ -1711,11 +1824,34 @@ function AnnualLeaveTab({employees}){
           </table>
         )}
       </div>
+      {batchBox && (
+        <div className="modal-bg">
+          <div className="modal" style={{maxWidth:520}}>
+            <h3><span className="material-icons">calculate</span>批次試算預覽（{year}年・{system==='calendar'?'歷年制':'週年制'}）</h3>
+            <div className="hint" style={{marginBottom:10}}>以下為系統依到職日試算的建議天數，確認無誤後按「套用全部」，會覆蓋這些員工目前的核定時數。個別員工仍可在下方表格單獨微調。</div>
+            <table>
+              <thead><tr><th className="left">姓名</th><th>建議天數</th><th>建議時數</th><th className="left">備註</th></tr></thead>
+              <tbody>
+                {batchBox.items.map(it=>(
+                  <tr key={it.employeeId}>
+                    <td className="left">{it.name}</td>
+                    <td>{it.days===null?'-':it.days}</td>
+                    <td>{it.hours===null?'-':it.hours}</td>
+                    <td className="left" style={{color:'var(--danger)'}}>{it.error}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="modal-actions">
+              <button className="stay" onClick={()=>setBatchBox(null)}>取消</button>
+              <button className="go" onClick={batchApply} disabled={batchBox.saving}>{batchBox.saving?'套用中...':'套用全部'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-/* ========================= Dashboard ========================= */
 function DashboardTab({setTab}){
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1925,7 +2061,7 @@ function AnnouncementsTab(){
 }
 
 /* ========================= 系統設定 ========================= */
-function SettingsTab(){
+function SettingsTab({onSaved}){
   const [s, setS] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
@@ -1935,7 +2071,7 @@ function SettingsTab(){
   useEffect(load, []);
 
   async function save(){
-    try{ await apiPost('updateSettings', s); alert('設定已儲存'); }catch(e){ alert(e.message); }
+    try{ await apiPost('updateSettings', s); alert('設定已儲存'); if(onSaved) onSaved(); }catch(e){ alert(e.message); }
   }
   function useCurrentLocation(){
     setLocating(true);
@@ -1981,6 +2117,14 @@ function SettingsTab(){
           <select value={s.mandatoryRestDay} onChange={e=>setS({...s,mandatoryRestDay:Number(e.target.value)})}>{DOW.map((d,i)=><option key={i} value={i}>星期{d}</option>)}</select>
         </div>
         <div className="field"><label>平日加班月上限（小時）</label><input type="number" value={s.monthlyOtCap} onChange={e=>setS({...s,monthlyOtCap:e.target.value})} /></div>
+        <div className="field">
+          <label>例假日出勤薪資算法</label>
+          <select value={s.mandatoryRestPayMode || 'double'} onChange={e=>setS({...s,mandatoryRestPayMode:e.target.value})}>
+            <option value="double">優於勞基法（時薪 × 2倍）</option>
+            <option value="legal">依勞基法（加發一日工資＋超過8小時比照平日加班費）</option>
+          </select>
+          <div className="hint" style={{marginTop:4}}>例假日原則不可出勤，僅天災事變等特殊狀況例外（勞基法第40條），事後仍須完成補休登記。</div>
+        </div>
       </div>
       <div className="hint">依勞基法第32條，平日延長工時原則每月不得超過46小時（經工會或無工會則經勞資會議同意可延長至54小時，但每3個月不得逾138小時）；此上限不含國定假日與例假日出勤。</div>
 

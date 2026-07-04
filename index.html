@@ -859,6 +859,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   const [busy, setBusy] = useState(false);
   const [colleagues, setColleagues] = useState([]);
   const [pickerFor, setPickerFor] = useState(null); // 'start' | 'end' | null
+  const [menstrualStatus, setMenstrualStatus] = useState(null);
 
   const unit = Number(settings?.leaveUnit) || 1;
   const shift = session.employee?.shift;
@@ -879,8 +880,15 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
     const start = new Date(startDT);
     const end = new Date(endDT);
     if(isNaN(start.getTime()) || isNaN(end.getTime()) || end<=start) return '';
-    const diff = (end-start)/3600000;
-    return roundToUnit(diff);
+    let diff = (end-start)/3600000;
+    // 若請假時段橫跨午休(12:00~13:00)，自動扣除班別設定的午休分鐘數
+    const startMin = start.getHours()*60 + start.getMinutes();
+    const endMin = end.getHours()*60 + end.getMinutes();
+    if(startMin < 12*60 && endMin >= 13*60){
+      const lunchMin = shift ? shift.lunchBreak : (settings?.lunchBreak || 60);
+      diff -= (Number(lunchMin) || 0) / 60;
+    }
+    return roundToUnit(Math.max(0, diff));
   }
   function updateLeaveField(patch){
     const next = {...leaveBox, ...patch};
@@ -897,6 +905,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   }
   useEffect(load, []);
   useEffect(()=>{ apiGet('getColleagueList').then(setColleagues).catch(()=>{}); }, []);
+  useEffect(()=>{ if(leaveBox) apiGet('getMyMenstrualLeaveStatus').then(setMenstrualStatus).catch(()=>{}); }, [!!leaveBox]);
 
   async function submitLeave(){
     if(!leaveBox.leaveType){ showToast('請選擇假別','err'); return; }
@@ -965,7 +974,8 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
       <div className="form-actions">
         <button className="leave" onClick={()=>{
           const today = new Date().toISOString().slice(0,10);
-          setLeaveBox({leaveType:'', startDT: today+'T'+shiftStart, endDT: today+'T'+shiftEnd, hours:'', reason:'', delegateId:''});
+          const defStart = today+'T'+shiftStart, defEnd = today+'T'+shiftEnd;
+          setLeaveBox({leaveType:'', startDT: defStart, endDT: defEnd, hours: computeHours(defStart, defEnd), reason:'', delegateId:''});
         }}>
           <span className="material-icons">event_available</span>請假申請
         </button>
@@ -1026,9 +1036,15 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                   let extra = '';
                   if(t==='特休' && balances) extra = `（剩 ${balances.annualRemain} 小時）`;
                   if(t==='補休' && balances) extra = `（剩 ${balances.compRemain} 小時）`;
+                  if(t==='生理假' && menstrualStatus) extra = `（今年已用 ${menstrualStatus.usedHours} hr，剩 ${menstrualStatus.remainingFullPayHours} hr 全薪）`;
                   return <option key={t} value={t}>{t}{extra}</option>;
                 })}
               </select>
+              {leaveBox.leaveType==='生理假' && menstrualStatus && (
+                <div className="hint" style={{marginTop:6}}>
+                  依勞基法第14條之1，生理假每年前3天（24小時）全薪，超過部分比照病假折半發給。你今年已使用 {menstrualStatus.usedHours} 小時，還有 {menstrualStatus.remainingFullPayHours} 小時全薪額度。
+                </div>
+              )}
             </div>
             <div className="hint" style={{marginBottom:10}}>班別時間 {shiftStart}~{shiftEnd}，請假時段需在此範圍內</div>
             <div className="field">
@@ -1312,8 +1328,8 @@ function PayslipModal({onClose, showToast}){
         ) : (
           <>
             <div className="balance-row">
-              <div className="balance-cell"><div className="num">{money(data.calc.pay06)}</div><div className="lbl">06日應付</div></div>
-              <div className="balance-cell"><div className="num">{money(data.calc.pay26)}</div><div className="lbl">26日應付</div></div>
+              <div className="balance-cell"><div className="num">{money(data.calc.pay06)}</div><div className="lbl">{data.payDate06 ? data.payDate06.slice(5).replace('-','/') : '06日'}應付</div></div>
+              <div className="balance-cell"><div className="num">{money(data.calc.pay26)}</div><div className="lbl">{data.payDate26 ? data.payDate26.slice(5).replace('-','/') : '26日'}應付</div></div>
             </div>
             <div className="card" style={{padding:14}}>
               <div className="row-between"><span className="hint">本薪</span><span>{money(data.employee.baseSalary)}</span></div>
