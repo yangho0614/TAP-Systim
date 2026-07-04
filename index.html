@@ -393,8 +393,9 @@ function CustomDateTimePicker({value, onConfirm, onClose}){
   }
   const firstDowSun = new Date(viewY, viewM, 1).getDay();
   const daysInMonth = new Date(viewY, viewM+1, 0).getDate();
+  const firstDow = (firstDowSun + 6) % 7; // 轉換成週一為0的排列
   const cells = [];
-  for(let i=0;i<firstDowSun;i++) cells.push(null);
+  for(let i=0;i<firstDow;i++) cells.push(null);
   for(let d=1; d<=daysInMonth; d++) cells.push(d);
 
   function pickDay(d){
@@ -430,7 +431,7 @@ function CustomDateTimePicker({value, onConfirm, onClose}){
           <button className="icon-btn" onClick={()=>shiftMonth(1)}><span className="material-icons">chevron_right</span></button>
         </div>
         <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, textAlign:'center', fontSize:11, color:'var(--muted)', marginBottom:4}}>
-          {['日','一','二','三','四','五','六'].map(d=><div key={d}>{d}</div>)}
+          {['一','二','三','四','五','六','日'].map(d=><div key={d}>{d}</div>)}
         </div>
         <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, marginBottom:16}}>
           {cells.map((d,idx)=>{
@@ -472,6 +473,48 @@ function CustomDateTimePicker({value, onConfirm, onClose}){
         </div>
         <div className="hint" style={{textAlign:'center', marginTop:10}}>上下滑動選擇時間（每5分鐘一格）</div>
 
+        <div className="modal-actions">
+          <button className="stay" onClick={onClose}>取消</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ========================= 自訂年月選擇器（薪資條用） ========================= */
+function CustomMonthPicker({value, onConfirm, onClose}){
+  const [vy, vm] = value.split('-').map(Number);
+  const [viewY, setViewY] = useState(vy);
+  const [selM, setSelM] = useState(vm);
+
+  function confirm(){
+    onConfirm(`${viewY}-${String(selM).padStart(2,'0')}`);
+  }
+
+  return (
+    <div className="modal-bg">
+      <div className="modal" style={{maxWidth:340}}>
+        <div className="row-between" style={{marginBottom:16}}>
+          <div style={{fontSize:15, fontWeight:700}}>{viewY} 年 {selM} 月</div>
+          <button className="go" style={{padding:'7px 16px', fontSize:13}} onClick={confirm}>確認</button>
+        </div>
+        <div className="row-between" style={{marginBottom:12}}>
+          <button className="icon-btn" onClick={()=>setViewY(viewY-1)}><span className="material-icons">chevron_left</span></button>
+          <div style={{fontWeight:700, fontSize:14.5}}>{viewY} 年</div>
+          <button className="icon-btn" onClick={()=>setViewY(viewY+1)}><span className="material-icons">chevron_right</span></button>
+        </div>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:16}}>
+          {Array.from({length:12}, (_,i)=>i+1).map(mo=>{
+            const isSel = mo===selM;
+            return (
+              <div key={mo} onClick={()=>setSelM(mo)} style={{
+                padding:'14px 0', textAlign:'center', borderRadius:10, cursor:'pointer', fontSize:14,
+                background: isSel ? 'var(--gold)' : 'var(--panel-2)',
+                color: isSel ? '#1c1305' : 'var(--text)', fontWeight: isSel ? 700 : 400
+              }}>{mo}月</div>
+            );
+          })}
+        </div>
         <div className="modal-actions">
           <button className="stay" onClick={onClose}>取消</button>
         </div>
@@ -987,14 +1030,14 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
             <div className="hint" style={{marginBottom:10}}>班別時間 {shiftStart}~{shiftEnd}，請假時段需在此範圍內</div>
             <div className="field">
               <label>開始時間</label>
-              <button type="button" className="ghost-btn" style={{textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center'}} onClick={()=>setPickerFor('start')}>
+              <button type="button" className="ghost-btn" style={{textAlign:'center', display:'flex', justifyContent:'center', alignItems:'center', gap:8, background:'#1B2027', color:'var(--text)', border:'1px solid var(--line)'}} onClick={()=>setPickerFor('start')}>
                 <span>{leaveBox.startDT ? formatDateTimeReadable(leaveBox.startDT) : '請選擇'}</span>
                 <span className="material-icons" style={{fontSize:18}}>event</span>
               </button>
             </div>
             <div className="field">
               <label>結束時間</label>
-              <button type="button" className="ghost-btn" style={{textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center'}} onClick={()=>setPickerFor('end')}>
+              <button type="button" className="ghost-btn" style={{textAlign:'center', display:'flex', justifyContent:'center', alignItems:'center', gap:8, background:'#1B2027', color:'var(--text)', border:'1px solid var(--line)'}} onClick={()=>setPickerFor('end')}>
                 <span>{leaveBox.endDT ? formatDateTimeReadable(leaveBox.endDT) : '請選擇'}</span>
                 <span className="material-icons" style={{fontSize:18}}>event</span>
               </button>
@@ -1239,6 +1282,7 @@ function PayslipModal({onClose, showToast}){
   const [month, setMonth] = useState(()=>{ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); });
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   function load(m){
     setLoading(true);
@@ -1247,12 +1291,19 @@ function PayslipModal({onClose, showToast}){
   useEffect(()=>{ load(month); }, [month]);
 
   const money = v => Math.round(Number(v)||0).toLocaleString('zh-TW');
+  const [my, mm] = month.split('-');
 
   return (
     <div className="modal-bg">
       <div className="modal">
         <h3><span className="material-icons">receipt_long</span>我的薪資條</h3>
-        <div className="field"><label>月份</label><input type="month" value={month} onChange={e=>setMonth(e.target.value)} /></div>
+        <div className="field">
+          <label>月份</label>
+          <button type="button" className="ghost-btn" style={{textAlign:'center', display:'flex', justifyContent:'center', alignItems:'center', gap:8, background:'#1B2027', color:'var(--text)', border:'1px solid var(--line)'}} onClick={()=>setPickerOpen(true)}>
+            <span>{my}年{Number(mm)}月</span>
+            <span className="material-icons" style={{fontSize:18}}>event</span>
+          </button>
+        </div>
         {loading ? <div className="hint">載入中...</div> : !data ? (
           <div className="hint">查無資料</div>
         ) : (
@@ -1278,6 +1329,13 @@ function PayslipModal({onClose, showToast}){
         )}
         <div className="modal-actions"><button className="stay" onClick={onClose} style={{flex:1}}>關閉</button></div>
       </div>
+      {pickerOpen && (
+        <CustomMonthPicker
+          value={month}
+          onConfirm={(v)=>{ setMonth(v); setPickerOpen(false); }}
+          onClose={()=>setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }
