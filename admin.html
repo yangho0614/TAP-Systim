@@ -941,6 +941,8 @@ function NumCell({value, onChange}){
 
 /* ========================= 薪資計算 / 明細總表 ========================= */
 function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave, dirty, saving}){
+  const [subTab, setSubTab] = useState('06');
+  const [settleBox, setSettleBox] = useState(null); // {year, items, loading, saving}
   const totals = useMemo(()=>{
     const t = {base:0, overtime:0, allowance:0, bonus:0, payable:0, labor:0, health:0, leaveDeduct:0, otherDeduct:0, deduct:0, pay06:0, pay26:0, grand:0};
     rows.forEach(({emp, entry, calc})=>{
@@ -965,6 +967,28 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   const minWageAlerts = rows.filter(({calc})=>calc.belowMinWage);
   const restDayCapAlerts = rows.filter(({calc})=>calc.restDayOverCap);
 
+  async function openSettleEstimate(){
+    const year = String(new Date().getFullYear());
+    setSettleBox({year, items:null, loading:true, saving:false});
+    try{
+      const data = await apiGet('getAnnualLeaveList', {year});
+      const items = rows.map(({emp})=>{
+        const grantedHours = data.granted[emp.id] ? data.granted[emp.id].hours : 0;
+        const usedHours = data.used[emp.id] || 0;
+        const remainHours = Math.max(0, grantedHours - usedHours);
+        const hourly = n(emp.baseSalary) > 0 ? n(emp.baseSalary)/240 : 0;
+        const amount = Math.round(remainHours * hourly);
+        return {employeeId: emp.id, name: emp.name, remainHours, hourly: Math.round(hourly*100)/100, amount};
+      });
+      setSettleBox({year, items, loading:false, saving:false});
+    }catch(e){ alert(e.message); setSettleBox(null); }
+  }
+  function applySettleEstimate(){
+    settleBox.items.forEach(it=>{ setEntry(it.employeeId, {annualLeaveSettlement: it.amount}); });
+    setSettleBox(null);
+    alert('已套用特休結算金額，記得檢查後按「儲存薪資紀錄」。');
+  }
+
   function doExport(){
     const headers = ['公司','部門','姓名','投保級距','本薪','平日加班費','休息日加班費','國定假日加班費','加班費合計','津貼合計','獎金合計','特休結算','應付小計','勞保自付','健保自付','請假扣款','其他扣款','應扣小計','06日應付','26日應付','應付總計'];
     const data = rows.map(({emp, entry, calc})=>[
@@ -980,12 +1004,18 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   return (
     <div>
       <div className="toolbar no-print">
-        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍／其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3天全薪、第4天起50%）、災防假0%</span>
+        <div style={{display:'flex', gap:6}}>
+          <button className={subTab==='06'?'':'ghost'} onClick={()=>setSubTab('06')}>06日明細</button>
+          <button className={subTab==='26'?'':'ghost'} onClick={()=>setSubTab('26')}>26日明細</button>
+        </div>
         <span className="grow"></span>
         <button className="ghost" onClick={onApply}>套用出缺勤時數</button>
         <button className="ghost" onClick={()=>window.print()}>列印本頁</button>
         <button className="ghost" onClick={doExport}>匯出 CSV</button>
         <button onClick={onSave} disabled={saving || !dirty}>{saving?'儲存中...':'儲存薪資紀錄'}</button>
+      </div>
+      <div className="toolbar no-print">
+        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍／其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3天全薪、第4天起50%）、災防假0%</span>
       </div>
 
       {(otCapAlerts.length>0 || minWageAlerts.length>0 || restDayCapAlerts.length>0) && (
@@ -997,17 +1027,22 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         </div>
       )}
 
-      {loading ? <div className="hint">載入中...</div> : rows.length===0 ? <div className="empty card">尚無在職員工，請先至「員工資料」頁面新增。</div> : (
+      {loading ? <div className="hint">載入中...</div> : rows.length===0 ? <div className="empty card">尚無在職員工，請先至「員工資料」頁面新增。</div> : subTab==='06' ? (
       <div style={{overflowX:'auto'}}>
       <table>
         <thead>
           <tr>
             <th className="left" rowSpan="2">姓名 / 部門</th>
             <th rowSpan="2">本薪</th>
+            <th rowSpan="2">伙食津貼</th>
+            <th rowSpan="2">交通津貼</th>
             <th className="col-add" colSpan="4">加班時數</th>
             <th className="col-add" rowSpan="2">加班費</th>
             <th className="col-add" colSpan="4">獎金</th>
-            <th className="col-add" rowSpan="2">特休結算</th>
+            <th className="col-add" rowSpan="2">
+              特休結算<br/>
+              <button type="button" className="ghost sm no-print" style={{fontWeight:400, marginTop:4}} onClick={openSettleEstimate}>結算試算</button>
+            </th>
             <th className="col-add" rowSpan="2">應付小計</th>
             <th className="col-deduct" colSpan="4">請假時數</th>
             <th className="col-deduct" rowSpan="2">勞保</th>
@@ -1015,8 +1050,6 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
             <th className="col-deduct" rowSpan="2">其他扣款</th>
             <th className="col-deduct" rowSpan="2">應扣小計</th>
             <th className="col-result" rowSpan="2">06日應付</th>
-            <th className="col-result" rowSpan="2">26日應付</th>
-            <th className="col-result" rowSpan="2">應付總計</th>
           </tr>
           <tr>
             <th className="col-add">平日1.34</th><th className="col-add">平日1.67</th><th className="col-add">休息日</th><th className="col-add">國定假日</th>
@@ -1029,6 +1062,8 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
             <tr key={emp.id}>
               <td className="left"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
               <td>{money(emp.baseSalary)}</td>
+              <td className="hint">{money(emp.mealAllowance)}</td>
+              <td className="hint">{money(emp.transportAllowance)}</td>
               <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} /></td>
               <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} /></td>
               <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} /></td>
@@ -1050,18 +1085,13 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="col-deduct">{money(calc.healthFee)}</td>
               <td className="col-deduct"><NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} /></td>
               <td className="col-deduct num-neg">{money(calc.deductTotal)}</td>
-              <td className="col-result">{money(calc.pay06)}</td>
-              <td className="col-result">
-                <div style={{display:'flex', gap:3, flexWrap:'wrap', justifyContent:'flex-end'}}>
-                  <NumCell value={entry.businessExpense} onChange={v=>setEntry(emp.id,{businessExpense:v})} />
-                </div>
-              </td>
-              <td className="col-result mono"><b>{money(calc.grandTotal)}</b></td>
+              <td className="col-result mono"><b>{money(calc.pay06)}</b></td>
             </tr>
           ))}
           <tr className="total-row">
             <td className="left">合計</td>
             <td>{money(totals.base)}</td>
+            <td colSpan="2"></td>
             <td colSpan="4"></td>
             <td className="num-pos">{money(totals.overtime)}</td>
             <td colSpan="4"></td>
@@ -1072,15 +1102,70 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
             <td>{money(totals.health)}</td>
             <td></td>
             <td className="num-neg">{money(totals.deduct)}</td>
-            <td>{money(totals.pay06)}</td>
-            <td>{money(totals.pay26)}</td>
-            <td className="mono">{money(totals.grand)}</td>
+            <td className="mono">{money(totals.pay06)}</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      ) : (
+      <div style={{overflowX:'auto'}}>
+      <table>
+        <thead>
+          <tr>
+            <th className="left">姓名 / 部門</th>
+            <th>業務費用</th><th>業績獎金</th><th>銷售獎金</th><th>其他費用</th><th>扣款2</th>
+            <th>26日應付</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({emp, entry, calc})=>(
+            <tr key={emp.id}>
+              <td className="left"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
+              <td><NumCell value={entry.businessExpense} onChange={v=>setEntry(emp.id,{businessExpense:v})} /></td>
+              <td><NumCell value={entry.salesPerformance} onChange={v=>setEntry(emp.id,{salesPerformance:v})} /></td>
+              <td><NumCell value={entry.salesBonus26} onChange={v=>setEntry(emp.id,{salesBonus26:v})} /></td>
+              <td><NumCell value={entry.otherExpense26} onChange={v=>setEntry(emp.id,{otherExpense26:v})} /></td>
+              <td><NumCell value={entry.deduction26} onChange={v=>setEntry(emp.id,{deduction26:v})} /></td>
+              <td className="col-result mono"><b>{money(calc.pay26)}</b></td>
+            </tr>
+          ))}
+          <tr className="total-row">
+            <td className="left">合計</td>
+            <td colSpan="5"></td>
+            <td className="mono">{money(totals.pay26)}</td>
           </tr>
         </tbody>
       </table>
       </div>
       )}
-      <div className="hint" style={{marginTop:8}}>「26日應付」欄位可於此表填入「業務費用」，完整的業績獎金／銷售獎金／扣款2 等 26 日發放項目請至「匯款明細表」頁籤內的明細編輯，或直接於此欄輸入業務費用做快速試算。編輯完成別忘了按右上角「儲存薪資紀錄」，否則重新整理或切換月份會遺失變更。</div>
+      <div className="hint" style={{marginTop:8}}>「06日明細」與「26日明細」是分開的兩張表，各自獨立編輯。26日相關的業務費用、業績獎金等欄位請切到「26日明細」頁籤編輯。編輯完成別忘了按右上角「儲存薪資紀錄」，否則重新整理或切換月份會遺失變更。</div>
+      {settleBox && (
+        <div className="modal-bg">
+          <div className="modal" style={{maxWidth:560}}>
+            <h3><span className="material-icons">calculate</span>特休結算試算（{settleBox.year}年度）</h3>
+            <div className="hint" style={{marginBottom:10}}>依「特休設定」裡的核定時數與已使用時數，試算每位員工剩餘特休折算的金額。確認無誤後按「套用」，會自動填入下方「特休結算」欄位，仍可個別手動調整。</div>
+            {settleBox.loading ? <div className="hint">試算中...</div> : (
+              <table>
+                <thead><tr><th className="left">姓名</th><th>剩餘時數</th><th className="left">算式</th><th>結算金額</th></tr></thead>
+                <tbody>
+                  {settleBox.items.map(it=>(
+                    <tr key={it.employeeId}>
+                      <td className="left">{it.name}</td>
+                      <td>{it.remainHours}</td>
+                      <td className="left hint">{it.remainHours} hr × {it.hourly} 元/hr =</td>
+                      <td><b>{money(it.amount)}</b></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <div className="modal-actions">
+              <button className="stay" onClick={()=>setSettleBox(null)}>取消</button>
+              <button className="go" onClick={applySettleEstimate} disabled={settleBox.loading}>套用全部</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
