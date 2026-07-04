@@ -68,7 +68,7 @@
   th.freeze-1, th.freeze-2{ z-index:4; background:#EDEDED; }
   tr.total-row .freeze-1, tr.total-row .freeze-2{ background:#EDEDED; }
   .reg-freeze-1, .reg-freeze-2{ position:sticky; z-index:3; background:#F2F0E8; }
-  .reg-freeze-1{ left:0; min-width:150px; max-width:150px; white-space:normal; text-align:center; vertical-align:middle; }
+  .reg-freeze-1{ left:0; min-width:150px; max-width:150px; white-space:normal; text-align:center; vertical-align:middle; border-top:none; border-bottom:none; }
   .reg-freeze-2{ left:150px; min-width:90px; border-right:2px solid var(--brand); }
   th.reg-freeze-2{ z-index:4; background:#EDEDED; }
   .col-add{background:#EAF6ED;}
@@ -614,7 +614,7 @@ function App(){
                 <input type="month" value={month} onChange={e=>setMonth(e.target.value)} />
               </>
             )}
-            {dirty && <button className="sm" onClick={savePayroll} disabled={saving}>{saving?'儲存中...':'儲存薪資紀錄'}</button>}
+            {dirty && <button onClick={savePayroll} disabled={saving}>{saving?'儲存中...':'儲存薪資紀錄'}</button>}
           </div>
         </div>
         <div className="content">
@@ -821,7 +821,7 @@ function RecordsTab({employees, month}){
     <div>
       <div className="toolbar">
         <span className="grow"></span>
-        <button className="ghost" onClick={()=>setManual({employeeId:'', name:'', date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
+        <button className="ghost sm" onClick={()=>setManual({employeeId:'', name:'', date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
         <button className="ghost sm" onClick={load}>重新整理</button>
       </div>
       <div className="card" style={{overflowX:'auto'}}>
@@ -911,7 +911,7 @@ function AttendanceTab({month, onApply}){
     <div>
       <div className="toolbar">
         <span className="grow"></span>
-        <button className="ghost" onClick={doExportCSV}>匯出 CSV</button>
+        <button className="ghost sm" onClick={doExportCSV}>匯出 CSV</button>
         <button onClick={doApply} disabled={applying}>{applying?'套用中...':'套用出缺勤時數到薪資計算'}</button>
       </div>
       <div className="card" style={{overflowX:'auto'}}>
@@ -960,7 +960,7 @@ function AttendanceTab({month, onApply}){
             <div className="hint" style={{marginBottom:10}}>依勞基法第40條，例假日出勤事後須完成補假，請登記每一天實際補假的日期。</div>
             <MakeupList employeeId={makeupBox.employeeId} dates={makeupBox.dates} onSaved={()=>{ load(); }}/>
             <div className="modal-actions">
-              <button className="stay" onClick={()=>setMakeupBox(null)}>關閉</button>
+              <button className="ghost" onClick={()=>setMakeupBox(null)}>關閉</button>
             </div>
           </div>
         </div>
@@ -997,7 +997,7 @@ function MakeupRow({employeeId, workDate, initialValue, onSaved}){
     <div className="row-between" style={{marginBottom:8, gap:10}}>
       <div style={{fontSize:13, flexShrink:0}}>出勤日：{workDate}</div>
       <input type="date" value={makeupDate} onChange={e=>setMakeupDate(e.target.value)} style={{flex:1}} />
-      <button className="ghost sm" onClick={save} disabled={saving}>{saving?'儲存中':'儲存'}</button>
+      <button onClick={save} disabled={saving}>{saving?'儲存中':'儲存'}</button>
     </div>
   );
 }
@@ -1082,9 +1082,9 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         <span className="grow"></span>
         <button className="ghost sm" onClick={scrollToStart} title="跳到最左邊"><span className="material-icons" style={{fontSize:16}}>first_page</span></button>
         <button className="ghost sm" onClick={scrollToEnd} title="跳到最右邊看總計"><span className="material-icons" style={{fontSize:16}}>last_page</span></button>
-        <button className="ghost" onClick={onApply}>套用出缺勤時數</button>
-        <button className="ghost" onClick={()=>window.print()}>列印本頁</button>
-        <button className="ghost" onClick={doExport}>匯出 CSV</button>
+        <button className="ghost sm" onClick={onApply}>套用出缺勤時數</button>
+        <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
+        <button className="ghost sm" onClick={doExport}>匯出 CSV</button>
         <button onClick={onSave} disabled={saving || !dirty}>{saving?'儲存中...':'儲存薪資紀錄'}</button>
       </div>
       <div className="toolbar no-print">
@@ -1239,8 +1239,8 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               </table>
             )}
             <div className="modal-actions">
-              <button className="stay" onClick={()=>setSettleBox(null)}>取消</button>
-              <button className="go" onClick={applySettleEstimate} disabled={settleBox.loading}>套用全部</button>
+              <button className="ghost" onClick={()=>setSettleBox(null)}>取消</button>
+              <button onClick={applySettleEstimate} disabled={settleBox.loading}>套用全部</button>
             </div>
           </div>
         </div>
@@ -1353,7 +1353,7 @@ function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseli
           <input type="checkbox" checked={hideZero} onChange={e=>setHideZero(e.target.checked)} style={{width:'auto'}} />
           隱藏金額為0的項目
         </label>
-        <button onClick={()=>window.print()}>列印薪資條</button>
+        <button className="ghost sm" onClick={()=>window.print()}>列印薪資條</button>
       </div>
       {list.length===0 && <div className="empty card">尚無員工資料</div>}
       {list.map(emp=>{
@@ -1395,7 +1395,7 @@ function TransferTab({rows, month}){
         </div>
         <span className="grow"></span>
         <span className="hint">依公司分組列出應匯款人員與帳號，金額為 0 者不列出。</span>
-        <button className="ghost" onClick={()=>window.print()}>列印本頁</button>
+        <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
       </div>
 
       {companyEntries.length===0 && <div className="empty card">本期尚無需匯款資料</div>}
@@ -1486,7 +1486,7 @@ function PayrollRegisterTab(){
         <button className="ghost sm" onClick={scrollToStart} title="跳到最左邊"><span className="material-icons" style={{fontSize:16}}>first_page</span></button>
         <button className="ghost sm" onClick={scrollToEnd} title="跳到最右邊看全年合計"><span className="material-icons" style={{fontSize:16}}>last_page</span></button>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
-        <button className="ghost" onClick={()=>window.print()}>列印本頁</button>
+        <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>
         依勞基法第23條規定製作，記載工資總額、各項目金額、扣除項目金額與實發金額，須保存5年。每人每月留一欄供簽名或蓋章確認領取。
@@ -1497,42 +1497,77 @@ function PayrollRegisterTab(){
             <div className="hint" style={{marginBottom:10}}>{year}年度薪資印領清冊</div>
             <table style={{minWidth:1500}}>
               <tbody>
-                {list.map(emp=>(
-                  <React.Fragment key={emp.employeeId}>
-                    <tr>
-                      <td className="reg-freeze-1">
-                        <div style={{fontWeight:700}}>{emp.name}</div>
-                        <div className="hint" style={{marginTop:4}}>{emp.department}</div>
-                        <div className="hint" style={{marginTop:4}}>身分證字號：{emp.nationalId || '未填寫'}</div>
-                        <div className="hint" style={{marginTop:2}}>戶籍地：{emp.householdAddress || '未填寫'}</div>
-                      </td>
-                      <th className="left reg-freeze-2" style={{minWidth:90}}>項目</th>
-                      {Array.from({length:12},(_,i)=>i+1).map(m=><th key={m}>{m}月</th>)}
-                      <th>全年合計</th>
-                    </tr>
-                    {REGISTER_ROW_DEFS.map(def=>(
-                      <React.Fragment key={def.key}>
-                        {def.indent===true && def.key==='mealAllowance' && (
-                          <tr><td className="reg-freeze-1"></td><td className="reg-freeze-2"></td><td colSpan="13" className="left hint" style={{fontSize:11, paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>
-                        )}
-                        <tr>
-                          <td className="reg-freeze-1"></td>
-                          <td className="left reg-freeze-2" style={def.indent?{paddingLeft:14, fontSize:11, color:'var(--muted)'}:{fontWeight:def.bold?700:(def.anchor?600:400)}}>{def.label}</td>
-                          {emp.monthly.map(mo=>(
-                            <td key={mo.month} className={def.highlight?'num-pos':''} style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}}>{money(mo[def.key])}</td>
-                          ))}
-                          <td style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}} className={def.highlight?'num-pos':''}>{money(emp.yearTotal[def.key])}</td>
-                        </tr>
-                      </React.Fragment>
-                    ))}
-                    <tr>
-                      <td className="reg-freeze-1"></td>
-                      <td className="left reg-freeze-2">簽名／蓋章</td>
-                      {Array.from({length:12},(_,i)=><td key={i} style={{height:34}}></td>)}
-                      <td></td>
-                    </tr>
-                  </React.Fragment>
-                ))}
+                {list.map(emp=>{
+                  const regRows = [
+                    {type:'header'},
+                    {type:'caption'},
+                    ...REGISTER_ROW_DEFS.map(def=>({type:'data', def})),
+                    {type:'signature'}
+                  ];
+                  const middleIdx = Math.floor(regRows.length/2);
+                  return (
+                    <React.Fragment key={emp.employeeId}>
+                      {regRows.map((row,idx)=>{
+                        const freeze1Style = {
+                          borderTop: idx===0 ? '1px solid var(--line)' : 'none',
+                          borderBottom: idx===regRows.length-1 ? '1px solid var(--line)' : 'none'
+                        };
+                        const nameCell = (
+                          <td className="reg-freeze-1" style={freeze1Style}>
+                            {idx===middleIdx && (
+                              <>
+                                <div style={{fontWeight:700}}>{emp.name}</div>
+                                <div className="hint" style={{marginTop:4}}>{emp.department}</div>
+                                <div className="hint" style={{marginTop:4}}>身分證字號：{emp.nationalId || '未填寫'}</div>
+                                <div className="hint" style={{marginTop:2}}>戶籍地：{emp.householdAddress || '未填寫'}</div>
+                              </>
+                            )}
+                          </td>
+                        );
+                        if(row.type==='header'){
+                          return (
+                            <tr key="header">
+                              {nameCell}
+                              <th className="left reg-freeze-2" style={{minWidth:90}}>項目</th>
+                              {Array.from({length:12},(_,i)=>i+1).map(m=><th key={m}>{m}月</th>)}
+                              <th>全年合計</th>
+                            </tr>
+                          );
+                        }
+                        if(row.type==='caption'){
+                          return (
+                            <tr key="caption">
+                              {nameCell}
+                              <td className="reg-freeze-2"></td>
+                              <td colSpan="13" className="left hint" style={{fontSize:11, paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td>
+                            </tr>
+                          );
+                        }
+                        if(row.type==='signature'){
+                          return (
+                            <tr key="signature">
+                              {nameCell}
+                              <td className="left reg-freeze-2">簽名／蓋章</td>
+                              {Array.from({length:12},(_,i)=><td key={i} style={{height:34}}></td>)}
+                              <td></td>
+                            </tr>
+                          );
+                        }
+                        const def = row.def;
+                        return (
+                          <tr key={def.key}>
+                            {nameCell}
+                            <td className="left reg-freeze-2" style={def.indent?{paddingLeft:14, fontSize:11, color:'var(--muted)'}:{fontWeight:def.bold?700:(def.anchor?600:400)}}>{def.label}</td>
+                            {emp.monthly.map(mo=>(
+                              <td key={mo.month} className={def.highlight?'num-pos':''} style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}}>{money(mo[def.key])}</td>
+                            ))}
+                            <td style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}} className={def.highlight?'num-pos':''}>{money(emp.yearTotal[def.key])}</td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2165,8 +2200,8 @@ function AnnualLeaveTab({employees}){
               </tbody>
             </table>
             <div className="modal-actions">
-              <button className="stay" onClick={()=>setBatchBox(null)}>取消</button>
-              <button className="go" onClick={batchApply} disabled={batchBox.saving}>{batchBox.saving?'套用中...':'套用全部'}</button>
+              <button className="ghost" onClick={()=>setBatchBox(null)}>取消</button>
+              <button onClick={batchApply} disabled={batchBox.saving}>{batchBox.saving?'套用中...':'套用全部'}</button>
             </div>
           </div>
         </div>
@@ -2260,7 +2295,7 @@ function CompLedgerTab({employees}){
         </select>
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
-        <button className="ghost" onClick={doExport}><span className="material-icons" style={{fontSize:16}}>download</span>匯出 CSV</button>
+        <button className="ghost sm" onClick={doExport}><span className="material-icons" style={{fontSize:16}}>download</span>匯出 CSV</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>每筆加班換補休核准後會自動「轉入」，員工請補休假核准後會自動「使用」扣抵，餘額為累計結果。到期日到了仍未使用完的補休，依規定應折算工資發給。</div>
       <div className="card" style={{overflowX:'auto'}}>
