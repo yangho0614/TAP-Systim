@@ -1072,14 +1072,16 @@ function CalendarPage({session, showToast}){
   const [month, setMonth] = useState(()=>{ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); });
   const [holidays, setHolidays] = useState([]);
   const [myLeaves, setMyLeaves] = useState([]);
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(()=>{
     setLoading(true);
-    Promise.all([apiGet('getHolidays'), apiGet('listMyRequests')])
-      .then(([h, reqs])=>{
+    Promise.all([apiGet('getHolidays'), apiGet('listMyRequests'), apiGet('getSettings')])
+      .then(([h, reqs, s])=>{
         setHolidays(h);
         setMyLeaves(reqs.filter(r=>r.type==='請假' && r.status==='已核准'));
+        setSettings(s);
       })
       .catch(e=>showToast(e.message,'err')).finally(()=>setLoading(false));
   }, []);
@@ -1137,25 +1139,31 @@ function CalendarPage({session, showToast}){
                 const hol = holidayMap[dateStr];
                 const leaves = leavesOnDate(dateStr);
                 const isToday = dateStr === new Date().toISOString().slice(0,10);
-                let bg = 'transparent';
-                if(hol) bg = hol.type==='國定假日' ? '#c05a4f26' : '#5b8db826';
-                else if(leaves.length) bg = '#4f9b6f26';
+                const dow = new Date(y, m-1, d).getDay();
+                const isMandatoryRest = settings && dow === Number(settings.mandatoryRestDay);
+                const isRestDay = settings && dow === Number(settings.restDay);
+                const isCompanyHoliday = hol && hol.type === '公司休假日';
+                const isNationalOrWeeklyOff = (hol && hol.type === '國定假日') || isMandatoryRest || isRestDay;
+                let bg = '#ffffff0d'; // 上班日：淺灰底
+                if(isCompanyHoliday) bg = '#5b8db826';
+                else if(isNationalOrWeeklyOff) bg = '#c05a4f26';
                 return (
                   <div key={idx} style={{
                     aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-                    borderRadius:8, background:bg, fontSize:12.5,
+                    borderRadius:8, background:bg, fontSize:12.5, position:'relative',
                     border: isToday ? '1.5px solid var(--gold)' : '1px solid transparent'
                   }}>
                     <div>{d}</div>
-                    {(hol || leaves.length>0) && <div style={{width:4,height:4,borderRadius:2,background: hol?(hol.type==='國定假日'?'var(--red)':'var(--blue)'):'var(--green)', marginTop:2}}></div>}
+                    {leaves.length>0 && <div style={{position:'absolute', bottom:4, width:5,height:5,borderRadius:3,background:'var(--green)'}}></div>}
                   </div>
                 );
               })}
             </div>
-            <div style={{display:'flex', gap:14, marginTop:12, fontSize:11, color:'var(--muted)', flexWrap:'wrap'}}>
-              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--red)',marginRight:4}}></span>國定假日</span>
+            <div style={{display:'flex', gap:12, marginTop:12, fontSize:11, color:'var(--muted)', flexWrap:'wrap'}}>
+              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'#ffffff1a',marginRight:4}}></span>上班日</span>
+              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--red)',marginRight:4}}></span>休息日／例假日／國定假日</span>
               <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--blue)',marginRight:4}}></span>公司休假日</span>
-              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--green)',marginRight:4}}></span>已核准請假</span>
+              <span><span style={{display:'inline-block',width:5,height:5,borderRadius:3,background:'var(--green)',marginRight:4}}></span>已核准請假</span>
             </div>
           </>
         )}
