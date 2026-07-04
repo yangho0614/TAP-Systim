@@ -1092,7 +1092,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         <tbody>
           {rows.map(({emp, entry, calc})=>(
             <tr key={emp.id}>
-              <td className="left freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
+              <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
               <td className="freeze-2 center">{money(emp.baseSalary)}</td>
               <td className="hint">{money(emp.mealAllowance)}</td>
               <td className="hint">{money(emp.transportAllowance)}</td>
@@ -1125,7 +1125,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
             </tr>
           ))}
           <tr className="total-row">
-            <td className="left freeze-1">合計</td>
+            <td className="center freeze-1">合計</td>
             <td className="freeze-2 center">{money(totals.base)}</td>
             <td colSpan="4"></td>
             <td colSpan="4"></td>
@@ -1148,7 +1148,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
       <table>
         <thead>
           <tr>
-            <th>姓名 / 部門</th>
+            <th className="freeze-1">姓名 / 部門</th>
             <th>業務費用</th><th>業績獎金</th><th>銷售獎金</th><th>其他費用</th><th>扣款2</th>
             <th>26日應付</th>
           </tr>
@@ -1156,7 +1156,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         <tbody>
           {rows.map(({emp, entry, calc})=>(
             <tr key={emp.id}>
-              <td className="left" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
+              <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
               <td><NumCell value={entry.businessExpense} onChange={v=>setEntry(emp.id,{businessExpense:v})} /></td>
               <td><NumCell value={entry.salesPerformance} onChange={v=>setEntry(emp.id,{salesPerformance:v})} /></td>
               <td><NumCell value={entry.salesBonus26} onChange={v=>setEntry(emp.id,{salesBonus26:v})} /></td>
@@ -1166,7 +1166,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
             </tr>
           ))}
           <tr className="total-row">
-            <td className="left">合計</td>
+            <td className="center freeze-1">合計</td>
             <td colSpan="5"></td>
             <td className="mono">{money(totals.pay26)}</td>
           </tr>
