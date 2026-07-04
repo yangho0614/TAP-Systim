@@ -67,6 +67,10 @@
   .freeze-2{ left:85px; min-width:80px; border-right:2px solid var(--brand); }
   th.freeze-1, th.freeze-2{ z-index:4; background:#EDEDED; }
   tr.total-row .freeze-1, tr.total-row .freeze-2{ background:#EDEDED; }
+  .reg-freeze-1, .reg-freeze-2{ position:sticky; z-index:3; background:#F2F0E8; }
+  .reg-freeze-1{ left:0; min-width:150px; max-width:150px; white-space:normal; vertical-align:top; }
+  .reg-freeze-2{ left:150px; min-width:90px; border-right:2px solid var(--brand); }
+  th.reg-freeze-2{ z-index:4; background:#EDEDED; }
   .col-add{background:#EAF6ED;}
   .col-deduct{background:#FBEDEA;}
   .col-result{background:#FBF3D9; font-weight:700;}
@@ -1447,55 +1451,73 @@ const REGISTER_ROW_DEFS = [
   {key:'deductTotal', label:'應扣合計', bold:true},
   {key:'netPay', label:'實發淨額', bold:true, highlight:true}
 ];
+const REG_ROWSPAN = 1 + REGISTER_ROW_DEFS.length + 1 + 1; // 月份表頭列 + 明細列(含縮排說明列) + 簽名列
 function PayrollRegisterTab(){
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeCompany, setActiveCompany] = useState(null);
+  const scrollRef = useRef(null);
+  function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
+  function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
 
   function load(){
     setLoading(true);
-    apiGet('getAnnualPayrollRegister', {year}).then(setData).catch(e=>alert(e.message)).finally(()=>setLoading(false));
+    apiGet('getAnnualPayrollRegister', {year}).then(d=>{ setData(d); const keys=Object.keys(d||{}); setActiveCompany(prev=> prev && keys.includes(prev) ? prev : (keys[0]||null)); }).catch(e=>alert(e.message)).finally(()=>setLoading(false));
   }
   useEffect(load, [year]);
 
   const years = [];
   const thisYear = new Date().getFullYear();
   for(let y = thisYear + 1; y >= thisYear - 2; y--) years.push(String(y));
+  const companies = data ? Object.keys(data) : [];
+  const list = (data && activeCompany) ? data[activeCompany] : [];
 
   return (
     <div>
       <div className="toolbar no-print">
+        <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+          {companies.map(co=>(
+            <button key={co} className={co===activeCompany?'':'ghost'} onClick={()=>setActiveCompany(co)}>{co}</button>
+          ))}
+        </div>
         <label style={{marginBottom:0}}>年度</label>
         <select value={year} onChange={e=>setYear(e.target.value)}>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
         <span className="grow"></span>
+        <button className="ghost sm" onClick={scrollToStart} title="跳到最左邊"><span className="material-icons" style={{fontSize:16}}>first_page</span></button>
+        <button className="ghost sm" onClick={scrollToEnd} title="跳到最右邊看全年合計"><span className="material-icons" style={{fontSize:16}}>last_page</span></button>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
         <button className="ghost" onClick={()=>window.print()}>列印本頁</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>
         依勞基法第23條規定製作，記載工資總額、各項目金額、扣除項目金額與實發金額，須保存5年。每人每月留一欄供簽名或蓋章確認領取。
       </div>
-      {loading ? <div className="hint">載入中...</div> : !data || Object.keys(data).length===0 ? <div className="empty card">尚無資料</div> : (
-        Object.entries(data).map(([company, list])=>(
-          <div className="card" key={company} style={{overflowX:'auto'}}>
-            <h3 style={{marginBottom:2}}>{company}</h3>
+      {loading ? <div className="hint">載入中...</div> : !data || companies.length===0 ? <div className="empty card">尚無資料</div> : (
+          <div className="card" style={{overflowX:'auto'}} ref={scrollRef}>
+            <h3 style={{marginBottom:2}}>{activeCompany}</h3>
             <div className="hint" style={{marginBottom:10}}>{year}年度薪資印領清冊</div>
-            <table style={{minWidth:1400}}>
+            <table style={{minWidth:1500}}>
               <tbody>
                 {list.map(emp=>(
                   <React.Fragment key={emp.employeeId}>
-                    <tr><td colSpan="14" className="left" style={{background:'#F2F0E8', fontWeight:700, paddingTop:10}}>{emp.name}　<span className="hint" style={{fontWeight:400}}>{emp.department}　身分證字號：{emp.nationalId || '未填寫'}　戶籍地：{emp.householdAddress || '未填寫'}</span></td></tr>
                     <tr>
-                      <th className="left" style={{minWidth:90}}>項目</th>
+                      <td rowSpan={REG_ROWSPAN} className="left reg-freeze-1">
+                        <div style={{fontWeight:700}}>{emp.name}</div>
+                        <div className="hint" style={{marginTop:4}}>{emp.department}</div>
+                        <div className="hint" style={{marginTop:4}}>身分證字號：{emp.nationalId || '未填寫'}</div>
+                        <div className="hint" style={{marginTop:2}}>戶籍地：{emp.householdAddress || '未填寫'}</div>
+                      </td>
+                      <th className="left reg-freeze-2" style={{minWidth:90}}>項目</th>
                       {Array.from({length:12},(_,i)=>i+1).map(m=><th key={m}>{m}月</th>)}
                       <th>全年合計</th>
                     </tr>
                     {REGISTER_ROW_DEFS.map(def=>(
                       <React.Fragment key={def.key}>
                         {def.indent===true && def.key==='mealAllowance' && (
-                          <tr><td colSpan="14" className="left hint" style={{fontSize:11, paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>
+                          <tr><td className="reg-freeze-2"></td><td colSpan="13" className="left hint" style={{fontSize:11, paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>
                         )}
                         <tr>
-                          <td className="left" style={def.indent?{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}:{fontWeight:def.bold?700:(def.anchor?600:400)}}>{def.label}</td>
+                          <td className="left reg-freeze-2" style={def.indent?{paddingLeft:14, fontSize:11, color:'var(--muted)'}:{fontWeight:def.bold?700:(def.anchor?600:400)}}>{def.label}</td>
                           {emp.monthly.map(mo=>(
                             <td key={mo.month} className={def.highlight?'num-pos':''} style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}}>{money(mo[def.key])}</td>
                           ))}
@@ -1504,7 +1526,7 @@ function PayrollRegisterTab(){
                       </React.Fragment>
                     ))}
                     <tr>
-                      <td className="left">簽名／蓋章</td>
+                      <td className="left reg-freeze-2">簽名／蓋章</td>
                       {Array.from({length:12},(_,i)=><td key={i} style={{height:34}}></td>)}
                       <td></td>
                     </tr>
@@ -1513,7 +1535,6 @@ function PayrollRegisterTab(){
               </tbody>
             </table>
           </div>
-        ))
       )}
     </div>
   );
