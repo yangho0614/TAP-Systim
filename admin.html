@@ -1259,11 +1259,12 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26}){
         <colgroup><col /><col style={{width:100}} /></colgroup>
         <thead><tr><th className="col-add" colSpan="2"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>add_circle</span> 應發項目</th></tr></thead>
         <tbody>
-          <tr><td className="left col-add">本薪</td><td className="col-add">{money(emp.baseSalary)}</td></tr>
-          <tr><td className="left col-add">伙食津貼</td><td className="col-add">{money(emp.mealAllowance)}</td></tr>
-          <tr><td className="left col-add">交通津貼</td><td className="col-add">{money(emp.transportAllowance)}</td></tr>
-          <tr><td className="left col-add">職務加給</td><td className="col-add">{money(emp.positionAllowance)}</td></tr>
-          <tr><td className="left col-add">全勤獎金</td><td className="col-add">{money(emp.fullAttendanceBonus)}</td></tr>
+          <tr><td className="left col-add" style={{fontWeight:600}}>本薪</td><td className="col-add" style={{fontWeight:600}}>{money(emp.baseSalary)}</td></tr>
+          <tr><td className="left col-add" colSpan="2" style={{fontSize:11, color:'var(--muted)', paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>
+          <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>伙食津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.mealAllowance)}</td></tr>
+          <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.transportAllowance)}</td></tr>
+          <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>職務加給</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.positionAllowance)}</td></tr>
+          <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>全勤獎金</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.fullAttendanceBonus)}</td></tr>
           <tr><td className="left col-add">三節獎金</td><td className="col-add">{money(entry.festivalBonus)}</td></tr>
           <tr><td className="left col-add">年終獎金</td><td className="col-add">{money(entry.yearEndBonus)}</td></tr>
           <tr><td className="left col-add">績效獎金</td><td className="col-add">{money(entry.performanceBonus)}</td></tr>
@@ -1423,11 +1424,11 @@ function TransferTab({rows, month}){
 
 /* ========================= 薪資印領清冊(全年度) ========================= */
 const REGISTER_ROW_DEFS = [
-  {key:'base', label:'本薪'},
-  {key:'mealAllowance', label:'伙食津貼'},
-  {key:'transportAllowance', label:'交通津貼'},
-  {key:'positionAllowance', label:'職務加給'},
-  {key:'fullAttendanceBonus', label:'全勤獎金'},
+  {key:'base', label:'本薪', anchor:true},
+  {key:'mealAllowance', label:'伙食津貼', indent:true},
+  {key:'transportAllowance', label:'交通津貼', indent:true},
+  {key:'positionAllowance', label:'職務加給', indent:true},
+  {key:'fullAttendanceBonus', label:'全勤獎金', indent:true},
   {key:'overtimePay', label:'加班費'},
   {key:'bonusTotal', label:'獎金'},
   {key:'annualLeaveSettlement', label:'特休結算'},
@@ -1472,25 +1473,28 @@ function PayrollRegisterTab(){
             <h3 style={{marginBottom:2}}>{company}</h3>
             <div className="hint" style={{marginBottom:10}}>{year}年度薪資印領清冊</div>
             <table style={{minWidth:1400}}>
-              <thead>
-                <tr>
-                  <th className="left" style={{minWidth:90}}>項目</th>
-                  {Array.from({length:12},(_,i)=>i+1).map(m=><th key={m}>{m}月</th>)}
-                  <th>全年合計</th>
-                </tr>
-              </thead>
               <tbody>
                 {list.map(emp=>(
                   <React.Fragment key={emp.employeeId}>
-                    <tr><td colSpan="14" className="left" style={{background:'#F2F0E8', fontWeight:700}}>{emp.name}　<span className="hint" style={{fontWeight:400}}>{emp.department}　身分證字號：{emp.nationalId || '未填寫'}　戶籍地：{emp.householdAddress || '未填寫'}</span></td></tr>
+                    <tr><td colSpan="14" className="left" style={{background:'#F2F0E8', fontWeight:700, paddingTop:10}}>{emp.name}　<span className="hint" style={{fontWeight:400}}>{emp.department}　身分證字號：{emp.nationalId || '未填寫'}　戶籍地：{emp.householdAddress || '未填寫'}</span></td></tr>
+                    <tr>
+                      <th className="left" style={{minWidth:90}}>項目</th>
+                      {Array.from({length:12},(_,i)=>i+1).map(m=><th key={m}>{m}月</th>)}
+                      <th>全年合計</th>
+                    </tr>
                     {REGISTER_ROW_DEFS.map(def=>(
-                      <tr key={def.key}>
-                        <td className="left">{def.label}</td>
-                        {emp.monthly.map(mo=>(
-                          <td key={mo.month} className={def.highlight?'num-pos':''} style={{fontWeight:def.bold?700:400}}>{money(mo[def.key])}</td>
-                        ))}
-                        <td style={{fontWeight:def.bold?700:400}} className={def.highlight?'num-pos':''}>{money(emp.yearTotal[def.key])}</td>
-                      </tr>
+                      <React.Fragment key={def.key}>
+                        {def.indent===true && def.key==='mealAllowance' && (
+                          <tr><td colSpan="14" className="left hint" style={{fontSize:11, paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>
+                        )}
+                        <tr>
+                          <td className="left" style={def.indent?{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}:{fontWeight:def.bold?700:(def.anchor?600:400)}}>{def.label}</td>
+                          {emp.monthly.map(mo=>(
+                            <td key={mo.month} className={def.highlight?'num-pos':''} style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}}>{money(mo[def.key])}</td>
+                          ))}
+                          <td style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}} className={def.highlight?'num-pos':''}>{money(emp.yearTotal[def.key])}</td>
+                        </tr>
+                      </React.Fragment>
                     ))}
                     <tr>
                       <td className="left">簽名／蓋章</td>
