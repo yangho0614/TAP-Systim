@@ -450,8 +450,8 @@ function CustomDateTimePicker({value, onConfirm, onClose}){
         </div>
 
         <div style={{display:'flex', justifyContent:'center', gap:8, position:'relative'}}>
-          <div style={{position:'absolute', top:ROW_H, left:0, right:0, height:ROW_H, background:'var(--panel-2)', borderRadius:8, pointerEvents:'none'}}></div>
-          <div ref={hourRef} onScroll={onHourScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center'}}>
+          <div style={{position:'absolute', top:ROW_H, left:0, right:0, height:ROW_H, background:'var(--panel-2)', borderRadius:8, pointerEvents:'none', zIndex:0}}></div>
+          <div ref={hourRef} onScroll={onHourScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center', position:'relative', zIndex:1}}>
             <div style={{height:ROW_H}}></div>
             {Array.from({length:24}, (_,h)=>(
               <div key={h} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'start', fontSize: h===selHour?18:14, fontWeight: h===selHour?700:400, color: h===selHour?'var(--text)':'var(--muted)'}}>
@@ -460,8 +460,8 @@ function CustomDateTimePicker({value, onConfirm, onClose}){
             ))}
             <div style={{height:ROW_H}}></div>
           </div>
-          <div style={{fontSize:18, alignSelf:'center', marginTop:ROW_H}}>:</div>
-          <div ref={minRef} onScroll={onMinScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center'}}>
+          <div style={{fontSize:18, alignSelf:'center', marginTop:ROW_H, position:'relative', zIndex:1}}>:</div>
+          <div ref={minRef} onScroll={onMinScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center', position:'relative', zIndex:1}}>
             <div style={{height:ROW_H}}></div>
             {Array.from({length:12}, (_,i)=>i*5).map(m=>(
               <div key={m} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'start', fontSize: m===selMin?18:14, fontWeight: m===selMin?700:400, color: m===selMin?'var(--text)':'var(--muted)'}}>
