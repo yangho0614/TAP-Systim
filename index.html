@@ -366,6 +366,120 @@ const LEAVE_TYPES = ['特休', '補休', '事假', '病假', '生理假', '婚�
 const STATUS_CLASS = {'待審核':'pending', '已核准':'ok', '已駁回':'no', '已取消':'cancel'};
 
 /* ========================= 登入畫面 ========================= */
+/* ========================= 自訂日期時間選擇器 ========================= */
+function CustomDateTimePicker({value, onConfirm, onClose}){
+  const initial = value ? new Date(value) : new Date();
+  const [viewY, setViewY] = useState(initial.getFullYear());
+  const [viewM, setViewM] = useState(initial.getMonth()); // 0-11
+  const [selDate, setSelDate] = useState(`${initial.getFullYear()}-${String(initial.getMonth()+1).padStart(2,'0')}-${String(initial.getDate()).padStart(2,'0')}`);
+  const [selHour, setSelHour] = useState(initial.getHours());
+  const [selMin, setSelMin] = useState(Math.round(initial.getMinutes()/5)*5 % 60);
+  const hourRef = useRef(null);
+  const minRef = useRef(null);
+  const ROW_H = 40;
+
+  useEffect(()=>{
+    // 開啟時捲動到目前選取的時間位置
+    setTimeout(()=>{
+      if(hourRef.current) hourRef.current.scrollTop = selHour * ROW_H;
+      if(minRef.current) minRef.current.scrollTop = (selMin/5) * ROW_H;
+    }, 0);
+  }, []);
+
+  function shiftMonth(delta){
+    let y = viewY, m = viewM + delta;
+    if(m < 0){ m = 11; y -= 1; } else if(m > 11){ m = 0; y += 1; }
+    setViewY(y); setViewM(m);
+  }
+  const firstDowSun = new Date(viewY, viewM, 1).getDay();
+  const daysInMonth = new Date(viewY, viewM+1, 0).getDate();
+  const cells = [];
+  for(let i=0;i<firstDowSun;i++) cells.push(null);
+  for(let d=1; d<=daysInMonth; d++) cells.push(d);
+
+  function pickDay(d){
+    setSelDate(`${viewY}-${String(viewM+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+  }
+  function onHourScroll(e){
+    const idx = Math.round(e.target.scrollTop / ROW_H);
+    setSelHour(Math.max(0, Math.min(23, idx)));
+  }
+  function onMinScroll(e){
+    const idx = Math.round(e.target.scrollTop / ROW_H);
+    setSelMin(Math.max(0, Math.min(11, idx)) * 5);
+  }
+  function confirm(){
+    const hh = String(selHour).padStart(2,'0');
+    const mm = String(selMin).padStart(2,'0');
+    onConfirm(`${selDate}T${hh}:${mm}`);
+  }
+  const [dy,dm,dd] = selDate.split('-').map(Number);
+  const dowText = '日一二三四五六'[new Date(dy,dm-1,dd).getDay()];
+
+  return (
+    <div className="modal-bg">
+      <div className="modal" style={{maxWidth:380}}>
+        <div className="row-between" style={{marginBottom:14}}>
+          <div style={{fontSize:15, fontWeight:700}}>{dy}/{String(dm).padStart(2,'0')}/{String(dd).padStart(2,'0')}（{dowText}）{String(selHour).padStart(2,'0')}:{String(selMin).padStart(2,'0')}</div>
+          <button className="go" style={{padding:'7px 16px', fontSize:13}} onClick={confirm}>確認</button>
+        </div>
+
+        <div className="row-between" style={{marginBottom:8}}>
+          <button className="icon-btn" onClick={()=>shiftMonth(-1)}><span className="material-icons">chevron_left</span></button>
+          <div style={{fontWeight:700, fontSize:14.5}}>{viewY} 年 {viewM+1} 月</div>
+          <button className="icon-btn" onClick={()=>shiftMonth(1)}><span className="material-icons">chevron_right</span></button>
+        </div>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, textAlign:'center', fontSize:11, color:'var(--muted)', marginBottom:4}}>
+          {['日','一','二','三','四','五','六'].map(d=><div key={d}>{d}</div>)}
+        </div>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, marginBottom:16}}>
+          {cells.map((d,idx)=>{
+            if(!d) return <div key={idx}></div>;
+            const ds = `${viewY}-${String(viewM+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const isSel = ds === selDate;
+            return (
+              <div key={idx} onClick={()=>pickDay(d)} style={{
+                aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center',
+                borderRadius:8, cursor:'pointer', fontSize:13,
+                background: isSel ? 'var(--gold)' : 'transparent',
+                color: isSel ? '#1c1305' : 'var(--text)', fontWeight: isSel ? 700 : 400
+              }}>{d}</div>
+            );
+          })}
+        </div>
+
+        <div style={{display:'flex', justifyContent:'center', gap:8, position:'relative'}}>
+          <div style={{position:'absolute', top:ROW_H, left:0, right:0, height:ROW_H, background:'var(--panel-2)', borderRadius:8, pointerEvents:'none'}}></div>
+          <div ref={hourRef} onScroll={onHourScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center'}}>
+            <div style={{height:ROW_H}}></div>
+            {Array.from({length:24}, (_,h)=>(
+              <div key={h} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'start', fontSize: h===selHour?18:14, fontWeight: h===selHour?700:400, color: h===selHour?'var(--text)':'var(--muted)'}}>
+                {String(h).padStart(2,'0')}
+              </div>
+            ))}
+            <div style={{height:ROW_H}}></div>
+          </div>
+          <div style={{fontSize:18, alignSelf:'center', marginTop:ROW_H}}>:</div>
+          <div ref={minRef} onScroll={onMinScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center'}}>
+            <div style={{height:ROW_H}}></div>
+            {Array.from({length:12}, (_,i)=>i*5).map(m=>(
+              <div key={m} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'start', fontSize: m===selMin?18:14, fontWeight: m===selMin?700:400, color: m===selMin?'var(--text)':'var(--muted)'}}>
+                {String(m).padStart(2,'0')}
+              </div>
+            ))}
+            <div style={{height:ROW_H}}></div>
+          </div>
+        </div>
+        <div className="hint" style={{textAlign:'center', marginTop:10}}>上下滑動選擇時間（每5分鐘一格）</div>
+
+        <div className="modal-actions">
+          <button className="stay" onClick={onClose}>取消</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LoginScreen({onLoggedIn}){
   const [step, setStep] = useState(1); // 1:輸入帳號 2:輸入密碼
   const [account, setAccount] = useState('');
@@ -701,6 +815,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   const [reviewBox, setReviewBox] = useState(null); // {req, mode:'approve'|'reject', comment}
   const [busy, setBusy] = useState(false);
   const [colleagues, setColleagues] = useState([]);
+  const [pickerFor, setPickerFor] = useState(null); // 'start' | 'end' | null
 
   const unit = Number(settings?.leaveUnit) || 1;
   const shift = session.employee?.shift;
@@ -872,13 +987,17 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
             <div className="hint" style={{marginBottom:10}}>班別時間 {shiftStart}~{shiftEnd}，請假時段需在此範圍內</div>
             <div className="field">
               <label>開始時間</label>
-              <input type="datetime-local" value={leaveBox.startDT} onChange={e=>updateLeaveField({startDT:e.target.value, endDT: leaveBox.endDT || e.target.value})} />
-              {leaveBox.startDT && <div className="hint" style={{marginTop:5}}>{formatDateTimeReadable(leaveBox.startDT)}</div>}
+              <button type="button" className="ghost-btn" style={{textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center'}} onClick={()=>setPickerFor('start')}>
+                <span>{leaveBox.startDT ? formatDateTimeReadable(leaveBox.startDT) : '請選擇'}</span>
+                <span className="material-icons" style={{fontSize:18}}>event</span>
+              </button>
             </div>
             <div className="field">
               <label>結束時間</label>
-              <input type="datetime-local" value={leaveBox.endDT} onChange={e=>updateLeaveField({endDT:e.target.value})} />
-              {leaveBox.endDT && <div className="hint" style={{marginTop:5}}>{formatDateTimeReadable(leaveBox.endDT)}</div>}
+              <button type="button" className="ghost-btn" style={{textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center'}} onClick={()=>setPickerFor('end')}>
+                <span>{leaveBox.endDT ? formatDateTimeReadable(leaveBox.endDT) : '請選擇'}</span>
+                <span className="material-icons" style={{fontSize:18}}>event</span>
+              </button>
             </div>
             <div className="field"><label>請假時數（依起訖時間自動計算，最小單位 {unit} 小時，可手動調整）</label><input type="number" step={unit} min={unit} value={leaveBox.hours} onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} /></div>
             <div className="field"><label>代理人（選填）</label>
@@ -896,6 +1015,18 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
             </div>
           </div>
         </div>
+      )}
+
+      {pickerFor && (
+        <CustomDateTimePicker
+          value={pickerFor==='start' ? leaveBox.startDT : leaveBox.endDT}
+          onConfirm={(v)=>{
+            if(pickerFor==='start') updateLeaveField({startDT:v, endDT: leaveBox.endDT || v});
+            else updateLeaveField({endDT:v});
+            setPickerFor(null);
+          }}
+          onClose={()=>setPickerFor(null)}
+        />
       )}
 
       {compBox && (
