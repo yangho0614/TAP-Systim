@@ -390,6 +390,53 @@ function App(){
   const [settings, setSettings] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  // 共用的員工編輯狀態（員工資料頁籤、薪資明細頁籤都會用到，確保資料連動）
+  const [companies, setCompanies] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [shifts, setShifts] = useState([]);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [isNewEmployee, setIsNewEmployee] = useState(false);
+  const [savingEmployee, setSavingEmployee] = useState(false);
+  const [accountBox, setAccountBox] = useState(null); // {employeeId, name, account, password}
+
+  function loadRefs(){
+    Promise.all([apiGet('getCompanies'), apiGet('getDepartments'), apiGet('getShifts')])
+      .then(([co,dept,sh])=>{ setCompanies(co); setDepartments(dept); setShifts(sh); })
+      .catch(e=>alert(e.message));
+  }
+  function openNewEmployee(){
+    setEditingEmployee({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
+      mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
+      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false});
+    setIsNewEmployee(true);
+  }
+  function openEditEmployee(emp){ setEditingEmployee({...emp}); setIsNewEmployee(false); }
+  async function saveEmployee(){
+    if(!editingEmployee.name.trim()){ alert('請輸入姓名'); return; }
+    setSavingEmployee(true);
+    const wasNew = isNewEmployee;
+    const snap = {...editingEmployee};
+    try{
+      let id = snap.id;
+      if(wasNew){ const r = await apiPost('addEmployee', snap); id = r.id; }
+      else await apiPost('updateEmployee', snap);
+      setEditingEmployee(null);
+      await reloadEmployees();
+      if(wasNew && confirm('員工已新增，要不要現在就幫他建立登入帳號？')){
+        setAccountBox({employeeId:id, name:snap.name, account:snap.phone||'', password: Math.random().toString(36).slice(2,8)});
+      }
+    }catch(e){ alert(e.message); }
+    finally{ setSavingEmployee(false); }
+  }
+  async function createAccountSubmit(){
+    if(!accountBox.account.trim()){ alert('請輸入帳號'); return; }
+    try{
+      await apiPost('createAccount', {employeeId: accountBox.employeeId, account: accountBox.account, password: accountBox.password, role:'employee'});
+      alert(`帳號建立完成！\n帳號：${accountBox.account}\n初始密碼：${accountBox.password}\n請告知員工，登入後可自行修改密碼。`);
+      setAccountBox(null);
+    }catch(e){ alert(e.message); }
+  }
+
   function reloadSettings(){
     return apiGet('getSettings').then(setSettings).catch(()=>{});
   }
@@ -413,6 +460,7 @@ function App(){
   useEffect(()=>{ if(session) reloadEmployees(); }, [session]);
   useEffect(()=>{ if(session) reloadPayroll(month); }, [session, month]);
   useEffect(()=>{ if(session) reloadSettings(); }, [session]);
+  useEffect(()=>{ if(session) loadRefs(); }, [session]);
 
   function setEntry(empId, patch){
     setPayrollEntries(prev => ({...prev, [empId]: {...emptyEntry(), ...(prev[empId]||{}), ...patch}}));
@@ -516,13 +564,13 @@ function App(){
         </div>
         <div className="content">
           {tab==='dashboard' && <DashboardTab setTab={setTab}/>}
-          {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees}/>}
+          {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees} onEdit={openEditEmployee} onNew={openNewEmployee} accountBox={accountBox} setAccountBox={setAccountBox} createAccountSubmit={createAccountSubmit}/>}
           {tab==='records' && <RecordsTab employees={employees} month={month}/>}
           {tab==='requests' && <RequestsTab month={month}/>}
           {tab==='annual' && <AnnualLeaveTab employees={employees}/>}
           {tab==='comp' && <CompLedgerTab employees={employees}/>}
           {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}/>}
-          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving}/>}
+          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee}/>}
           {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month} settings={settings}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
           {tab==='insurance' && <InsuranceTab/>}
@@ -535,71 +583,91 @@ function App(){
           {tab==='settings' && <SettingsTab onSaved={reloadSettings}/>}
         </div>
       </div>
+      <EmployeeEditModal editing={editingEmployee} setEditing={setEditingEmployee} isNew={isNewEmployee} saving={savingEmployee} onSave={saveEmployee} companies={companies} departments={departments} shifts={shifts}/>
     </div>
   );
 }
 
 /* ========================= 員工資料 ========================= */
-function EmployeesTab({employees, loading, reload}){
-  const [editing, setEditing] = useState(null);
-  const [isNew, setIsNew] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [companies, setCompanies] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [shifts, setShifts] = useState([]);
-  const [accountBox, setAccountBox] = useState(null); // {employeeId, name, account, password}
+function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companies, departments, shifts}){
+  if(!editing) return null;
+  return (
+    <div className="modal-bg">
+      <div className="modal">
+        <h3><span className="material-icons">badge</span>{isNew ? '新增員工' : '編輯員工：' + editing.name}</h3>
+        <div className="grid-2">
+          <div className="field"><label>所屬公司</label>
+            <select value={editing.companyId} onChange={e=>{ const c=companies.find(x=>x.id===e.target.value); setEditing({...editing, companyId:e.target.value, company: c?c.name:''}); }}>
+              <option value="">請選擇</option>
+              {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div className="field"><label>部門</label>
+            <select value={editing.departmentId} onChange={e=>{ const d=departments.find(x=>x.id===e.target.value); setEditing({...editing, departmentId:e.target.value, department: d?d.name:''}); }}>
+              <option value="">請選擇</option>
+              {departments.filter(d=>!editing.companyId || d.companyId===editing.companyId).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+          <div className="field"><label>姓名 *</label><input value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} /></div>
+          <div className="field"><label>手機</label><input value={editing.phone} onChange={e=>setEditing({...editing, phone:e.target.value})} placeholder="09xxxxxxxx" /></div>
+          <div className="field"><label>到職日</label><input type="date" value={editing.hireDate} onChange={e=>setEditing({...editing, hireDate:e.target.value})} /></div>
 
-  function loadRefs(){
-    Promise.all([apiGet('getCompanies'), apiGet('getDepartments'), apiGet('getShifts')])
-      .then(([co,dept,sh])=>{ setCompanies(co); setDepartments(dept); setShifts(sh); })
-      .catch(e=>alert(e.message));
-  }
-  useEffect(loadRefs, []);
+          <div className="field"><label>班別</label>
+            <select value={editing.shiftId} onChange={e=>setEditing({...editing, shiftId:e.target.value})}>
+              <option value="">依系統預設班別</option>
+              {shifts.map(s=><option key={s.id} value={s.id}>{s.name}（{s.workStart}-{s.workEnd}）</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>投保級距</label>
+            <div style={{display:'flex', gap:6}}>
+              <select value={editing.insuranceGrade} onChange={e=>setEditing({...editing, insuranceGrade:Number(e.target.value)})} style={{flex:1}}>
+                <option value={0}>未設定</option>
+                {INSURANCE_TABLE.map(r=><option key={r.grade} value={r.grade}>{r.grade.toLocaleString()}</option>)}
+              </select>
+              <button type="button" className="ghost sm" onClick={()=>setEditing({...editing, insuranceGrade: suggestGrade(editing.baseSalary)})}>依本薪建議</button>
+            </div>
+          </div>
+          <div className="field"><label>本薪</label><input type="number" value={editing.baseSalary} onChange={e=>setEditing({...editing, baseSalary:Number(e.target.value)})} /></div>
 
-  function openNew(){
-    setEditing({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
-      mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
-      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false});
-    setIsNew(true);
-  }
-  function openEdit(emp){ setEditing({...emp}); setIsNew(false); }
-  async function save(){
-    if(!editing.name.trim()){ alert('請輸入姓名'); return; }
-    setSaving(true);
-    try{
-      let id = editing.id;
-      if(isNew){ const r = await apiPost('addEmployee', editing); id = r.id; }
-      else await apiPost('updateEmployee', editing);
-      setEditing(null);
-      await reload();
-      if(isNew){
-        if(confirm('員工已新增，要不要現在就幫他建立登入帳號？')){
-          setAccountBox({employeeId:id, name:editing.name, account:editing.phone||'', password: Math.random().toString(36).slice(2,8)});
-        }
-      }
-    }catch(e){ alert(e.message); }
-    finally{ setSaving(false); }
-  }
-  async function setLeft(emp){
-    if(!confirm(`確定要將 ${emp.name} 設為離職嗎？（歷史打卡與薪資紀錄仍會保留）`)) return;
-    try{ await apiPost('deleteEmployee', {...emp}); await reload(); }
-    catch(e){ alert(e.message); }
-  }
-  async function createAccountSubmit(){
-    if(!accountBox.account.trim()){ alert('請輸入帳號'); return; }
-    try{
-      await apiPost('createAccount', {employeeId: accountBox.employeeId, account: accountBox.account, password: accountBox.password, role:'employee'});
-      alert(`帳號建立完成！\n帳號：${accountBox.account}\n初始密碼：${accountBox.password}\n請告知員工，登入後可自行修改密碼。`);
-      setAccountBox(null);
-    }catch(e){ alert(e.message); }
-  }
+          <div className="field"><label>伙食津貼</label><input type="number" value={editing.mealAllowance} onChange={e=>setEditing({...editing, mealAllowance:Number(e.target.value)})} /></div>
+          <div className="field"><label>交通津貼</label><input type="number" value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} /></div>
+          <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
+          <div className="field"><label>全勤獎金（固定）</label><input type="number" value={editing.fullAttendanceBonus} onChange={e=>setEditing({...editing, fullAttendanceBonus:Number(e.target.value)})} /></div>
 
+          <div className="field"><label>銀行</label><input value={editing.bankName} onChange={e=>setEditing({...editing, bankName:e.target.value})} /></div>
+          <div className="field"><label>銀行帳號</label><input value={editing.bankAccount} onChange={e=>setEditing({...editing, bankAccount:e.target.value})} /></div>
+        </div>
+        {editing.baseSalary>0 && (n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance)) < MIN_WAGE_MONTHLY && (
+          <div className="hint" style={{color:'var(--danger)'}}>⚠ 本薪＋伙食＋交通＋職務加給合計 {money(n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance))} 元，低於2026年最低工資 {money(MIN_WAGE_MONTHLY)} 元，可能違反《最低工資法》（全勤獎金為條件式給予，不列入計算基準）</div>
+        )}
+        <div className="hint">依2026年新制，婚假、喪假、公假、產假、陪產假、生理假等法定假別不得作為扣發全勤獎金的理由，僅事假、遲到、曠工等得依公司規定扣發。</div>
+        <div className="field"><label>備註</label><input value={editing.note} onChange={e=>setEditing({...editing, note:e.target.value})} style={{width:'100%'}} /></div>
+        <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
+          <input type="checkbox" checked={editing.canBeDelegate !== false} onChange={e=>setEditing({...editing, canBeDelegate:e.target.checked})} style={{width:'auto'}} />
+          可被員工指定為請假代理人
+        </label>
+        <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
+          <input type="checkbox" checked={editing.exemptFromAttendance === true} onChange={e=>setEditing({...editing, exemptFromAttendance:e.target.checked})} style={{width:'auto'}} />
+          免打卡（不列入出缺勤彙總與薪資自動試算，薪資項目需手動填寫，如業務費用）
+        </label>
+        {editing.hireDate && <div className="hint">{tenureText(editing.hireDate)}</div>}
+        <div className="modal-actions">
+          <button className="ghost" onClick={()=>setEditing(null)}>取消</button>
+          <button onClick={onSave} disabled={saving}>{saving?'儲存中...':'儲存'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, setAccountBox, createAccountSubmit}){
   const companiesByCo = [...new Set(employees.map(e=>e.company).filter(Boolean))];
 
   return (
     <div>
       <div className="toolbar">
-        <button onClick={openNew}><span className="material-icons">person_add</span>新增員工</button>
+        <button onClick={onNew}><span className="material-icons">person_add</span>新增員工</button>
         <span className="grow"></span>
         <button className="ghost sm" onClick={reload}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
         <span className="hint">共 {employees.length} 位在職員工</span>
@@ -622,7 +690,7 @@ function EmployeesTab({employees, loading, reload}){
                   {employees.filter(e=>(e.company||'(未分類)')===co).map(emp=>(
                     <tr key={emp.id}>
                       <td className="left">{emp.department}</td>
-                      <td className="left"><b>{emp.name}</b>{emp.exemptFromAttendance && <span className="badge warn" style={{marginLeft:6}}>免打卡</span>}</td>
+                      <td className="left" style={{cursor:'pointer'}} onClick={()=>onEdit(emp)}><b>{emp.name}</b>{emp.exemptFromAttendance && <span className="badge warn" style={{marginLeft:6}}>免打卡</span>}</td>
                       <td className="left mono">{emp.phone}</td>
                       <td>{emp.shift ? emp.shift.name : <span className="hint">預設</span>}</td>
                       <td>{emp.hireDate || '-'}</td>
@@ -630,9 +698,9 @@ function EmployeesTab({employees, loading, reload}){
                       <td>{money(emp.baseSalary)}</td>
                       <td className="left mono">{emp.bankAccount}</td>
                       <td>
-                        <button className="ghost sm" onClick={()=>openEdit(emp)}>編輯</button>{' '}
+                        <button className="ghost sm" onClick={()=>onEdit(emp)}>編輯</button>{' '}
                         <button className="ghost sm" onClick={()=>setAccountBox({employeeId:emp.id, name:emp.name, account:emp.phone||'', password: Math.random().toString(36).slice(2,8)})}>帳號</button>{' '}
-                        <button className="danger sm" onClick={()=>setLeft(emp)}>離職</button>
+                        <button className="danger sm" onClick={async()=>{ if(confirm(`確定要將 ${emp.name} 設為離職嗎？（歷史打卡與薪資紀錄仍會保留）`)){ try{ await apiPost('deleteEmployee', {...emp}); await reload(); }catch(e){ alert(e.message); } } }}>離職</button>
                       </td>
                     </tr>
                   ))}
@@ -641,75 +709,6 @@ function EmployeesTab({employees, loading, reload}){
             </div>
           ))}
         </>
-      )}
-
-      {editing && (
-        <div className="modal-bg">
-          <div className="modal">
-            <h3><span className="material-icons">badge</span>{isNew ? '新增員工' : '編輯員工：' + editing.name}</h3>
-            <div className="grid-2">
-              <div className="field"><label>所屬公司</label>
-                <select value={editing.companyId} onChange={e=>{ const c=companies.find(x=>x.id===e.target.value); setEditing({...editing, companyId:e.target.value, company: c?c.name:''}); }}>
-                  <option value="">請選擇</option>
-                  {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div className="field"><label>部門</label>
-                <select value={editing.departmentId} onChange={e=>{ const d=departments.find(x=>x.id===e.target.value); setEditing({...editing, departmentId:e.target.value, department: d?d.name:''}); }}>
-                  <option value="">請選擇</option>
-                  {departments.filter(d=>!editing.companyId || d.companyId===editing.companyId).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-              <div className="field"><label>姓名 *</label><input value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} /></div>
-              <div className="field"><label>手機</label><input value={editing.phone} onChange={e=>setEditing({...editing, phone:e.target.value})} placeholder="09xxxxxxxx" /></div>
-              <div className="field"><label>到職日</label><input type="date" value={editing.hireDate} onChange={e=>setEditing({...editing, hireDate:e.target.value})} /></div>
-
-              <div className="field"><label>班別</label>
-                <select value={editing.shiftId} onChange={e=>setEditing({...editing, shiftId:e.target.value})}>
-                  <option value="">依系統預設班別</option>
-                  {shifts.map(s=><option key={s.id} value={s.id}>{s.name}（{s.workStart}-{s.workEnd}）</option>)}
-                </select>
-              </div>
-              <div className="field">
-                <label>投保級距</label>
-                <div style={{display:'flex', gap:6}}>
-                  <select value={editing.insuranceGrade} onChange={e=>setEditing({...editing, insuranceGrade:Number(e.target.value)})} style={{flex:1}}>
-                    <option value={0}>未設定</option>
-                    {INSURANCE_TABLE.map(r=><option key={r.grade} value={r.grade}>{r.grade.toLocaleString()}</option>)}
-                  </select>
-                  <button type="button" className="ghost sm" onClick={()=>setEditing({...editing, insuranceGrade: suggestGrade(editing.baseSalary)})}>依本薪建議</button>
-                </div>
-              </div>
-              <div className="field"><label>本薪</label><input type="number" value={editing.baseSalary} onChange={e=>setEditing({...editing, baseSalary:Number(e.target.value)})} /></div>
-
-              <div className="field"><label>伙食津貼</label><input type="number" value={editing.mealAllowance} onChange={e=>setEditing({...editing, mealAllowance:Number(e.target.value)})} /></div>
-              <div className="field"><label>交通津貼</label><input type="number" value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} /></div>
-              <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
-              <div className="field"><label>全勤獎金（固定）</label><input type="number" value={editing.fullAttendanceBonus} onChange={e=>setEditing({...editing, fullAttendanceBonus:Number(e.target.value)})} /></div>
-
-              <div className="field"><label>銀行</label><input value={editing.bankName} onChange={e=>setEditing({...editing, bankName:e.target.value})} /></div>
-              <div className="field"><label>銀行帳號</label><input value={editing.bankAccount} onChange={e=>setEditing({...editing, bankAccount:e.target.value})} /></div>
-            </div>
-            {editing.baseSalary>0 && (n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance)) < MIN_WAGE_MONTHLY && (
-              <div className="hint" style={{color:'var(--danger)'}}>⚠ 本薪＋伙食＋交通＋職務加給合計 {money(n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance))} 元，低於2026年最低工資 {money(MIN_WAGE_MONTHLY)} 元，可能違反《最低工資法》（全勤獎金為條件式給予，不列入計算基準）</div>
-            )}
-            <div className="hint">依2026年新制，婚假、喪假、公假、產假、陪產假、生理假等法定假別不得作為扣發全勤獎金的理由，僅事假、遲到、曠工等得依公司規定扣發。</div>
-            <div className="field"><label>備註</label><input value={editing.note} onChange={e=>setEditing({...editing, note:e.target.value})} style={{width:'100%'}} /></div>
-            <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
-              <input type="checkbox" checked={editing.canBeDelegate !== false} onChange={e=>setEditing({...editing, canBeDelegate:e.target.checked})} style={{width:'auto'}} />
-              可被員工指定為請假代理人
-            </label>
-            <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
-              <input type="checkbox" checked={editing.exemptFromAttendance === true} onChange={e=>setEditing({...editing, exemptFromAttendance:e.target.checked})} style={{width:'auto'}} />
-              免打卡（不列入出缺勤彙總與薪資自動試算，薪資項目需手動填寫，如業務費用）
-            </label>
-            {editing.hireDate && <div className="hint">{tenureText(editing.hireDate)}</div>}
-            <div className="modal-actions">
-              <button className="ghost" onClick={()=>setEditing(null)}>取消</button>
-              <button onClick={save} disabled={saving}>{saving?'儲存中...':'儲存'}</button>
-            </div>
-          </div>
-        </div>
       )}
 
       {accountBox && (
@@ -940,7 +939,7 @@ function NumCell({value, onChange}){
 }
 
 /* ========================= 薪資計算 / 明細總表 ========================= */
-function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave, dirty, saving}){
+function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave, dirty, saving, onEditEmployee}){
   const [subTab, setSubTab] = useState('06');
   const [settleBox, setSettleBox] = useState(null); // {year, items, loading, saving}
   const totals = useMemo(()=>{
@@ -1060,7 +1059,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         <tbody>
           {rows.map(({emp, entry, calc})=>(
             <tr key={emp.id}>
-              <td className="left"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
+              <td className="left" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
               <td>{money(emp.baseSalary)}</td>
               <td className="hint">{money(emp.mealAllowance)}</td>
               <td className="hint">{money(emp.transportAllowance)}</td>
@@ -1120,7 +1119,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         <tbody>
           {rows.map(({emp, entry, calc})=>(
             <tr key={emp.id}>
-              <td className="left"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
+              <td className="left" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
               <td><NumCell value={entry.businessExpense} onChange={v=>setEntry(emp.id,{businessExpense:v})} /></td>
               <td><NumCell value={entry.salesPerformance} onChange={v=>setEntry(emp.id,{salesPerformance:v})} /></td>
               <td><NumCell value={entry.salesBonus26} onChange={v=>setEntry(emp.id,{salesBonus26:v})} /></td>
