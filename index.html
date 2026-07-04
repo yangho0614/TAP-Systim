@@ -863,7 +863,10 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   const unit = Number(settings?.leaveUnit) || 1;
   const shift = session.employee?.shift;
   function safeHHMM(v, fallback){
-    return (typeof v === 'string' && /^\d{2}:\d{2}$/.test(v)) ? v : fallback;
+    if(typeof v !== 'string') return fallback;
+    const m = v.match(/^(\d{1,2}):(\d{2})$/);
+    if(!m) return fallback;
+    return m[1].padStart(2,'0') + ':' + m[2];
   }
   const shiftStart = safeHHMM(shift?.workStart, safeHHMM(settings?.workStart, '09:00'));
   const shiftEnd = safeHHMM(shift?.workEnd, safeHHMM(settings?.workEnd, '18:00'));
