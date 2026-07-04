@@ -1383,8 +1383,8 @@ function ShiftTab({employees}){
             <h3><span className="material-icons">schedule_send</span>{isNew?'新增班別':'編輯班別'}</h3>
             <div className="field"><label>班別名稱 *</label><input value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} placeholder="例：早班" /></div>
             <div className="grid-2">
-              <div className="field"><label>上班時間</label><input value={editing.workStart} onChange={e=>setEditing({...editing,workStart:e.target.value})} placeholder="09:00" /></div>
-              <div className="field"><label>下班時間</label><input value={editing.workEnd} onChange={e=>setEditing({...editing,workEnd:e.target.value})} placeholder="18:00" /></div>
+              <div className="field"><label>上班時間</label><input type="time" value={editing.workStart} onChange={e=>setEditing({...editing,workStart:e.target.value})} /></div>
+              <div className="field"><label>下班時間</label><input type="time" value={editing.workEnd} onChange={e=>setEditing({...editing,workEnd:e.target.value})} /></div>
               <div className="field"><label>午休扣除（分鐘）</label><input type="number" value={editing.lunchBreak} onChange={e=>setEditing({...editing,lunchBreak:Number(e.target.value)})} /></div>
             </div>
             <div className="modal-actions"><button className="ghost" onClick={()=>setEditing(null)}>取消</button><button onClick={save}>儲存</button></div>
@@ -1965,8 +1965,8 @@ function SettingsTab(){
       <h3 style={{marginTop:18}}><span className="material-icons">schedule</span> 預設班表</h3>
       <div className="hint" style={{marginTop:-4, marginBottom:8}}>員工若在「員工資料」未指定班別，會套用這裡的預設班表。</div>
       <div className="grid-2">
-        <div className="field"><label>上班時間</label><input value={s.workStart} onChange={e=>setS({...s,workStart:e.target.value})} placeholder="09:00" /></div>
-        <div className="field"><label>下班時間</label><input value={s.workEnd} onChange={e=>setS({...s,workEnd:e.target.value})} placeholder="18:00" /></div>
+        <div className="field"><label>上班時間</label><input type="time" value={s.workStart} onChange={e=>setS({...s,workStart:e.target.value})} /></div>
+        <div className="field"><label>下班時間</label><input type="time" value={s.workEnd} onChange={e=>setS({...s,workEnd:e.target.value})} /></div>
         <div className="field"><label>午休扣除（分鐘）</label><input type="number" value={s.lunchBreak} onChange={e=>setS({...s,lunchBreak:e.target.value})} /></div>
         <div className="field"><label>遲到寬限（分鐘）</label><input type="number" value={s.lateGrace} onChange={e=>setS({...s,lateGrace:e.target.value})} /></div>
         <div className="field"><label>早退寬限（分鐘）</label><input type="number" value={s.earlyGrace} onChange={e=>setS({...s,earlyGrace:e.target.value})} /></div>
