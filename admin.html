@@ -1160,7 +1160,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         <thead>
           <tr>
             <th className="freeze-1">姓名 / 部門</th>
-            <th>業務費用</th><th>業績獎金</th><th>銷售獎金</th><th>其他費用</th><th>扣款2</th>
+            <th>業務費用</th><th>業績獎金</th><th>銷售獎金</th><th>其他費用</th><th>其他扣款</th>
             <th>26日應付</th>
           </tr>
         </thead>
@@ -1272,7 +1272,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26}){
           <tr><td className="left col-add">業績</td><td className="col-add">{money(entry.salesPerformance)}</td></tr>
           <tr><td className="left col-add">銷售獎金</td><td className="col-add">{money(entry.salesBonus26)}</td></tr>
           <tr><td className="left col-add">其他費用</td><td className="col-add">{money(entry.otherExpense26)}</td></tr>
-          <tr><td className="left col-deduct">扣款2</td><td className="col-deduct">{money(entry.deduction26)}</td></tr>
+          <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct">{money(entry.deduction26)}</td></tr>
         </tbody>
       </table>
 
