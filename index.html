@@ -421,18 +421,10 @@ function HomePage({session, status, pendingCount, goForms, showToast}){
         <div className="avatar">{(emp.name||'?').slice(0,1)}</div>
       </div>
 
-      <div className="card" style={{display:'flex', alignItems:'stretch'}}>
-        <div style={{flex:1, textAlign:'center', padding:'2px 8px'}}>
-          <div className="hint" style={{fontSize:13.5}}>{dateStr}</div>
-          <div style={{fontFamily:'Roboto Mono, monospace', fontSize:32, fontWeight:700, color:'var(--text)', marginTop:2}}>
-            {pad(now.getHours())}:{pad(now.getMinutes())}
-          </div>
-        </div>
-        <div style={{width:1, background:'var(--line)', margin:'4px 0'}}></div>
-        <div style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, padding:'2px 8px'}}>
-          <span className="material-icons" style={{color:'var(--gold)'}}>schedule</span>
-          <div style={{fontWeight:700, fontSize:13.5, textAlign:'center'}}>{shift ? shift.name : '標準班'}<br/>{shift ? shift.workStart : '09:00'}~{shift ? shift.workEnd : '18:00'}</div>
-          <div className="hint">午休 {shift ? shift.lunchBreak : 60} 分鐘</div>
+      <div className="card">
+        <div className="hint" style={{fontSize:13.5}}>{dateStr}</div>
+        <div style={{fontFamily:'Roboto Mono, monospace', fontSize:44, fontWeight:700, color:'var(--text)', marginTop:2}}>
+          {pad(now.getHours())}:{pad(now.getMinutes())}
         </div>
       </div>
 
@@ -447,7 +439,13 @@ function HomePage({session, status, pendingCount, goForms, showToast}){
       )}
 
       <div className="card">
-        <div style={{fontWeight:700, fontSize:14.5, marginBottom:8}}>今日打卡</div>
+        <div className="row-between" style={{marginBottom:8}}>
+          <div style={{fontWeight:700, fontSize:14.5}}>今日打卡</div>
+          <div style={{display:'flex', alignItems:'center', gap:5, fontSize:12.5, color:'var(--muted)'}}>
+            <span className="material-icons" style={{fontSize:16, color:'var(--gold)'}}>schedule</span>
+            {shift ? shift.name : '標準班'}　{shift ? shift.workStart : '09:00'}~{shift ? shift.workEnd : '18:00'}（午休{shift ? shift.lunchBreak : 60}分鐘）
+          </div>
+        </div>
         <div className="status-grid">
           <div className="status-cell"><div className="lbl">上班</div><div className="val">{hhmm(status?.checkInTime)}</div></div>
           <div className="status-cell"><div className="lbl">下班</div><div className="val">{hhmm(status?.checkOutTime)}</div></div>
