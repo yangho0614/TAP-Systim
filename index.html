@@ -367,11 +367,27 @@ const STATUS_CLASS = {'待審核':'pending', '已核准':'ok', '已駁回':'no',
 
 /* ========================= 登入畫面 ========================= */
 function LoginScreen({onLoggedIn}){
+  const [step, setStep] = useState(1); // 1:輸入帳號 2:輸入密碼
   const [account, setAccount] = useState('');
+  const [ownerName, setOwnerName] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
 
+  async function goStep2(ev){
+    ev.preventDefault();
+    setErr('');
+    if(!account){ setErr('請輸入帳號'); return; }
+    setLoading(true);
+    try{
+      const data = await apiPost('getAccountOwnerName', {account});
+      setOwnerName(data.name || '');
+    }catch(e){ setOwnerName(''); }
+    finally{ setLoading(false); setStep(2); }
+  }
+  function backToStep1(){
+    setStep(1); setPassword(''); setErr(''); setOwnerName('');
+  }
   async function submit(ev){
     ev.preventDefault();
     setErr(''); setLoading(true);
@@ -390,14 +406,28 @@ function LoginScreen({onLoggedIn}){
         <div className="mark-icon"><span className="material-icons" style={{fontSize:28}}>badge</span></div>
         <h2>員工專區登入</h2>
         <div className="sub">帳號為公司提供之手機號碼或員工編號</div>
-        <form onSubmit={submit}>
-          <div className="field"><label>帳號（手機號碼）</label><input type="tel" inputMode="numeric" pattern="[0-9]*" value={account} onChange={e=>setAccount(e.target.value.replace(/\D/g,''))} autoFocus /></div>
-          <div className="field"><label>密碼</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} /></div>
-          <button type="submit" className="primary-btn" disabled={loading}>
-            <span className="material-icons" style={{fontSize:18}}>login</span>{loading?'登入中...':'登入'}
-          </button>
-          <div className="err-text">{err}</div>
-        </form>
+        {step === 1 ? (
+          <form onSubmit={goStep2}>
+            <div className="field"><input type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="帳號（手機號碼）" value={account} onChange={e=>setAccount(e.target.value.replace(/\D/g,''))} autoFocus /></div>
+            <button type="submit" className="primary-btn" disabled={loading}>
+              <span className="material-icons" style={{fontSize:18}}>arrow_forward</span>{loading?'查詢中...':'確認'}
+            </button>
+            <div className="err-text">{err}</div>
+          </form>
+        ) : (
+          <form onSubmit={submit}>
+            <div style={{textAlign:'center', marginBottom:16}}>
+              {ownerName && <div style={{fontSize:19, fontWeight:700, color:'var(--text)'}}>{ownerName}</div>}
+              <div style={{fontSize:14, color:'var(--muted)', marginTop:2}}>{account}</div>
+            </div>
+            <div className="field"><input type="password" placeholder="密碼" value={password} onChange={e=>setPassword(e.target.value)} autoFocus /></div>
+            <button type="button" className="ghost-btn" onClick={backToStep1} style={{marginBottom:10}}>更換帳號</button>
+            <button type="submit" className="primary-btn" disabled={loading}>
+              <span className="material-icons" style={{fontSize:18}}>login</span>{loading?'登入中...':'登入'}
+            </button>
+            <div className="err-text">{err}</div>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -1212,10 +1242,7 @@ function App(){
   return (
     <div className="app">
       {!session ? (
-        <>
-          <div className="topbar"><div className="store">員工專區</div></div>
-          <LoginScreen onLoggedIn={onLoggedIn} />
-        </>
+        <LoginScreen onLoggedIn={onLoggedIn} />
       ) : (
         <>
           <div className="topbar">
