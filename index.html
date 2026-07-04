@@ -1338,8 +1338,8 @@ function PayslipModal({onClose, showToast}){
               <div className="row-between"><span className="hint">獎金合計</span><span>{money(data.calc.bonusTotal)}</span></div>
               <div className="row-between"><span className="hint">應發合計</span><span style={{fontWeight:700}}>{money(data.calc.payableTotal)}</span></div>
               <div style={{borderTop:'1px solid var(--line)', margin:'8px 0'}}></div>
-              <div className="row-between"><span className="hint">勞保費</span><span style={{color:'var(--red)'}}>-{money(data.calc.laborFee)}</span></div>
-              <div className="row-between"><span className="hint">健保費</span><span style={{color:'var(--red)'}}>-{money(data.calc.healthFee)}</span></div>
+              <div className="row-between"><span className="hint">勞保費{data.calc.insFullMonth===false && <span style={{fontSize:11}}>（按{data.calc.insLaborDays}天計）</span>}</span><span style={{color:'var(--red)'}}>-{money(data.calc.laborFee)}</span></div>
+              <div className="row-between"><span className="hint">健保費{data.calc.insActiveAtMonthEnd===false && <span style={{fontSize:11}}>（月底已離職不收）</span>}</span><span style={{color:'var(--red)'}}>-{money(data.calc.healthFee)}</span></div>
               <div className="row-between"><span className="hint">請假扣款</span><span style={{color:'var(--red)'}}>-{money(data.calc.leaveDeduct)}</span></div>
               <div className="row-between"><span className="hint">應扣合計</span><span style={{fontWeight:700, color:'var(--red)'}}>-{money(data.calc.deductTotal)}</span></div>
             </div>

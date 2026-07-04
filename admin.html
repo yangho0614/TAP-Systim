@@ -275,7 +275,24 @@ function calcMandatoryRestPay(hourly, dailyWage, hours, mode){
   }
   return hourly*2*h; // 優於勞基法：時薪×2
 }
-function calcForEmployee(emp, entryRaw, settings, menstrualUsedBefore){
+// 計算勞健保加退保狀態：勞保依「當月在職天數/30」比例計算；健保看「當月最後一天」是否仍在職，是則收整月保費，否則本月不收
+function getInsuranceStatusForMonth(hireDate, resignDate, month){
+  const parts = String(month||'').split('-').map(Number);
+  const y = parts[0], m = parts[1];
+  if(!y || !m) return {laborDays:30, activeAtMonthEnd:true, fullMonth:true};
+  const monthStart = new Date(y, m-1, 1);
+  const monthEnd = new Date(y, m, 0);
+  let start = monthStart;
+  if(hireDate){ const h = new Date(hireDate); if(!isNaN(h.getTime()) && h>monthStart) start = h; }
+  let end = monthEnd;
+  let activeAtMonthEnd = true;
+  if(resignDate){ const r = new Date(resignDate); if(!isNaN(r.getTime()) && r<monthEnd){ end = r; activeAtMonthEnd = false; } }
+  if(start>end) return {laborDays:0, activeAtMonthEnd:false, fullMonth:false};
+  const laborDays = Math.floor((end-start)/86400000)+1;
+  const fullMonth = (start.getTime()===monthStart.getTime()) && (end.getTime()===monthEnd.getTime());
+  return {laborDays, activeAtMonthEnd, fullMonth};
+}
+function calcForEmployee(emp, entryRaw, settings, menstrualUsedBefore, month){
   const entry = {...emptyEntry(), ...(entryRaw||{})};
   const base = n(emp.baseSalary); // 本薪已包含伙食/交通/職務加給/全勤獎金，以下4個欄位僅為拆解說明用途，不重複相加
   const hourly = base>0 ? base/240 : 0;
@@ -296,9 +313,10 @@ function calcForEmployee(emp, entryRaw, settings, menstrualUsedBefore){
   const payableTotal = payableA + overtimePay;
 
   const ins = findInsurance(emp.insuranceGrade);
-  const laborFee = ins ? ins.empLabor : 0;
+  const insStatus = getInsuranceStatusForMonth(emp.hireDate, emp.resignDate, month);
+  const laborFee = ins ? (insStatus.fullMonth ? ins.empLabor : Math.round(ins.empLabor * insStatus.laborDays / 30)) : 0;
   const dependentCount = Math.min(n(emp.dependentCount), 3); // 眷屬保費同本人金額，超過3人以3人計
-  const healthFee = ins ? ins.empHealth * (1 + dependentCount) : 0;
+  const healthFee = (ins && insStatus.activeAtMonthEnd) ? ins.empHealth * (1 + dependentCount) : 0;
 
   const MENSTRUAL_FULL_PAY_HOURS = 24; // 每年前3天(以8hr/天計)生理假全薪
   const remainFullPay = Math.max(0, MENSTRUAL_FULL_PAY_HOURS - n(menstrualUsedBefore));
@@ -318,7 +336,8 @@ function calcForEmployee(emp, entryRaw, settings, menstrualUsedBefore){
     hourly, dailyWage, overtimePay, weekdayOtPay, restDayPay:restDay.pay, holidayPay:holiday.pay, mandatoryRestPay,
     restDayCountedHours: restDay.countedHours, restDayOverCap: restDay.overCap, monthlyOtHours,
     allowanceTotal, bonusTotal, payableA, payableTotal,
-    laborFee, healthFee, leaveDeduct, deductTotal, menstrualPaidHours, menstrualHalfHours, pay06, pay26, grandTotal, belowMinWage
+    laborFee, healthFee, leaveDeduct, deductTotal, menstrualPaidHours, menstrualHalfHours, pay06, pay26, grandTotal, belowMinWage,
+    insLaborDays: insStatus.laborDays, insFullMonth: insStatus.fullMonth, insActiveAtMonthEnd: insStatus.activeAtMonthEnd
   };
 }
 
@@ -425,7 +444,7 @@ function App(){
     setEditingEmployee({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
       mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
       companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false,
-      nationalId:'', householdAddress:'', dependentCount:0});
+      nationalId:'', householdAddress:'', dependentCount:0, resignDate:''});
     setIsNewEmployee(true);
   }
   function openEditEmployee(emp){ setEditingEmployee({...emp}); setIsNewEmployee(false); }
@@ -526,8 +545,8 @@ function App(){
 
   const rows = useMemo(()=> employees.map(emp=>{
     const entry = payrollEntries[emp.id] || emptyEntry();
-    return {emp, entry, calc: calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||0)};
-  }), [employees, payrollEntries, settings, menstrualBaseline]);
+    return {emp, entry, calc: calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||0, month)};
+  }), [employees, payrollEntries, settings, menstrualBaseline, month]);
 
   const needsMonth = ['records','requests','attendance','payroll','payslip','transfer'].includes(tab);
 
@@ -646,6 +665,11 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           <div className="field"><label>身分證字號</label><input value={editing.nationalId} onChange={e=>setEditing({...editing, nationalId:e.target.value})} placeholder="A123456789" /></div>
           <div className="field" style={{gridColumn:'span 2'}}><label>戶籍地</label><input value={editing.householdAddress} onChange={e=>setEditing({...editing, householdAddress:e.target.value})} style={{width:'100%'}} /></div>
           <div className="field"><label>到職日</label><input type="date" value={editing.hireDate} onChange={e=>setEditing({...editing, hireDate:e.target.value})} /></div>
+          <div className="field">
+            <label>離職日</label>
+            <input type="date" value={editing.resignDate||''} onChange={e=>setEditing({...editing, resignDate:e.target.value, status: e.target.value ? '離職' : editing.status})} />
+            <div className="hint" style={{marginTop:4}}>有填離職日時，勞保費當月按在職天數比例計算，健保費則看月底當天是否仍在職（在職才收整月保費）</div>
+          </div>
 
           <div className="field"><label>班別</label>
             <select value={editing.shiftId} onChange={e=>setEditing({...editing, shiftId:e.target.value})}>
@@ -740,7 +764,7 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
                       <td>
                         <button className="ghost sm" onClick={()=>onEdit(emp)}>編輯</button>{' '}
                         <button className="ghost sm" onClick={()=>setAccountBox({employeeId:emp.id, name:emp.name, account:emp.phone||'', password: Math.random().toString(36).slice(2,8)})}>帳號</button>{' '}
-                        <button className="danger sm" onClick={async()=>{ if(confirm(`確定要將 ${emp.name} 設為離職嗎？（歷史打卡與薪資紀錄仍會保留）`)){ try{ await apiPost('deleteEmployee', {...emp}); await reload(); }catch(e){ alert(e.message); } } }}>離職</button>
+                        <button className="danger sm" onClick={()=>{ alert(`請在編輯視窗中手動填寫「${emp.name}」的離職日，儲存後即會標記為離職。`); onEdit(emp); }}>離職</button>
                       </td>
                     </tr>
                   ))}
@@ -1132,8 +1156,8 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               </td>
               <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} /></td>
               <td className="col-deduct"><NumCell value={entry.otherLeave} onChange={v=>setEntry(emp.id,{otherLeave:v})} /></td>
-              <td className="col-deduct">{money(calc.laborFee)}</td>
-              <td className="col-deduct">{money(calc.healthFee)}</td>
+              <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays}天比例計算`:''}>{money(calc.laborFee)}</td>
+              <td className="col-deduct" title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
               <td className="col-deduct"><NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} /></td>
               <td className="col-deduct num-neg">{money(calc.deductTotal)}</td>
               <td className="col-result mono"><b>{money(calc.pay06)}</b></td>
@@ -1257,8 +1281,8 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26}){
         <colgroup><col /><col style={{width:100}} /></colgroup>
         <thead><tr><th className="col-deduct" colSpan="2"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>remove_circle</span> 應扣項目</th></tr></thead>
         <tbody>
-          <tr><td className="left col-deduct">勞保費</td><td className="col-deduct">{money(calc.laborFee)}</td></tr>
-          <tr><td className="left col-deduct">健保費</td><td className="col-deduct">{money(calc.healthFee)}</td></tr>
+          <tr><td className="left col-deduct">勞保費{!calc.insFullMonth && <span style={{fontWeight:400}}>（按{calc.insLaborDays}天計）</span>}</td><td className="col-deduct">{money(calc.laborFee)}</td></tr>
+          <tr><td className="left col-deduct">健保費{!calc.insActiveAtMonthEnd && <span style={{fontWeight:400}}>（月底已離職不收）</span>}</td><td className="col-deduct">{money(calc.healthFee)}</td></tr>
           <tr><td className="left col-deduct">事假({n(entry.personalLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*n(entry.personalLeave))}</td></tr>
           <tr><td className="left col-deduct">病假({n(entry.sickLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*0.5*n(entry.sickLeave))}</td></tr>
           <tr><td className="left col-deduct">生理假半薪({calc.menstrualHalfHours}hr，全薪{calc.menstrualPaidHours}hr不扣)</td><td className="col-deduct">{money(calc.hourly*0.5*calc.menstrualHalfHours)}</td></tr>
@@ -1322,7 +1346,7 @@ function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseli
       {list.length===0 && <div className="empty card">尚無員工資料</div>}
       {list.map(emp=>{
         const entry = payrollEntries[emp.id] || emptyEntry();
-        const calc = calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||0);
+        const calc = calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||0, month);
         return <Payslip key={emp.id} emp={emp} entry={entry} calc={calc} month={month} payDate06={payDate06} payDate26={payDate26} />;
       })}
     </div>
