@@ -99,10 +99,14 @@
   .payslip table{font-size:12px;}
   .payslip th{background:#EDEDED;}
   .payslip .grand{
-    display:flex; justify-content:space-between; align-items:center;
+    display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:10px;
     background:#EDEDED; padding:10px 14px; margin-top:10px; border-radius:4px;
-    font-family:'Roboto Mono',monospace; font-size:16px; font-weight:700; color:var(--brand-dark);
   }
+  .payslip .grand-item{display:flex; flex-direction:column; align-items:center; gap:2px;}
+  .payslip .grand-label{font-size:11.5px; color:var(--muted);}
+  .payslip .grand-num{font-family:'Roboto Mono',monospace; font-size:15px; font-weight:700; color:var(--brand-dark);}
+  .payslip .grand-total{border-left:1px solid var(--line); padding-left:10px;}
+  .payslip .grand-total .grand-num{font-size:18px; color:var(--brand);}
   .payslip .foot-note{font-size:11px; color:var(--muted); margin-top:10px;}
 
   /* 登入畫面 */
@@ -1160,7 +1164,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         <thead>
           <tr>
             <th className="freeze-1">姓名 / 部門</th>
-            <th>業務費用</th><th>業績獎金</th><th>銷售獎金</th><th>其他費用</th><th>其他扣款</th>
+            <th>業務費用</th><th>業績獎金</th><th>其他獎金</th><th>其他費用</th><th>其他扣款</th>
             <th>26日應付</th>
           </tr>
         </thead>
@@ -1269,14 +1273,18 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26}){
         <thead><tr><th className="col-add left"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>add_circle</span> 業務／獎金加發項目（26日發放）</th><th className="col-add">金額</th></tr></thead>
         <tbody>
           <tr><td className="left col-add">業務費用</td><td className="col-add">{money(entry.businessExpense)}</td></tr>
-          <tr><td className="left col-add">業績</td><td className="col-add">{money(entry.salesPerformance)}</td></tr>
-          <tr><td className="left col-add">銷售獎金</td><td className="col-add">{money(entry.salesBonus26)}</td></tr>
+          <tr><td className="left col-add">業績獎金</td><td className="col-add">{money(entry.salesPerformance)}</td></tr>
+          <tr><td className="left col-add">其他獎金</td><td className="col-add">{money(entry.salesBonus26)}</td></tr>
           <tr><td className="left col-add">其他費用</td><td className="col-add">{money(entry.otherExpense26)}</td></tr>
           <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct">{money(entry.deduction26)}</td></tr>
         </tbody>
       </table>
 
-      <div className="grand"><span>{payDate06||'06日'}應付薪資：{money(calc.pay06)}　{payDate26||'26日'}應付薪資：{money(calc.pay26)}</span><span>合計 NT$ {money(calc.grandTotal)}</span></div>
+      <div className="grand">
+        <div className="grand-item"><span className="grand-label">{payDate06||'06日'}應付</span><span className="grand-num">{money(calc.pay06)}</span></div>
+        <div className="grand-item"><span className="grand-label">{payDate26||'26日'}應付</span><span className="grand-num">{money(calc.pay26)}</span></div>
+        <div className="grand-item grand-total"><span className="grand-label">合計 NT$</span><span className="grand-num">{money(calc.grandTotal)}</span></div>
+      </div>
       <div className="foot-note">如有任何問題請提出，謝謝！本薪資條由系統自動產生，僅供內部核對使用。</div>
     </div>
   );
