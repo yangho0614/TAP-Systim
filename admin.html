@@ -29,6 +29,10 @@
   .navitem .material-icons{font-size:18px; color:#A6ACB3;}
   .navitem.active .material-icons{color:var(--accent);}
   .nav-group-label{padding:14px 18px 4px 18px; font-size:10.5px; letter-spacing:1px; color:#8fa397; text-transform:uppercase;}
+  .sidebar{transition:width .18s ease;}
+  .sidebar.collapsed{width:64px;}
+  .sidebar.collapsed .navitem{justify-content:center; padding:12px 0; gap:0;}
+  .sidebar.collapsed .navitem .material-icons{font-size:21px;}
   .main{flex:1; min-width:0;}
   .topbar{background:var(--paper-2); border-bottom:1px solid var(--line); padding:12px 26px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;}
   .topbar h1{font-size:17px; display:flex; align-items:center; gap:8px;}
@@ -49,13 +53,30 @@
   label{font-size:12px; color:var(--muted); display:block; margin-bottom:3px;}
   .field{margin-bottom:10px;}
   table{border-collapse:collapse; width:100%; background:var(--paper-2); font-size:12.5px;}
+  thead{position:sticky; top:0; z-index:2;}
   th,td{border:1px solid var(--line); padding:6px 8px; text-align:right; white-space:nowrap;}
   th{background:#EDEDED; color:var(--brand-dark); text-align:center;}
   td.left,th.left{text-align:left;}
+  td.center{text-align:center;}
   td input[type=number]{width:64px; text-align:right; padding:4px 5px;}
   tr.total-row td{background:#EDEDED; font-weight:700;}
   .num-pos{color:var(--income);}
   .num-neg{color:var(--outcome);}
+  .freeze-1, .freeze-2{ position:sticky; z-index:3; background:#F2F0E8; }
+  .freeze-1{ left:0; min-width:85px; }
+  .freeze-2{ left:85px; min-width:80px; border-right:2px solid var(--brand); }
+  th.freeze-1, th.freeze-2{ z-index:4; background:#EDEDED; }
+  tr.total-row .freeze-1, tr.total-row .freeze-2{ background:#EDEDED; }
+  .reg-freeze-1, .reg-freeze-2{ position:sticky; z-index:3; background:#F2F0E8; }
+  .reg-freeze-1{ left:0; min-width:150px; max-width:150px; white-space:normal; text-align:center; vertical-align:middle; border-top:none; border-bottom:none; }
+  .reg-freeze-2{ left:150px; min-width:90px; border-right:2px solid var(--brand); }
+  th.reg-freeze-2{ z-index:4; background:#EDEDED; }
+  .col-add{background:#EAF6ED;}
+  .col-deduct{background:#FBEDEA;}
+  .col-result{background:#FBF3D9; font-weight:700;}
+  thead .col-add{background:#CDEAD4;}
+  thead .col-deduct{background:#F5D6CE;}
+  thead .col-result{background:#F3E0A0;}
   .card{background:var(--paper-2); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:18px;}
   .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:0 18px;}
   .badge{display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:2px 9px; border-radius:20px; background:#D6F1F2; color:var(--brand-dark); font-weight:700;}
@@ -82,10 +103,14 @@
   .payslip table{font-size:12px;}
   .payslip th{background:#EDEDED;}
   .payslip .grand{
-    display:flex; justify-content:space-between; align-items:center;
+    display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:10px;
     background:#EDEDED; padding:10px 14px; margin-top:10px; border-radius:4px;
-    font-family:'Roboto Mono',monospace; font-size:16px; font-weight:700; color:var(--brand-dark);
   }
+  .payslip .grand-item{display:flex; flex-direction:column; align-items:center; gap:2px;}
+  .payslip .grand-label{font-size:11.5px; color:var(--muted);}
+  .payslip .grand-num{font-family:'Roboto Mono',monospace; font-size:15px; font-weight:700; color:var(--brand-dark);}
+  .payslip .grand-total{border-left:1px solid var(--line); padding-left:10px;}
+  .payslip .grand-total .grand-num{font-size:18px; color:var(--brand);}
   .payslip .foot-note{font-size:11px; color:var(--muted); margin-top:10px;}
 
   /* 登入畫面 */
@@ -166,7 +191,7 @@ function todayMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.g
 function monthLabel(m){
   if(!m) return '';
   const [y,mo] = m.split('-');
-  return (Number(y)-1911) + '年' + Number(mo) + '月 (' + m + ')';
+  return y + '年' + Number(mo) + '月';
 }
 function exportCSV(filename, headers, rows){
   const esc = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
@@ -197,7 +222,7 @@ function tenureText(hireDate){
 }
 
 /* ========================= 勞健保投保級距對照表與薪資計算引擎 ========================= */
-const INSURANCE_TABLE = [{"grade": 1500, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 90, "compTotal": 2506, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 3000, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 180, "compTotal": 2596, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 4500, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 270, "compTotal": 2686, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 6000, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 360, "compTotal": 2776, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 7500, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 450, "compTotal": 2866, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 8700, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 522, "compTotal": 2938, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 9900, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 594, "compTotal": 3010, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 11100, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 666, "compTotal": 3082, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 12540, "compLabor": 1097, "compHealth": 1384, "compOccu": 60, "compPension": 752, "compTotal": 3293, "empLabor": 313, "empHealth": 443, "empTotal": 756}, {"grade": 13500, "compLabor": 1182, "compHealth": 1384, "compOccu": 60, "compPension": 810, "compTotal": 3436, "empLabor": 338, "empHealth": 443, "empTotal": 781}, {"grade": 15840, "compLabor": 1386, "compHealth": 1384, "compOccu": 60, "compPension": 950, "compTotal": 3780, "empLabor": 396, "empHealth": 443, "empTotal": 839}, {"grade": 16500, "compLabor": 1444, "compHealth": 1384, "compOccu": 60, "compPension": 990, "compTotal": 3878, "empLabor": 413, "empHealth": 443, "empTotal": 856}, {"grade": 17280, "compLabor": 1512, "compHealth": 1384, "compOccu": 60, "compPension": 1037, "compTotal": 3993, "empLabor": 432, "empHealth": 443, "empTotal": 875}, {"grade": 17880, "compLabor": 1564, "compHealth": 1384, "compOccu": 60, "compPension": 1073, "compTotal": 4081, "empLabor": 447, "empHealth": 443, "empTotal": 890}, {"grade": 19047, "compLabor": 1666, "compHealth": 1384, "compOccu": 60, "compPension": 1143, "compTotal": 4253, "empLabor": 476, "empHealth": 443, "empTotal": 919}, {"grade": 20008, "compLabor": 1751, "compHealth": 1384, "compOccu": 60, "compPension": 1200, "compTotal": 4395, "empLabor": 500, "empHealth": 443, "empTotal": 943}, {"grade": 21009, "compLabor": 1838, "compHealth": 1384, "compOccu": 60, "compPension": 1261, "compTotal": 4543, "empLabor": 525, "empHealth": 443, "empTotal": 968}, {"grade": 22000, "compLabor": 1925, "compHealth": 1384, "compOccu": 60, "compPension": 1320, "compTotal": 4689, "empLabor": 550, "empHealth": 443, "empTotal": 993}, {"grade": 23100, "compLabor": 2022, "compHealth": 1384, "compOccu": 60, "compPension": 1386, "compTotal": 4852, "empLabor": 577, "empHealth": 443, "empTotal": 1020}, {"grade": 24000, "compLabor": 2100, "compHealth": 1384, "compOccu": 60, "compPension": 1440, "compTotal": 4984, "empLabor": 600, "empHealth": 443, "empTotal": 1043}, {"grade": 25250, "compLabor": 2210, "compHealth": 1384, "compOccu": 60, "compPension": 1515, "compTotal": 5169, "empLabor": 632, "empHealth": 443, "empTotal": 1075}, {"grade": 26400, "compLabor": 2310, "compHealth": 1384, "compOccu": 60, "compPension": 1584, "compTotal": 5338, "empLabor": 660, "empHealth": 443, "empTotal": 1103}, {"grade": 27600, "compLabor": 2415, "compHealth": 1384, "compOccu": 60, "compPension": 1656, "compTotal": 5515, "empLabor": 690, "empHealth": 443, "empTotal": 1133}, {"grade": 28590, "compLabor": 2501, "compHealth": 1384, "compOccu": 60, "compPension": 1715, "compTotal": 5660, "empLabor": 715, "empHealth": 443, "empTotal": 1158}, {"grade": 28800, "compLabor": 2520, "compHealth": 1394, "compOccu": 60, "compPension": 1728, "compTotal": 5702, "empLabor": 720, "empHealth": 447, "empTotal": 1167}, {"grade": 30300, "compLabor": 2651, "compHealth": 1466, "compOccu": 64, "compPension": 1818, "compTotal": 5999, "empLabor": 758, "empHealth": 470, "empTotal": 1228}, {"grade": 31800, "compLabor": 2783, "compHealth": 1539, "compOccu": 67, "compPension": 1908, "compTotal": 6297, "empLabor": 795, "empHealth": 493, "empTotal": 1288}, {"grade": 33300, "compLabor": 2914, "compHealth": 1611, "compOccu": 70, "compPension": 1998, "compTotal": 6593, "empLabor": 833, "empHealth": 516, "empTotal": 1349}, {"grade": 34800, "compLabor": 3045, "compHealth": 1684, "compOccu": 73, "compPension": 2088, "compTotal": 6890, "empLabor": 870, "empHealth": 540, "empTotal": 1410}, {"grade": 36300, "compLabor": 3176, "compHealth": 1757, "compOccu": 76, "compPension": 2178, "compTotal": 7187, "empLabor": 908, "empHealth": 563, "empTotal": 1471}, {"grade": 38200, "compLabor": 3342, "compHealth": 1849, "compOccu": 80, "compPension": 2292, "compTotal": 7563, "empLabor": 955, "empHealth": 592, "empTotal": 1547}, {"grade": 40100, "compLabor": 3509, "compHealth": 1940, "compOccu": 84, "compPension": 2406, "compTotal": 7939, "empLabor": 1002, "empHealth": 622, "empTotal": 1624}, {"grade": 42000, "compLabor": 3675, "compHealth": 2032, "compOccu": 88, "compPension": 2520, "compTotal": 8315, "empLabor": 1050, "empHealth": 651, "empTotal": 1701}, {"grade": 43900, "compLabor": 3841, "compHealth": 2124, "compOccu": 92, "compPension": 2634, "compTotal": 8691, "empLabor": 1098, "empHealth": 681, "empTotal": 1779}, {"grade": 45800, "compLabor": 4008, "compHealth": 2216, "compOccu": 96, "compPension": 2748, "compTotal": 9068, "empLabor": 1145, "empHealth": 710, "empTotal": 1855}, {"grade": 48200, "compLabor": 4008, "compHealth": 2332, "compOccu": 101, "compPension": 2892, "compTotal": 9333, "empLabor": 1145, "empHealth": 748, "empTotal": 1893}, {"grade": 50600, "compLabor": 4008, "compHealth": 2449, "compOccu": 106, "compPension": 3036, "compTotal": 9599, "empLabor": 1145, "empHealth": 785, "empTotal": 1930}, {"grade": 53000, "compLabor": 4008, "compHealth": 2565, "compOccu": 111, "compPension": 3180, "compTotal": 9864, "empLabor": 1145, "empHealth": 822, "empTotal": 1967}, {"grade": 55400, "compLabor": 4008, "compHealth": 2681, "compOccu": 116, "compPension": 3324, "compTotal": 10129, "empLabor": 1145, "empHealth": 859, "empTotal": 2004}, {"grade": 57800, "compLabor": 4008, "compHealth": 2797, "compOccu": 121, "compPension": 3468, "compTotal": 10394, "empLabor": 1145, "empHealth": 896, "empTotal": 2041}, {"grade": 60800, "compLabor": 4008, "compHealth": 2942, "compOccu": 128, "compPension": 3648, "compTotal": 10726, "empLabor": 1145, "empHealth": 943, "empTotal": 2088}, {"grade": 63800, "compLabor": 4008, "compHealth": 3087, "compOccu": 134, "compPension": 3828, "compTotal": 11057, "empLabor": 1145, "empHealth": 990, "empTotal": 2135}, {"grade": 66800, "compLabor": 4008, "compHealth": 3233, "compOccu": 140, "compPension": 4008, "compTotal": 11389, "empLabor": 1145, "empHealth": 1036, "empTotal": 2181}, {"grade": 69800, "compLabor": 4008, "compHealth": 3378, "compOccu": 147, "compPension": 4188, "compTotal": 11721, "empLabor": 1145, "empHealth": 1083, "empTotal": 2228}, {"grade": 72800, "compLabor": 4008, "compHealth": 3523, "compOccu": 153, "compPension": 4368, "compTotal": 12052, "empLabor": 1145, "empHealth": 1129, "empTotal": 2274}, {"grade": 76500, "compLabor": 4008, "compHealth": 3702, "compOccu": 153, "compPension": 4590, "compTotal": 12453, "empLabor": 1145, "empHealth": 1187, "empTotal": 2332}, {"grade": 80200, "compLabor": 4008, "compHealth": 3881, "compOccu": 153, "compPension": 4812, "compTotal": 12854, "empLabor": 1145, "empHealth": 1244, "empTotal": 2389}, {"grade": 83900, "compLabor": 4008, "compHealth": 4060, "compOccu": 153, "compPension": 5034, "compTotal": 13255, "empLabor": 1145, "empHealth": 1301, "empTotal": 2446}, {"grade": 87600, "compLabor": 4008, "compHealth": 4239, "compOccu": 153, "compPension": 5256, "compTotal": 13656, "empLabor": 1145, "empHealth": 1359, "empTotal": 2504}, {"grade": 92100, "compLabor": 4008, "compHealth": 4457, "compOccu": 153, "compPension": 5526, "compTotal": 14144, "empLabor": 1145, "empHealth": 1428, "empTotal": 2573}, {"grade": 96600, "compLabor": 4008, "compHealth": 4675, "compOccu": 153, "compPension": 5796, "compTotal": 14632, "empLabor": 1145, "empHealth": 1498, "empTotal": 2643}, {"grade": 101100, "compLabor": 4008, "compHealth": 4892, "compOccu": 153, "compPension": 6066, "compTotal": 15119, "empLabor": 1145, "empHealth": 1568, "empTotal": 2713}, {"grade": 105600, "compLabor": 4008, "compHealth": 5110, "compOccu": 153, "compPension": 6336, "compTotal": 15607, "empLabor": 1145, "empHealth": 1638, "empTotal": 2783}, {"grade": 110100, "compLabor": 4008, "compHealth": 5328, "compOccu": 153, "compPension": 6606, "compTotal": 16095, "empLabor": 1145, "empHealth": 1708, "empTotal": 2853}, {"grade": 115500, "compLabor": 4008, "compHealth": 5589, "compOccu": 153, "compPension": 6930, "compTotal": 16680, "empLabor": 1145, "empHealth": 1791, "empTotal": 2936}, {"grade": 120900, "compLabor": 4008, "compHealth": 5850, "compOccu": 153, "compPension": 7254, "compTotal": 17265, "empLabor": 1145, "empHealth": 1875, "empTotal": 3020}, {"grade": 126300, "compLabor": 4008, "compHealth": 6112, "compOccu": 153, "compPension": 7578, "compTotal": 17851, "empLabor": 1145, "empHealth": 1959, "empTotal": 3104}, {"grade": 131700, "compLabor": 4008, "compHealth": 6373, "compOccu": 153, "compPension": 7902, "compTotal": 18436, "empLabor": 1145, "empHealth": 2043, "empTotal": 3188}, {"grade": 137100, "compLabor": 4008, "compHealth": 6634, "compOccu": 153, "compPension": 8226, "compTotal": 19021, "empLabor": 1145, "empHealth": 2126, "empTotal": 3271}, {"grade": 142500, "compLabor": 4008, "compHealth": 6896, "compOccu": 153, "compPension": 8550, "compTotal": 19607, "empLabor": 1145, "empHealth": 2210, "empTotal": 3355}, {"grade": 147900, "compLabor": 4008, "compHealth": 7157, "compOccu": 153, "compPension": 8874, "compTotal": 20192, "empLabor": 1145, "empHealth": 2294, "empTotal": 3439}, {"grade": 150000, "compLabor": 4008, "compHealth": 7259, "compOccu": 153, "compPension": 9000, "compTotal": 20420, "empLabor": 1145, "empHealth": 2327, "empTotal": 3472}, {"grade": 156400, "compLabor": 4008, "compHealth": 7568, "compOccu": 153, "compPension": 9000, "compTotal": 20729, "empLabor": 1145, "empHealth": 2426, "empTotal": 3571}, {"grade": 162800, "compLabor": 4008, "compHealth": 7878, "compOccu": 153, "compPension": 9000, "compTotal": 21039, "empLabor": 1145, "empHealth": 2525, "empTotal": 3670}, {"grade": 169200, "compLabor": 4008, "compHealth": 8188, "compOccu": 153, "compPension": 9000, "compTotal": 21349, "empLabor": 1145, "empHealth": 2624, "empTotal": 3769}, {"grade": 175600, "compLabor": 4008, "compHealth": 8497, "compOccu": 153, "compPension": 9000, "compTotal": 21658, "empLabor": 1145, "empHealth": 2724, "empTotal": 3869}, {"grade": 182000, "compLabor": 4008, "compHealth": 8807, "compOccu": 153, "compPension": 9000, "compTotal": 21968, "empLabor": 1145, "empHealth": 2823, "empTotal": 3968}, {"grade": 189500, "compLabor": 4008, "compHealth": 9170, "compOccu": 153, "compPension": 9000, "compTotal": 22331, "empLabor": 1145, "empHealth": 2939, "empTotal": 4084}, {"grade": 197000, "compLabor": 4008, "compHealth": 9533, "compOccu": 153, "compPension": 9000, "compTotal": 22694, "empLabor": 1145, "empHealth": 3055, "empTotal": 4200}, {"grade": 204500, "compLabor": 4008, "compHealth": 9896, "compOccu": 153, "compPension": 9000, "compTotal": 23057, "empLabor": 1145, "empHealth": 3172, "empTotal": 4317}, {"grade": 212000, "compLabor": 4008, "compHealth": 10259, "compOccu": 153, "compPension": 9000, "compTotal": 23420, "empLabor": 1145, "empHealth": 3288, "empTotal": 4433}, {"grade": 219500, "compLabor": 4008, "compHealth": 10622, "compOccu": 153, "compPension": 9000, "compTotal": 23783, "empLabor": 1145, "empHealth": 3404, "empTotal": 4549}, {"grade": 228200, "compLabor": 4008, "compHealth": 11043, "compOccu": 153, "compPension": 9000, "compTotal": 24204, "empLabor": 1145, "empHealth": 3539, "empTotal": 4684}, {"grade": 236900, "compLabor": 4008, "compHealth": 11464, "compOccu": 153, "compPension": 9000, "compTotal": 24625, "empLabor": 1145, "empHealth": 3674, "empTotal": 4819}, {"grade": 245600, "compLabor": 4008, "compHealth": 11885, "compOccu": 153, "compPension": 9000, "compTotal": 25046, "empLabor": 1145, "empHealth": 3809, "empTotal": 4954}, {"grade": 254300, "compLabor": 4008, "compHealth": 12306, "compOccu": 153, "compPension": 9000, "compTotal": 25467, "empLabor": 1145, "empHealth": 3944, "empTotal": 5089}, {"grade": 263000, "compLabor": 4008, "compHealth": 12727, "compOccu": 153, "compPension": 9000, "compTotal": 25888, "empLabor": 1145, "empHealth": 4079, "empTotal": 5224}, {"grade": 273000, "compLabor": 4008, "compHealth": 13211, "compOccu": 153, "compPension": 9000, "compTotal": 26372, "empLabor": 1145, "empHealth": 4234, "empTotal": 5379}, {"grade": 283000, "compLabor": 4008, "compHealth": 13695, "compOccu": 153, "compPension": 9000, "compTotal": 26856, "empLabor": 1145, "empHealth": 4389, "empTotal": 5534}, {"grade": 293000, "compLabor": 4008, "compHealth": 14179, "compOccu": 153, "compPension": 9000, "compTotal": 27340, "empLabor": 1145, "empHealth": 4544, "empTotal": 5689}, {"grade": 303000, "compLabor": 4008, "compHealth": 14663, "compOccu": 153, "compPension": 9000, "compTotal": 27824, "empLabor": 1145, "empHealth": 4700, "empTotal": 5845}, {"grade": 313000, "compLabor": 4008, "compHealth": 15146, "compOccu": 153, "compPension": 9000, "compTotal": 28307, "empLabor": 1145, "empHealth": 4855, "empTotal": 6000}];
+const INSURANCE_TABLE = [{"grade": 1500, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 90, "compTotal": 2506, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 3000, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 180, "compTotal": 2596, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 4500, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 270, "compTotal": 2686, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 6000, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 360, "compTotal": 2776, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 7500, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 450, "compTotal": 2866, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 8700, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 522, "compTotal": 2938, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 9900, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 594, "compTotal": 3010, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 11100, "compLabor": 972, "compHealth": 1384, "compOccu": 60, "compPension": 666, "compTotal": 3082, "empLabor": 277, "empHealth": 443, "empTotal": 720}, {"grade": 12540, "compLabor": 1097, "compHealth": 1384, "compOccu": 60, "compPension": 752, "compTotal": 3293, "empLabor": 313, "empHealth": 443, "empTotal": 756}, {"grade": 13500, "compLabor": 1182, "compHealth": 1384, "compOccu": 60, "compPension": 810, "compTotal": 3436, "empLabor": 338, "empHealth": 443, "empTotal": 781}, {"grade": 15840, "compLabor": 1386, "compHealth": 1384, "compOccu": 60, "compPension": 950, "compTotal": 3780, "empLabor": 396, "empHealth": 443, "empTotal": 839}, {"grade": 16500, "compLabor": 1444, "compHealth": 1384, "compOccu": 60, "compPension": 990, "compTotal": 3878, "empLabor": 413, "empHealth": 443, "empTotal": 856}, {"grade": 17280, "compLabor": 1512, "compHealth": 1384, "compOccu": 60, "compPension": 1037, "compTotal": 3993, "empLabor": 432, "empHealth": 443, "empTotal": 875}, {"grade": 17880, "compLabor": 1564, "compHealth": 1384, "compOccu": 60, "compPension": 1073, "compTotal": 4081, "empLabor": 447, "empHealth": 443, "empTotal": 890}, {"grade": 19047, "compLabor": 1666, "compHealth": 1384, "compOccu": 60, "compPension": 1143, "compTotal": 4253, "empLabor": 476, "empHealth": 443, "empTotal": 919}, {"grade": 20008, "compLabor": 1751, "compHealth": 1384, "compOccu": 60, "compPension": 1200, "compTotal": 4395, "empLabor": 500, "empHealth": 443, "empTotal": 943}, {"grade": 21009, "compLabor": 1838, "compHealth": 1384, "compOccu": 60, "compPension": 1261, "compTotal": 4543, "empLabor": 525, "empHealth": 443, "empTotal": 968}, {"grade": 22000, "compLabor": 1925, "compHealth": 1384, "compOccu": 60, "compPension": 1320, "compTotal": 4689, "empLabor": 550, "empHealth": 443, "empTotal": 993}, {"grade": 23100, "compLabor": 2022, "compHealth": 1384, "compOccu": 60, "compPension": 1386, "compTotal": 4852, "empLabor": 577, "empHealth": 443, "empTotal": 1020}, {"grade": 24000, "compLabor": 2100, "compHealth": 1384, "compOccu": 60, "compPension": 1440, "compTotal": 4984, "empLabor": 600, "empHealth": 443, "empTotal": 1043}, {"grade": 25250, "compLabor": 2210, "compHealth": 1384, "compOccu": 60, "compPension": 1515, "compTotal": 5169, "empLabor": 632, "empHealth": 443, "empTotal": 1075}, {"grade": 26400, "compLabor": 2310, "compHealth": 1384, "compOccu": 60, "compPension": 1584, "compTotal": 5338, "empLabor": 660, "empHealth": 443, "empTotal": 1103}, {"grade": 27600, "compLabor": 2415, "compHealth": 1384, "compOccu": 60, "compPension": 1656, "compTotal": 5515, "empLabor": 690, "empHealth": 443, "empTotal": 1133}, {"grade": 29500, "compLabor": 2581, "compHealth": 1428, "compOccu": 62, "compPension": 1770, "compTotal": 5841, "empLabor": 738, "empHealth": 458, "empTotal": 1196}, {"grade": 30300, "compLabor": 2651, "compHealth": 1466, "compOccu": 64, "compPension": 1818, "compTotal": 5999, "empLabor": 758, "empHealth": 470, "empTotal": 1228}, {"grade": 31800, "compLabor": 2783, "compHealth": 1539, "compOccu": 67, "compPension": 1908, "compTotal": 6297, "empLabor": 795, "empHealth": 493, "empTotal": 1288}, {"grade": 33300, "compLabor": 2914, "compHealth": 1611, "compOccu": 70, "compPension": 1998, "compTotal": 6593, "empLabor": 833, "empHealth": 516, "empTotal": 1349}, {"grade": 34800, "compLabor": 3045, "compHealth": 1684, "compOccu": 73, "compPension": 2088, "compTotal": 6890, "empLabor": 870, "empHealth": 540, "empTotal": 1410}, {"grade": 36300, "compLabor": 3176, "compHealth": 1757, "compOccu": 76, "compPension": 2178, "compTotal": 7187, "empLabor": 908, "empHealth": 563, "empTotal": 1471}, {"grade": 38200, "compLabor": 3342, "compHealth": 1849, "compOccu": 80, "compPension": 2292, "compTotal": 7563, "empLabor": 955, "empHealth": 592, "empTotal": 1547}, {"grade": 40100, "compLabor": 3509, "compHealth": 1940, "compOccu": 84, "compPension": 2406, "compTotal": 7939, "empLabor": 1002, "empHealth": 622, "empTotal": 1624}, {"grade": 42000, "compLabor": 3675, "compHealth": 2032, "compOccu": 88, "compPension": 2520, "compTotal": 8315, "empLabor": 1050, "empHealth": 651, "empTotal": 1701}, {"grade": 43900, "compLabor": 3841, "compHealth": 2124, "compOccu": 92, "compPension": 2634, "compTotal": 8691, "empLabor": 1098, "empHealth": 681, "empTotal": 1779}, {"grade": 45800, "compLabor": 4008, "compHealth": 2216, "compOccu": 96, "compPension": 2748, "compTotal": 9068, "empLabor": 1145, "empHealth": 710, "empTotal": 1855}, {"grade": 48200, "compLabor": 4008, "compHealth": 2332, "compOccu": 101, "compPension": 2892, "compTotal": 9333, "empLabor": 1145, "empHealth": 748, "empTotal": 1893}, {"grade": 50600, "compLabor": 4008, "compHealth": 2449, "compOccu": 106, "compPension": 3036, "compTotal": 9599, "empLabor": 1145, "empHealth": 785, "empTotal": 1930}, {"grade": 53000, "compLabor": 4008, "compHealth": 2565, "compOccu": 111, "compPension": 3180, "compTotal": 9864, "empLabor": 1145, "empHealth": 822, "empTotal": 1967}, {"grade": 55400, "compLabor": 4008, "compHealth": 2681, "compOccu": 116, "compPension": 3324, "compTotal": 10129, "empLabor": 1145, "empHealth": 859, "empTotal": 2004}, {"grade": 57800, "compLabor": 4008, "compHealth": 2797, "compOccu": 121, "compPension": 3468, "compTotal": 10394, "empLabor": 1145, "empHealth": 896, "empTotal": 2041}, {"grade": 60800, "compLabor": 4008, "compHealth": 2942, "compOccu": 128, "compPension": 3648, "compTotal": 10726, "empLabor": 1145, "empHealth": 943, "empTotal": 2088}, {"grade": 63800, "compLabor": 4008, "compHealth": 3087, "compOccu": 134, "compPension": 3828, "compTotal": 11057, "empLabor": 1145, "empHealth": 990, "empTotal": 2135}, {"grade": 66800, "compLabor": 4008, "compHealth": 3233, "compOccu": 140, "compPension": 4008, "compTotal": 11389, "empLabor": 1145, "empHealth": 1036, "empTotal": 2181}, {"grade": 69800, "compLabor": 4008, "compHealth": 3378, "compOccu": 147, "compPension": 4188, "compTotal": 11721, "empLabor": 1145, "empHealth": 1083, "empTotal": 2228}, {"grade": 72800, "compLabor": 4008, "compHealth": 3523, "compOccu": 153, "compPension": 4368, "compTotal": 12052, "empLabor": 1145, "empHealth": 1129, "empTotal": 2274}, {"grade": 76500, "compLabor": 4008, "compHealth": 3702, "compOccu": 153, "compPension": 4590, "compTotal": 12453, "empLabor": 1145, "empHealth": 1187, "empTotal": 2332}, {"grade": 80200, "compLabor": 4008, "compHealth": 3881, "compOccu": 153, "compPension": 4812, "compTotal": 12854, "empLabor": 1145, "empHealth": 1244, "empTotal": 2389}, {"grade": 83900, "compLabor": 4008, "compHealth": 4060, "compOccu": 153, "compPension": 5034, "compTotal": 13255, "empLabor": 1145, "empHealth": 1301, "empTotal": 2446}, {"grade": 87600, "compLabor": 4008, "compHealth": 4239, "compOccu": 153, "compPension": 5256, "compTotal": 13656, "empLabor": 1145, "empHealth": 1359, "empTotal": 2504}, {"grade": 92100, "compLabor": 4008, "compHealth": 4457, "compOccu": 153, "compPension": 5526, "compTotal": 14144, "empLabor": 1145, "empHealth": 1428, "empTotal": 2573}, {"grade": 96600, "compLabor": 4008, "compHealth": 4675, "compOccu": 153, "compPension": 5796, "compTotal": 14632, "empLabor": 1145, "empHealth": 1498, "empTotal": 2643}, {"grade": 101100, "compLabor": 4008, "compHealth": 4892, "compOccu": 153, "compPension": 6066, "compTotal": 15119, "empLabor": 1145, "empHealth": 1568, "empTotal": 2713}, {"grade": 105600, "compLabor": 4008, "compHealth": 5110, "compOccu": 153, "compPension": 6336, "compTotal": 15607, "empLabor": 1145, "empHealth": 1638, "empTotal": 2783}, {"grade": 110100, "compLabor": 4008, "compHealth": 5328, "compOccu": 153, "compPension": 6606, "compTotal": 16095, "empLabor": 1145, "empHealth": 1708, "empTotal": 2853}, {"grade": 115500, "compLabor": 4008, "compHealth": 5589, "compOccu": 153, "compPension": 6930, "compTotal": 16680, "empLabor": 1145, "empHealth": 1791, "empTotal": 2936}, {"grade": 120900, "compLabor": 4008, "compHealth": 5850, "compOccu": 153, "compPension": 7254, "compTotal": 17265, "empLabor": 1145, "empHealth": 1875, "empTotal": 3020}, {"grade": 126300, "compLabor": 4008, "compHealth": 6112, "compOccu": 153, "compPension": 7578, "compTotal": 17851, "empLabor": 1145, "empHealth": 1959, "empTotal": 3104}, {"grade": 131700, "compLabor": 4008, "compHealth": 6373, "compOccu": 153, "compPension": 7902, "compTotal": 18436, "empLabor": 1145, "empHealth": 2043, "empTotal": 3188}, {"grade": 137100, "compLabor": 4008, "compHealth": 6634, "compOccu": 153, "compPension": 8226, "compTotal": 19021, "empLabor": 1145, "empHealth": 2126, "empTotal": 3271}, {"grade": 142500, "compLabor": 4008, "compHealth": 6896, "compOccu": 153, "compPension": 8550, "compTotal": 19607, "empLabor": 1145, "empHealth": 2210, "empTotal": 3355}, {"grade": 147900, "compLabor": 4008, "compHealth": 7157, "compOccu": 153, "compPension": 8874, "compTotal": 20192, "empLabor": 1145, "empHealth": 2294, "empTotal": 3439}, {"grade": 150000, "compLabor": 4008, "compHealth": 7259, "compOccu": 153, "compPension": 9000, "compTotal": 20420, "empLabor": 1145, "empHealth": 2327, "empTotal": 3472}, {"grade": 156400, "compLabor": 4008, "compHealth": 7568, "compOccu": 153, "compPension": 9000, "compTotal": 20729, "empLabor": 1145, "empHealth": 2426, "empTotal": 3571}, {"grade": 162800, "compLabor": 4008, "compHealth": 7878, "compOccu": 153, "compPension": 9000, "compTotal": 21039, "empLabor": 1145, "empHealth": 2525, "empTotal": 3670}, {"grade": 169200, "compLabor": 4008, "compHealth": 8188, "compOccu": 153, "compPension": 9000, "compTotal": 21349, "empLabor": 1145, "empHealth": 2624, "empTotal": 3769}, {"grade": 175600, "compLabor": 4008, "compHealth": 8497, "compOccu": 153, "compPension": 9000, "compTotal": 21658, "empLabor": 1145, "empHealth": 2724, "empTotal": 3869}, {"grade": 182000, "compLabor": 4008, "compHealth": 8807, "compOccu": 153, "compPension": 9000, "compTotal": 21968, "empLabor": 1145, "empHealth": 2823, "empTotal": 3968}, {"grade": 189500, "compLabor": 4008, "compHealth": 9170, "compOccu": 153, "compPension": 9000, "compTotal": 22331, "empLabor": 1145, "empHealth": 2939, "empTotal": 4084}, {"grade": 197000, "compLabor": 4008, "compHealth": 9533, "compOccu": 153, "compPension": 9000, "compTotal": 22694, "empLabor": 1145, "empHealth": 3055, "empTotal": 4200}, {"grade": 204500, "compLabor": 4008, "compHealth": 9896, "compOccu": 153, "compPension": 9000, "compTotal": 23057, "empLabor": 1145, "empHealth": 3172, "empTotal": 4317}, {"grade": 212000, "compLabor": 4008, "compHealth": 10259, "compOccu": 153, "compPension": 9000, "compTotal": 23420, "empLabor": 1145, "empHealth": 3288, "empTotal": 4433}, {"grade": 219500, "compLabor": 4008, "compHealth": 10622, "compOccu": 153, "compPension": 9000, "compTotal": 23783, "empLabor": 1145, "empHealth": 3404, "empTotal": 4549}, {"grade": 228200, "compLabor": 4008, "compHealth": 11043, "compOccu": 153, "compPension": 9000, "compTotal": 24204, "empLabor": 1145, "empHealth": 3539, "empTotal": 4684}, {"grade": 236900, "compLabor": 4008, "compHealth": 11464, "compOccu": 153, "compPension": 9000, "compTotal": 24625, "empLabor": 1145, "empHealth": 3674, "empTotal": 4819}, {"grade": 245600, "compLabor": 4008, "compHealth": 11885, "compOccu": 153, "compPension": 9000, "compTotal": 25046, "empLabor": 1145, "empHealth": 3809, "empTotal": 4954}, {"grade": 254300, "compLabor": 4008, "compHealth": 12306, "compOccu": 153, "compPension": 9000, "compTotal": 25467, "empLabor": 1145, "empHealth": 3944, "empTotal": 5089}, {"grade": 263000, "compLabor": 4008, "compHealth": 12727, "compOccu": 153, "compPension": 9000, "compTotal": 25888, "empLabor": 1145, "empHealth": 4079, "empTotal": 5224}, {"grade": 273000, "compLabor": 4008, "compHealth": 13211, "compOccu": 153, "compPension": 9000, "compTotal": 26372, "empLabor": 1145, "empHealth": 4234, "empTotal": 5379}, {"grade": 283000, "compLabor": 4008, "compHealth": 13695, "compOccu": 153, "compPension": 9000, "compTotal": 26856, "empLabor": 1145, "empHealth": 4389, "empTotal": 5534}, {"grade": 293000, "compLabor": 4008, "compHealth": 14179, "compOccu": 153, "compPension": 9000, "compTotal": 27340, "empLabor": 1145, "empHealth": 4544, "empTotal": 5689}, {"grade": 303000, "compLabor": 4008, "compHealth": 14663, "compOccu": 153, "compPension": 9000, "compTotal": 27824, "empLabor": 1145, "empHealth": 4700, "empTotal": 5845}, {"grade": 313000, "compLabor": 4008, "compHealth": 15146, "compOccu": 153, "compPension": 9000, "compTotal": 28307, "empLabor": 1145, "empHealth": 4855, "empTotal": 6000}];
 function findInsurance(grade){
   if(!grade) return null;
   let exact = INSURANCE_TABLE.find(r => r.grade === Number(grade));
@@ -222,7 +247,7 @@ function emptyEntry(){
   return {
     otWeekday134:0, otWeekday167:0, otRestDayHours:0, otHolidayHours:0, otMandatoryRestHours:0,
     festivalBonus:0, yearEndBonus:0, otherBonus:0, performanceBonus:0,
-    personalLeave:0, sickLeave:0, disasterLeave:0, otherLeave:0,
+    personalLeave:0, sickLeave:0, menstrualLeave:0, disasterLeave:0, otherLeave:0,
     annualLeaveSettlement:0,
     businessExpense:0, salesPerformance:0, otherExpense26:0, salesBonus26:0, deduction26:0,
     otherDeduction:0, note:''
@@ -246,44 +271,98 @@ function calcHolidayPay(hourly, dailyWage, hours){
   const ot167 = Math.max(excess-2,0);
   return {pay: dailyWage + hourly*1.34*ot134 + hourly*1.67*ot167};
 }
-function calcForEmployee(emp, entryRaw){
+function calcMandatoryRestPay(hourly, dailyWage, hours, mode){
+  const h = n(hours);
+  if(h<=0) return 0;
+  if(mode === 'legal'){
+    return calcHolidayPay(hourly, dailyWage, h).pay; // 依勞基法：加發一日工資＋超過8小時比照平日加班費
+  }
+  return hourly*2*h; // 優於勞基法：時薪×2
+}
+// 計算勞健保加退保狀態：勞保依「當月在職天數/30」比例計算；健保看「當月最後一天」是否仍在職，是則收整月保費，否則本月不收
+function getInsuranceStatusForMonth(hireDate, resignDate, month){
+  const parts = String(month||'').split('-').map(Number);
+  const y = parts[0], m = parts[1];
+  if(!y || !m) return {laborDays:30, activeAtMonthEnd:true, fullMonth:true};
+  const monthStart = new Date(y, m-1, 1);
+  const monthEnd = new Date(y, m, 0);
+  let start = monthStart;
+  if(hireDate){ const h = new Date(hireDate); if(!isNaN(h.getTime()) && h>monthStart) start = h; }
+  let end = monthEnd;
+  let activeAtMonthEnd = true;
+  if(resignDate){ const r = new Date(resignDate); if(!isNaN(r.getTime()) && r<monthEnd){ end = r; activeAtMonthEnd = false; } }
+  if(start>end) return {laborDays:0, activeAtMonthEnd:false, fullMonth:false};
+  const laborDays = Math.floor((end-start)/86400000)+1;
+  const fullMonth = (start.getTime()===monthStart.getTime()) && (end.getTime()===monthEnd.getTime());
+  return {laborDays, activeAtMonthEnd, fullMonth};
+}
+function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const entry = {...emptyEntry(), ...(entryRaw||{})};
-  const base = n(emp.baseSalary);
+  const base = n(emp.baseSalary); // 本薪已包含伙食/交通/職務加給/全勤獎金，以下4個欄位僅為拆解說明用途，不重複相加
   const hourly = base>0 ? base/240 : 0;
   const dailyWage = base>0 ? base/30 : 0;
 
   const weekdayOtPay = hourly*1.34*n(entry.otWeekday134) + hourly*1.67*n(entry.otWeekday167);
   const restDay = calcRestDayPay(hourly, entry.otRestDayHours);
   const holiday = calcHolidayPay(hourly, dailyWage, entry.otHolidayHours);
-  const mandatoryRestPay = hourly*2*n(entry.otMandatoryRestHours);
+  const mandatoryRestMode = (settings && settings.mandatoryRestPayMode) || 'double';
+  const mandatoryRestPay = calcMandatoryRestPay(hourly, dailyWage, entry.otMandatoryRestHours, mandatoryRestMode);
   const overtimePay = weekdayOtPay + restDay.pay + holiday.pay + mandatoryRestPay;
-  const monthlyOtHours = n(entry.otWeekday134) + n(entry.otWeekday167);
+  const monthlyOtHours = n(entry.otWeekday134) + n(entry.otWeekday167) + n(entry.otRestDayHours); // 依勞動部見解，休息日出勤時數也算入延長工作時間月上限
 
-  const allowanceTotal = n(emp.mealAllowance)+n(emp.transportAllowance)+n(emp.positionAllowance)+n(emp.fullAttendanceBonus);
+  const allowanceTotal = n(emp.mealAllowance)+n(emp.transportAllowance)+n(emp.positionAllowance)+n(emp.fullAttendanceBonus); // 僅供顯示參考，已含在本薪內
   const bonusTotal = n(entry.festivalBonus)+n(entry.yearEndBonus)+n(entry.otherBonus)+n(entry.performanceBonus);
 
-  const payableA = base + allowanceTotal + bonusTotal + n(entry.annualLeaveSettlement);
+  const payableA = base + bonusTotal + n(entry.annualLeaveSettlement);
   const payableTotal = payableA + overtimePay;
 
   const ins = findInsurance(emp.insuranceGrade);
-  const laborFee = ins ? ins.empLabor : 0;
-  const healthFee = ins ? ins.empHealth : 0;
+  const insStatus = getInsuranceStatusForMonth(emp.hireDate, emp.resignDate, month);
+  const laborFee = ins ? (insStatus.fullMonth ? ins.empLabor : Math.round(ins.empLabor * insStatus.laborDays / 30)) : 0;
+  const dependentCount = Math.min(n(emp.dependentCount), 3); // 眷屬保費同本人金額，超過3人以3人計
+  const healthFee = (ins && insStatus.activeAtMonthEnd) ? ins.empHealth * (1 + dependentCount) : 0;
 
-  const leaveDeduct = hourly*1.0*n(entry.personalLeave) + hourly*0.5*n(entry.sickLeave) + hourly*0*n(entry.disasterLeave) + hourly*1.0*n(entry.otherLeave);
+  const MENSTRUAL_FULL_PAY_HOURS = 24; // 每年前3天(以8hr/天計)生理假全薪
+  const SICK_LEAVE_ANNUAL_CAP_HOURS = 240; // 病假年度30天(以8hr/天計)上限，生理假超過3天部分需併入計算
+  const menstrualUsedBefore = n(leaveBaseline && leaveBaseline.menstrual);
+  const sickUsedBefore = n(leaveBaseline && leaveBaseline.sick);
+  const remainFullPay = Math.max(0, MENSTRUAL_FULL_PAY_HOURS - menstrualUsedBefore);
+  const menstrualPaidHours = Math.min(n(entry.menstrualLeave), remainFullPay);
+  const menstrualOverageThisMonth = n(entry.menstrualLeave) - menstrualPaidHours;
+
+  // 病假＋生理假(超過3天部分)共用年度30天上限；超過部分不給薪(0%)，未超過部分半薪(50%)
+  const menstrualOverageBefore = Math.max(0, menstrualUsedBefore - MENSTRUAL_FULL_PAY_HOURS);
+  const combinedUsedBefore = sickUsedBefore + menstrualOverageBefore;
+  let sickCapRemaining = Math.max(0, SICK_LEAVE_ANNUAL_CAP_HOURS - combinedUsedBefore);
+  const sickHalfPayHours = Math.min(n(entry.sickLeave), sickCapRemaining);
+  const sickUnpaidHours = n(entry.sickLeave) - sickHalfPayHours;
+  sickCapRemaining = Math.max(0, sickCapRemaining - sickHalfPayHours);
+  const menstrualHalfPayHours = Math.min(menstrualOverageThisMonth, sickCapRemaining);
+  const menstrualUnpaidHours = menstrualOverageThisMonth - menstrualHalfPayHours;
+  const menstrualHalfHours = menstrualOverageThisMonth; // 沿用舊欄位名稱：本月生理假超過3天(全薪)的部分小時數
+  const sickCapExceeded = (sickUnpaidHours + menstrualUnpaidHours) > 0;
+
+  const leaveDeduct = hourly*1.0*n(entry.personalLeave)
+    + hourly*0.5*sickHalfPayHours + hourly*1.0*sickUnpaidHours
+    + hourly*0.5*menstrualHalfPayHours + hourly*1.0*menstrualUnpaidHours
+    + hourly*0*n(entry.disasterLeave) + hourly*1.0*n(entry.otherLeave);
   const deductTotal = laborFee + healthFee + leaveDeduct + n(entry.otherDeduction);
 
   const pay06 = payableTotal - deductTotal;
   const pay26 = n(entry.businessExpense)+n(entry.salesPerformance)+n(entry.otherExpense26)+n(entry.salesBonus26)-n(entry.deduction26);
   const grandTotal = pay06 + pay26;
 
-  const recurringPay = base + n(emp.mealAllowance)+n(emp.transportAllowance)+n(emp.positionAllowance);
+  const recurringPay = base; // 本薪已包含伙食/交通/職務加給，不重複相加
   const belowMinWage = base>0 && recurringPay < MIN_WAGE_MONTHLY;
 
   return {
     hourly, dailyWage, overtimePay, weekdayOtPay, restDayPay:restDay.pay, holidayPay:holiday.pay, mandatoryRestPay,
     restDayCountedHours: restDay.countedHours, restDayOverCap: restDay.overCap, monthlyOtHours,
     allowanceTotal, bonusTotal, payableA, payableTotal,
-    laborFee, healthFee, leaveDeduct, deductTotal, pay06, pay26, grandTotal, belowMinWage
+    laborFee, healthFee, leaveDeduct, deductTotal, menstrualPaidHours, menstrualHalfHours,
+    sickHalfPayHours, sickUnpaidHours, menstrualHalfPayHours, menstrualUnpaidHours, sickCapExceeded,
+    pay06, pay26, grandTotal, belowMinWage,
+    insLaborDays: insStatus.laborDays, insFullMonth: insStatus.fullMonth, insActiveAtMonthEnd: insStatus.activeAtMonthEnd
   };
 }
 
@@ -345,6 +424,7 @@ const NAV = [
   {group:'薪資', id:'payroll', label:'薪資計算 / 明細', icon:'calculate'},
   {group:'薪資', id:'payslip', label:'薪資條', icon:'receipt_long'},
   {group:'薪資', id:'transfer', label:'匯款明細表', icon:'account_balance_wallet'},
+  {group:'薪資', id:'register', label:'薪資印領清冊', icon:'fact_check'},
   {group:'薪資', id:'insurance', label:'勞健保級距表', icon:'health_and_safety'},
   {group:'組織設定', id:'companies', label:'公司管理', icon:'business'},
   {group:'組織設定', id:'departments', label:'部門管理', icon:'apartment'},
@@ -368,6 +448,60 @@ function App(){
   const [payrollLoading, setPayrollLoading] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // 共用的員工編輯狀態（員工資料頁籤、薪資明細頁籤都會用到，確保資料連動）
+  const [companies, setCompanies] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [shifts, setShifts] = useState([]);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [isNewEmployee, setIsNewEmployee] = useState(false);
+  const [savingEmployee, setSavingEmployee] = useState(false);
+  const [accountBox, setAccountBox] = useState(null); // {employeeId, name, account, password}
+
+  function loadRefs(){
+    Promise.all([apiGet('getCompanies'), apiGet('getDepartments'), apiGet('getShifts')])
+      .then(([co,dept,sh])=>{ setCompanies(co); setDepartments(dept); setShifts(sh); })
+      .catch(e=>alert(e.message));
+  }
+  function openNewEmployee(){
+    setEditingEmployee({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
+      mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
+      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false,
+      nationalId:'', householdAddress:'', dependentCount:0, resignDate:'', gender:''});
+    setIsNewEmployee(true);
+  }
+  function openEditEmployee(emp){ setEditingEmployee({...emp}); setIsNewEmployee(false); }
+  async function saveEmployee(){
+    if(!editingEmployee.name.trim()){ alert('請輸入姓名'); return; }
+    setSavingEmployee(true);
+    const wasNew = isNewEmployee;
+    const snap = {...editingEmployee};
+    try{
+      let id = snap.id;
+      if(wasNew){ const r = await apiPost('addEmployee', snap); id = r.id; }
+      else await apiPost('updateEmployee', snap);
+      setEditingEmployee(null);
+      await reloadEmployees();
+      if(wasNew && confirm('員工已新增，要不要現在就幫他建立登入帳號？')){
+        setAccountBox({employeeId:id, name:snap.name, account:snap.phone||'', password: Math.random().toString(36).slice(2,8)});
+      }
+    }catch(e){ alert(e.message); }
+    finally{ setSavingEmployee(false); }
+  }
+  async function createAccountSubmit(){
+    if(!accountBox.account.trim()){ alert('請輸入帳號'); return; }
+    try{
+      await apiPost('createAccount', {employeeId: accountBox.employeeId, account: accountBox.account, password: accountBox.password, role:'employee'});
+      alert(`帳號建立完成！\n帳號：${accountBox.account}\n初始密碼：${accountBox.password}\n請告知員工，登入後可自行修改密碼。`);
+      setAccountBox(null);
+    }catch(e){ alert(e.message); }
+  }
+
+  function reloadSettings(){
+    return apiGet('getSettings').then(setSettings).catch(()=>{});
+  }
 
   // 頁面載入時，若本機已有登入 token，先樂觀還原登入狀態
   // 若 token 其實已逾時，後續任何 API 呼叫都會偵測到並自動導回登入畫面
@@ -387,6 +521,8 @@ function App(){
   }
   useEffect(()=>{ if(session) reloadEmployees(); }, [session]);
   useEffect(()=>{ if(session) reloadPayroll(month); }, [session, month]);
+  useEffect(()=>{ if(session) reloadSettings(); }, [session]);
+  useEffect(()=>{ if(session) loadRefs(); }, [session]);
 
   function setEntry(empId, patch){
     setPayrollEntries(prev => ({...prev, [empId]: {...emptyEntry(), ...(prev[empId]||{}), ...patch}}));
@@ -398,9 +534,23 @@ function App(){
     catch(e){ alert(e.message); }
     finally{ setSaving(false); }
   }
+  const [menstrualBaseline, setMenstrualBaseline] = useState({});
+
+  function refreshMenstrualBaseline(){
+    apiGet('getMonthlySummary', {month}).then(summary=>{
+      const map = {};
+      summary.forEach(s=>{ map[s.employeeId] = {menstrual: s.menstrualLeaveUsedBefore || 0, sick: s.sickLeaveUsedBefore || 0}; });
+      setMenstrualBaseline(map);
+    }).catch(()=>{});
+  }
+  useEffect(()=>{ if(session) refreshMenstrualBaseline(); }, [session, month]);
+
   async function applyAttendanceToPayroll(){
     try{
       const summary = await apiGet('getMonthlySummary', {month});
+      const map = {};
+      summary.forEach(s=>{ map[s.employeeId] = {menstrual: s.menstrualLeaveUsedBefore || 0, sick: s.sickLeaveUsedBefore || 0}; });
+      setMenstrualBaseline(map);
       setPayrollEntries(prev => {
         const next = {...prev};
         summary.forEach(s=>{
@@ -408,7 +558,8 @@ function App(){
           next[s.employeeId] = {...emptyEntry(), ...cur,
             otWeekday134: s.otWeekday134, otWeekday167: s.otWeekday167,
             otRestDayHours: s.otRestDayHours, otHolidayHours: s.otHolidayHours, otMandatoryRestHours: s.otMandatoryRestHours,
-            personalLeave: s.personalLeave || 0, sickLeave: s.sickLeave || 0, disasterLeave: s.disasterLeave || 0};
+            personalLeave: s.personalLeave || 0, sickLeave: s.sickLeave || 0, disasterLeave: s.disasterLeave || 0,
+            menstrualLeave: s.menstrualLeave || 0};
         });
         return next;
       });
@@ -419,8 +570,8 @@ function App(){
 
   const rows = useMemo(()=> employees.map(emp=>{
     const entry = payrollEntries[emp.id] || emptyEntry();
-    return {emp, entry, calc: calcForEmployee(emp, entry)};
-  }), [employees, payrollEntries]);
+    return {emp, entry, calc: calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||{menstrual:0,sick:0}, month)};
+  }), [employees, payrollEntries, settings, menstrualBaseline, month]);
 
   const needsMonth = ['records','requests','attendance','payroll','payslip','transfer'].includes(tab);
 
@@ -443,28 +594,33 @@ function App(){
   let lastGroup = null;
   return (
     <div className="app-shell">
-      <div className="sidebar">
-        <div className="brand"><div className="mark">後台管理</div><div className="sub">出缺勤與薪資系統</div></div>
+      <div className={'sidebar' + (sidebarCollapsed ? ' collapsed' : '')}>
+        <div className="brand" style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+          {!sidebarCollapsed && <div><div className="mark">後台管理</div><div className="sub">出缺勤與薪資系統</div></div>}
+          <button className="icon-btn" onClick={()=>setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed?'展開選單':'收合選單'} style={{color:'#EEEEEE', flexShrink:0}}>
+            <span className="material-icons">{sidebarCollapsed?'menu':'menu_open'}</span>
+          </button>
+        </div>
         {NAV.map(item=>{
           const showLabel = item.group !== lastGroup;
           lastGroup = item.group;
           return (
             <React.Fragment key={item.id}>
-              {showLabel && <div className="nav-group-label">{item.group}</div>}
-              <div className={'navitem'+(tab===item.id?' active':'')} onClick={()=>setTab(item.id)}>
-                <span className="material-icons">{item.icon}</span>{item.label}
+              {showLabel && !sidebarCollapsed && <div className="nav-group-label">{item.group}</div>}
+              <div className={'navitem'+(tab===item.id?' active':'')} onClick={()=>setTab(item.id)} title={sidebarCollapsed?item.label:''}>
+                <span className="material-icons">{item.icon}</span>{!sidebarCollapsed && item.label}
               </div>
             </React.Fragment>
           );
         })}
         <div style={{padding:'14px 18px', marginTop:'auto', display:'flex', flexDirection:'column', gap:8}}>
           <a href="index.html" target="_blank" rel="noopener" style={{textDecoration:'none'}}>
-            <button className="ghost sm" style={{background:'transparent', color:'#EEEEEE', borderColor:'#454B55', justifyContent:'center', width:'100%'}}>
-              <span className="material-icons" style={{fontSize:16}}>open_in_new</span>前往打卡頁面
+            <button className="ghost sm" style={{background:'transparent', color:'#EEEEEE', borderColor:'#454B55', justifyContent:'center', width:'100%'}} title="前往打卡頁面">
+              <span className="material-icons" style={{fontSize:16}}>open_in_new</span>{!sidebarCollapsed && '前往打卡頁面'}
             </button>
           </a>
-          <button className="ghost sm" style={{background:'transparent', color:'#EEEEEE', borderColor:'#454B55', justifyContent:'center'}} onClick={()=>{ if(confirm('確定要登出嗎？')) logout(); }}>
-            <span className="material-icons" style={{fontSize:16}}>logout</span>登出
+          <button className="ghost sm" style={{background:'transparent', color:'#EEEEEE', borderColor:'#454B55', justifyContent:'center'}} onClick={()=>{ if(confirm('確定要登出嗎？')) logout(); }} title="登出">
+            <span className="material-icons" style={{fontSize:16}}>logout</span>{!sidebarCollapsed && '登出'}
           </button>
         </div>
       </div>
@@ -479,20 +635,21 @@ function App(){
                 <input type="month" value={month} onChange={e=>setMonth(e.target.value)} />
               </>
             )}
-            {dirty && <button className="sm" onClick={savePayroll} disabled={saving}>{saving?'儲存中...':'儲存薪資紀錄'}</button>}
+            {dirty && <button onClick={savePayroll} disabled={saving}>{saving?'儲存中...':'儲存薪資紀錄'}</button>}
           </div>
         </div>
         <div className="content">
           {tab==='dashboard' && <DashboardTab setTab={setTab}/>}
-          {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees}/>}
+          {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees} onEdit={openEditEmployee} onNew={openNewEmployee} accountBox={accountBox} setAccountBox={setAccountBox} createAccountSubmit={createAccountSubmit}/>}
           {tab==='records' && <RecordsTab employees={employees} month={month}/>}
           {tab==='requests' && <RequestsTab month={month}/>}
           {tab==='annual' && <AnnualLeaveTab employees={employees}/>}
           {tab==='comp' && <CompLedgerTab employees={employees}/>}
           {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}/>}
-          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving}/>}
-          {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month}/>}
+          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee}/>}
+          {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month} settings={settings} menstrualBaseline={menstrualBaseline}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
+          {tab==='register' && <PayrollRegisterTab/>}
           {tab==='insurance' && <InsuranceTab/>}
           {tab==='companies' && <CompanyTab/>}
           {tab==='departments' && <DepartmentTab employees={employees}/>}
@@ -500,74 +657,113 @@ function App(){
           {tab==='holidays' && <HolidaysTab/>}
           {tab==='announcements' && <AnnouncementsTab/>}
           {tab==='accounts' && <AccountsTab employees={employees}/>}
-          {tab==='settings' && <SettingsTab/>}
+          {tab==='settings' && <SettingsTab onSaved={reloadSettings}/>}
+        </div>
+      </div>
+      <EmployeeEditModal editing={editingEmployee} setEditing={setEditingEmployee} isNew={isNewEmployee} saving={savingEmployee} onSave={saveEmployee} companies={companies} departments={departments} shifts={shifts}/>
+    </div>
+  );
+}
+
+/* ========================= 員工資料 ========================= */
+function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companies, departments, shifts}){
+  if(!editing) return null;
+  return (
+    <div className="modal-bg">
+      <div className="modal">
+        <h3><span className="material-icons">badge</span>{isNew ? '新增員工' : '編輯員工：' + editing.name}</h3>
+        <div className="grid-2">
+          <div className="field"><label>所屬公司</label>
+            <select value={editing.companyId} onChange={e=>{ const c=companies.find(x=>x.id===e.target.value); setEditing({...editing, companyId:e.target.value, company: c?c.name:''}); }}>
+              <option value="">請選擇</option>
+              {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div className="field"><label>部門</label>
+            <select value={editing.departmentId} onChange={e=>{ const d=departments.find(x=>x.id===e.target.value); setEditing({...editing, departmentId:e.target.value, department: d?d.name:''}); }}>
+              <option value="">請選擇</option>
+              {departments.filter(d=>!editing.companyId || d.companyId===editing.companyId).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+          <div className="field"><label>姓名 *</label><input value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} /></div>
+          <div className="field"><label>手機</label><input value={editing.phone} onChange={e=>setEditing({...editing, phone:e.target.value})} placeholder="09xxxxxxxx" /></div>
+          <div className="field"><label>身分證字號</label><input value={editing.nationalId} onChange={e=>setEditing({...editing, nationalId:e.target.value})} placeholder="A123456789" /></div>
+          <div className="field"><label>性別</label>
+            <select value={editing.gender||''} onChange={e=>setEditing({...editing, gender:e.target.value})}>
+              <option value="">不提供</option>
+              <option value="女">女</option>
+              <option value="男">男</option>
+            </select>
+          </div>
+          <div className="field" style={{gridColumn:'span 2'}}><label>戶籍地</label><input value={editing.householdAddress} onChange={e=>setEditing({...editing, householdAddress:e.target.value})} style={{width:'100%'}} /></div>
+          <div className="field"><label>到職日</label><input type="date" value={editing.hireDate} onChange={e=>setEditing({...editing, hireDate:e.target.value})} /></div>
+          <div className="field">
+            <label>離職日</label>
+            <input type="date" value={editing.resignDate||''} onChange={e=>setEditing({...editing, resignDate:e.target.value, status: e.target.value ? '離職' : editing.status})} />
+            <div className="hint" style={{marginTop:4}}>有填離職日時，勞保費當月按在職天數比例計算，健保費則看月底當天是否仍在職（在職才收整月保費）</div>
+          </div>
+
+          <div className="field"><label>班別</label>
+            <select value={editing.shiftId} onChange={e=>setEditing({...editing, shiftId:e.target.value})}>
+              <option value="">依系統預設班別</option>
+              {shifts.map(s=><option key={s.id} value={s.id}>{s.name}（{s.workStart}-{s.workEnd}）</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>投保級距</label>
+            <div style={{display:'flex', gap:6}}>
+              <select value={editing.insuranceGrade} onChange={e=>setEditing({...editing, insuranceGrade:Number(e.target.value)})} style={{flex:1}}>
+                <option value={0}>未設定</option>
+                {INSURANCE_TABLE.map(r=><option key={r.grade} value={r.grade}>{r.grade.toLocaleString()}</option>)}
+              </select>
+              <button type="button" className="ghost sm" onClick={()=>setEditing({...editing, insuranceGrade: suggestGrade(editing.baseSalary)})}>依本薪建議</button>
+            </div>
+          </div>
+          <div className="field">
+            <label>健保眷屬人數</label>
+            <input type="number" min="0" value={editing.dependentCount} onChange={e=>setEditing({...editing, dependentCount:Number(e.target.value)})} />
+            <div className="hint" style={{marginTop:4}}>眷屬保費同本人金額，超過3人一律以3人計算</div>
+          </div>
+          <div className="field"><label>本薪</label><input type="number" value={editing.baseSalary} onChange={e=>setEditing({...editing, baseSalary:Number(e.target.value)})} /></div>
+
+          <div className="field"><label>伙食津貼</label><input type="number" value={editing.mealAllowance} onChange={e=>setEditing({...editing, mealAllowance:Number(e.target.value)})} /></div>
+          <div className="field"><label>交通津貼</label><input type="number" value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} /></div>
+          <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
+          <div className="field"><label>全勤獎金（固定）</label><input type="number" value={editing.fullAttendanceBonus} onChange={e=>setEditing({...editing, fullAttendanceBonus:Number(e.target.value)})} /></div>
+
+          <div className="field"><label>銀行</label><input value={editing.bankName} onChange={e=>setEditing({...editing, bankName:e.target.value})} /></div>
+          <div className="field"><label>銀行帳號</label><input value={editing.bankAccount} onChange={e=>setEditing({...editing, bankAccount:e.target.value})} /></div>
+        </div>
+        {editing.baseSalary>0 && (n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance)) < MIN_WAGE_MONTHLY && (
+          <div className="hint" style={{color:'var(--danger)'}}>⚠ 本薪＋伙食＋交通＋職務加給合計 {money(n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance))} 元，低於2026年最低工資 {money(MIN_WAGE_MONTHLY)} 元，可能違反《最低工資法》（全勤獎金為條件式給予，不列入計算基準）</div>
+        )}
+        <div className="hint">依2026年新制，婚假、喪假、公假、產假、陪產假、生理假等法定假別不得作為扣發全勤獎金的理由，僅事假、遲到、曠工等得依公司規定扣發。</div>
+        <div className="field"><label>備註</label><input value={editing.note} onChange={e=>setEditing({...editing, note:e.target.value})} style={{width:'100%'}} /></div>
+        <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
+          <input type="checkbox" checked={editing.canBeDelegate !== false} onChange={e=>setEditing({...editing, canBeDelegate:e.target.checked})} style={{width:'auto'}} />
+          可被員工指定為請假代理人
+        </label>
+        <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
+          <input type="checkbox" checked={editing.exemptFromAttendance === true} onChange={e=>setEditing({...editing, exemptFromAttendance:e.target.checked})} style={{width:'auto'}} />
+          免打卡（不列入出缺勤彙總與薪資自動試算，薪資項目需手動填寫，如業務費用）
+        </label>
+        {editing.hireDate && <div className="hint">{tenureText(editing.hireDate)}</div>}
+        <div className="modal-actions">
+          <button className="ghost" onClick={()=>setEditing(null)}>取消</button>
+          <button onClick={onSave} disabled={saving}>{saving?'儲存中...':'儲存'}</button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ========================= 員工資料 ========================= */
-function EmployeesTab({employees, loading, reload}){
-  const [editing, setEditing] = useState(null);
-  const [isNew, setIsNew] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [companies, setCompanies] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [shifts, setShifts] = useState([]);
-  const [accountBox, setAccountBox] = useState(null); // {employeeId, name, account, password}
-
-  function loadRefs(){
-    Promise.all([apiGet('getCompanies'), apiGet('getDepartments'), apiGet('getShifts')])
-      .then(([co,dept,sh])=>{ setCompanies(co); setDepartments(dept); setShifts(sh); })
-      .catch(e=>alert(e.message));
-  }
-  useEffect(loadRefs, []);
-
-  function openNew(){
-    setEditing({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
-      mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
-      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false});
-    setIsNew(true);
-  }
-  function openEdit(emp){ setEditing({...emp}); setIsNew(false); }
-  async function save(){
-    if(!editing.name.trim()){ alert('請輸入姓名'); return; }
-    setSaving(true);
-    try{
-      let id = editing.id;
-      if(isNew){ const r = await apiPost('addEmployee', editing); id = r.id; }
-      else await apiPost('updateEmployee', editing);
-      setEditing(null);
-      await reload();
-      if(isNew){
-        if(confirm('員工已新增，要不要現在就幫他建立登入帳號？')){
-          setAccountBox({employeeId:id, name:editing.name, account:editing.phone||'', password: Math.random().toString(36).slice(2,8)});
-        }
-      }
-    }catch(e){ alert(e.message); }
-    finally{ setSaving(false); }
-  }
-  async function setLeft(emp){
-    if(!confirm(`確定要將 ${emp.name} 設為離職嗎？（歷史打卡與薪資紀錄仍會保留）`)) return;
-    try{ await apiPost('deleteEmployee', {...emp}); await reload(); }
-    catch(e){ alert(e.message); }
-  }
-  async function createAccountSubmit(){
-    if(!accountBox.account.trim()){ alert('請輸入帳號'); return; }
-    try{
-      await apiPost('createAccount', {employeeId: accountBox.employeeId, account: accountBox.account, password: accountBox.password, role:'employee'});
-      alert(`帳號建立完成！\n帳號：${accountBox.account}\n初始密碼：${accountBox.password}\n請告知員工，登入後可自行修改密碼。`);
-      setAccountBox(null);
-    }catch(e){ alert(e.message); }
-  }
-
+function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, setAccountBox, createAccountSubmit}){
   const companiesByCo = [...new Set(employees.map(e=>e.company).filter(Boolean))];
 
   return (
     <div>
       <div className="toolbar">
-        <button onClick={openNew}><span className="material-icons">person_add</span>新增員工</button>
+        <button onClick={onNew}><span className="material-icons">person_add</span>新增員工</button>
         <span className="grow"></span>
         <button className="ghost sm" onClick={reload}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
         <span className="hint">共 {employees.length} 位在職員工</span>
@@ -590,7 +786,7 @@ function EmployeesTab({employees, loading, reload}){
                   {employees.filter(e=>(e.company||'(未分類)')===co).map(emp=>(
                     <tr key={emp.id}>
                       <td className="left">{emp.department}</td>
-                      <td className="left"><b>{emp.name}</b>{emp.exemptFromAttendance && <span className="badge warn" style={{marginLeft:6}}>免打卡</span>}</td>
+                      <td className="left" style={{cursor:'pointer'}} onClick={()=>onEdit(emp)}><b>{emp.name}</b>{emp.exemptFromAttendance && <span className="badge warn" style={{marginLeft:6}}>免打卡</span>}</td>
                       <td className="left mono">{emp.phone}</td>
                       <td>{emp.shift ? emp.shift.name : <span className="hint">預設</span>}</td>
                       <td>{emp.hireDate || '-'}</td>
@@ -598,9 +794,9 @@ function EmployeesTab({employees, loading, reload}){
                       <td>{money(emp.baseSalary)}</td>
                       <td className="left mono">{emp.bankAccount}</td>
                       <td>
-                        <button className="ghost sm" onClick={()=>openEdit(emp)}>編輯</button>{' '}
+                        <button className="ghost sm" onClick={()=>onEdit(emp)}>編輯</button>{' '}
                         <button className="ghost sm" onClick={()=>setAccountBox({employeeId:emp.id, name:emp.name, account:emp.phone||'', password: Math.random().toString(36).slice(2,8)})}>帳號</button>{' '}
-                        <button className="danger sm" onClick={()=>setLeft(emp)}>離職</button>
+                        <button className="danger sm" onClick={()=>{ alert(`請在編輯視窗中手動填寫「${emp.name}」的離職日，儲存後即會標記為離職。`); onEdit(emp); }}>離職</button>
                       </td>
                     </tr>
                   ))}
@@ -609,75 +805,6 @@ function EmployeesTab({employees, loading, reload}){
             </div>
           ))}
         </>
-      )}
-
-      {editing && (
-        <div className="modal-bg">
-          <div className="modal">
-            <h3><span className="material-icons">badge</span>{isNew ? '新增員工' : '編輯員工：' + editing.name}</h3>
-            <div className="grid-2">
-              <div className="field"><label>所屬公司</label>
-                <select value={editing.companyId} onChange={e=>{ const c=companies.find(x=>x.id===e.target.value); setEditing({...editing, companyId:e.target.value, company: c?c.name:''}); }}>
-                  <option value="">請選擇</option>
-                  {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div className="field"><label>部門</label>
-                <select value={editing.departmentId} onChange={e=>{ const d=departments.find(x=>x.id===e.target.value); setEditing({...editing, departmentId:e.target.value, department: d?d.name:''}); }}>
-                  <option value="">請選擇</option>
-                  {departments.filter(d=>!editing.companyId || d.companyId===editing.companyId).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-              <div className="field"><label>姓名 *</label><input value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} /></div>
-              <div className="field"><label>手機</label><input value={editing.phone} onChange={e=>setEditing({...editing, phone:e.target.value})} placeholder="09xxxxxxxx" /></div>
-              <div className="field"><label>到職日</label><input type="date" value={editing.hireDate} onChange={e=>setEditing({...editing, hireDate:e.target.value})} /></div>
-
-              <div className="field"><label>班別</label>
-                <select value={editing.shiftId} onChange={e=>setEditing({...editing, shiftId:e.target.value})}>
-                  <option value="">依系統預設班別</option>
-                  {shifts.map(s=><option key={s.id} value={s.id}>{s.name}（{s.workStart}-{s.workEnd}）</option>)}
-                </select>
-              </div>
-              <div className="field">
-                <label>投保級距</label>
-                <div style={{display:'flex', gap:6}}>
-                  <select value={editing.insuranceGrade} onChange={e=>setEditing({...editing, insuranceGrade:Number(e.target.value)})} style={{flex:1}}>
-                    <option value={0}>未設定</option>
-                    {INSURANCE_TABLE.map(r=><option key={r.grade} value={r.grade}>{r.grade.toLocaleString()}</option>)}
-                  </select>
-                  <button type="button" className="ghost sm" onClick={()=>setEditing({...editing, insuranceGrade: suggestGrade(editing.baseSalary)})}>依本薪建議</button>
-                </div>
-              </div>
-              <div className="field"><label>本薪</label><input type="number" value={editing.baseSalary} onChange={e=>setEditing({...editing, baseSalary:Number(e.target.value)})} /></div>
-
-              <div className="field"><label>伙食津貼</label><input type="number" value={editing.mealAllowance} onChange={e=>setEditing({...editing, mealAllowance:Number(e.target.value)})} /></div>
-              <div className="field"><label>交通津貼</label><input type="number" value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} /></div>
-              <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
-              <div className="field"><label>全勤獎金（固定）</label><input type="number" value={editing.fullAttendanceBonus} onChange={e=>setEditing({...editing, fullAttendanceBonus:Number(e.target.value)})} /></div>
-
-              <div className="field"><label>銀行</label><input value={editing.bankName} onChange={e=>setEditing({...editing, bankName:e.target.value})} /></div>
-              <div className="field"><label>銀行帳號</label><input value={editing.bankAccount} onChange={e=>setEditing({...editing, bankAccount:e.target.value})} /></div>
-            </div>
-            {editing.baseSalary>0 && (n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance)) < MIN_WAGE_MONTHLY && (
-              <div className="hint" style={{color:'var(--danger)'}}>⚠ 本薪＋伙食＋交通＋職務加給合計 {money(n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance))} 元，低於2026年最低工資 {money(MIN_WAGE_MONTHLY)} 元，可能違反《最低工資法》（全勤獎金為條件式給予，不列入計算基準）</div>
-            )}
-            <div className="hint">依2026年新制，婚假、喪假、公假、產假、陪產假、生理假等法定假別不得作為扣發全勤獎金的理由，僅事假、遲到、曠工等得依公司規定扣發。</div>
-            <div className="field"><label>備註</label><input value={editing.note} onChange={e=>setEditing({...editing, note:e.target.value})} style={{width:'100%'}} /></div>
-            <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
-              <input type="checkbox" checked={editing.canBeDelegate !== false} onChange={e=>setEditing({...editing, canBeDelegate:e.target.checked})} style={{width:'auto'}} />
-              可被員工指定為請假代理人
-            </label>
-            <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
-              <input type="checkbox" checked={editing.exemptFromAttendance === true} onChange={e=>setEditing({...editing, exemptFromAttendance:e.target.checked})} style={{width:'auto'}} />
-              免打卡（不列入出缺勤彙總與薪資自動試算，薪資項目需手動填寫，如業務費用）
-            </label>
-            {editing.hireDate && <div className="hint">{tenureText(editing.hireDate)}</div>}
-            <div className="modal-actions">
-              <button className="ghost" onClick={()=>setEditing(null)}>取消</button>
-              <button onClick={save} disabled={saving}>{saving?'儲存中...':'儲存'}</button>
-            </div>
-          </div>
-        </div>
       )}
 
       {accountBox && (
@@ -722,7 +849,7 @@ function RecordsTab({employees, month}){
     <div>
       <div className="toolbar">
         <span className="grow"></span>
-        <button className="ghost" onClick={()=>setManual({employeeId:'', name:'', date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
+        <button className="ghost sm" onClick={()=>setManual({employeeId:'', name:'', date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
         <button className="ghost sm" onClick={load}>重新整理</button>
       </div>
       <div className="card" style={{overflowX:'auto'}}>
@@ -793,13 +920,14 @@ function AttendanceTab({month, onApply}){
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
+  const [makeupBox, setMakeupBox] = useState(null); // {employeeId, name, dates}
 
   function load(){ setLoading(true); apiGet('getMonthlySummary', {month}).then(setSummary).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
   useEffect(load, [month]);
 
   function doExportCSV(){
-    const headers = ['姓名','出勤天數','遲到次數','遲到分鐘','早退次數','早退分鐘','平日1.34倍(hr)','平日1.67倍(hr)','休息日出勤(hr)','國定假日出勤(hr)','例假日出勤(hr)','總工時(hr)','平日加班上限是否超過','定位異常天數'];
-    const rows = summary.map(e=>[e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,e.otWeekday134,e.otWeekday167,e.otRestDayHours,e.otHolidayHours,e.otMandatoryRestHours,e.workedHoursTotal,e.otCapExceeded?'是':'否',e.flaggedDays]);
+    const headers = ['姓名','出勤天數','遲到次數','遲到分鐘','早退次數','早退分鐘','平日1.34倍(hr)','平日1.67倍(hr)','單日超時天數','單日超時日期','休息日出勤(hr)','國定假日出勤(hr)','例假日出勤(hr)','總工時(hr)','平日加班上限是否超過','定位異常天數'];
+    const rows = summary.map(e=>[e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,e.otWeekday134,e.otWeekday167,e.dailyOtExceedDays.length,e.dailyOtExceedDays.join('、'),e.otRestDayHours,e.otHolidayHours,e.otMandatoryRestHours,e.workedHoursTotal,e.otCapExceeded?'是':'否',e.flaggedDays]);
     exportCSV(`出缺勤彙總_${month}.csv`, headers, rows);
   }
   async function doApply(){
@@ -811,13 +939,13 @@ function AttendanceTab({month, onApply}){
     <div>
       <div className="toolbar">
         <span className="grow"></span>
-        <button className="ghost" onClick={doExportCSV}>匯出 CSV</button>
+        <button className="ghost sm" onClick={doExportCSV}>匯出 CSV</button>
         <button onClick={doApply} disabled={applying}>{applying?'套用中...':'套用出缺勤時數到薪資計算'}</button>
       </div>
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
-            <thead><tr><th className="left">姓名</th><th>出勤天數</th><th>遲到次數</th><th>遲到分鐘</th><th>早退次數</th><th>早退分鐘</th><th>平日1.34倍(hr)</th><th>平日1.67倍(hr)</th><th>休息日(hr)</th><th>國定假日(hr)</th><th>例假日(hr)</th><th>總工時(hr)</th><th>定位異常</th></tr></thead>
+            <thead><tr><th className="left">姓名</th><th>出勤天數</th><th>遲到次數</th><th>遲到分鐘</th><th>早退次數</th><th>早退分鐘</th><th>平日1.34倍(hr)</th><th>平日1.67倍(hr)</th><th>單日超時</th><th>休息日(hr)</th><th>國定假日(hr)</th><th>例假日(hr)</th><th>總工時(hr)</th><th>定位異常</th></tr></thead>
             <tbody>
               {summary.map(e=>(
                 <tr key={e.employeeId}>
@@ -826,22 +954,78 @@ function AttendanceTab({month, onApply}){
                   <td>{e.earlyLeaveCount}</td><td>{e.earlyLeaveMinutes}</td>
                   <td className={e.otCapExceeded?'flag':''}>{e.otWeekday134}</td>
                   <td className={e.otCapExceeded?'flag':''}>{e.otWeekday167}</td>
-                  <td>{e.otRestDayHours}</td>
+                  <td className={e.dailyOtWarning?'flag':''} title={e.dailyOtExceedDays.join('、')}>
+                    {e.dailyOtWarning ? <span className="material-icons" style={{fontSize:15, verticalAlign:'middle'}}>warning</span> : '-'}
+                    {e.dailyOtWarning ? ` ${e.dailyOtExceedDays.length}天` : ''}
+                  </td>
+                  <td className={e.otRestDayHours>0 ? (e.otCapExceeded?'flag':'') : ''}>{e.otRestDayHours}</td>
                   <td>{e.otHolidayHours}</td>
-                  <td className={e.otMandatoryRestHours>0?'flag':''}>{e.otMandatoryRestHours}</td>
+                  <td className={e.otMandatoryRestHours>0?'flag':''}>
+                    {e.otMandatoryRestHours}
+                    {e.mandatoryRestDates.length>0 && (
+                      <button className="ghost sm" style={{marginLeft:6, padding:'2px 6px', fontSize:11}} onClick={()=>setMakeupBox({employeeId:e.employeeId, name:e.name, dates:e.mandatoryRestDates, unresolvedDates:e.mandatoryRestUnresolvedDates})}>
+                        {e.mandatoryRestWarning ? '待補假' : '已補假'}
+                      </button>
+                    )}
+                  </td>
                   <td>{e.workedHoursTotal}</td>
                   <td className={e.flaggedDays>0?'flag':''}>{e.flaggedDays}</td>
                 </tr>
               ))}
-              {summary.length===0 && <tr><td colSpan="13" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
+              {summary.length===0 && <tr><td colSpan="14" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
             </tbody>
           </table>
         )}
       </div>
       <div className="hint">
         依勞基法第24條分類計算：平日超時前2小時1.34倍、其後1.67倍；休息日與國定假日出勤時數已依日期自動分類。按「套用出缺勤時數到薪資計算」可直接把這些時數帶入「薪資計算 / 明細」頁籤，帶入後仍可手動調整，最後記得按「儲存薪資紀錄」。<br/>
-        <span className="flag">紅字</span>代表該員工當月平日加班已超過設定的月上限，或有例假日出勤紀錄，請優先確認合法性。
+        <span className="flag">紅字</span>代表該員工當月平日加班已超過設定的月上限，或有例假日出勤紀錄尚未完成補假登記，請優先確認合法性。
       </div>
+      {makeupBox && (
+        <div className="modal-bg">
+          <div className="modal">
+            <h3><span className="material-icons">event_repeat</span>{makeupBox.name} － 例假日補假登記</h3>
+            <div className="hint" style={{marginBottom:10}}>依勞基法第40條，例假日出勤事後須完成補假，請登記每一天實際補假的日期。</div>
+            <MakeupList employeeId={makeupBox.employeeId} dates={makeupBox.dates} onSaved={()=>{ load(); }}/>
+            <div className="modal-actions">
+              <button className="ghost" onClick={()=>setMakeupBox(null)}>關閉</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MakeupList({employeeId, dates, onSaved}){
+  const [existing, setExisting] = useState(null);
+  useEffect(()=>{
+    apiGet('getMandatoryRestMakeups').then(list=>{
+      const map = {};
+      list.filter(m=>m.employeeId===employeeId).forEach(m=>{ map[m.workDate] = m.makeupDate || ''; });
+      setExisting(map);
+    }).catch(()=>setExisting({}));
+  }, []);
+  if(existing===null) return <div className="hint">載入中...</div>;
+  return dates.map(d=>(
+    <MakeupRow key={d} employeeId={employeeId} workDate={d} initialValue={existing[d] || ''} onSaved={onSaved}/>
+  ));
+}
+
+function MakeupRow({employeeId, workDate, initialValue, onSaved}){
+  const [makeupDate, setMakeupDate] = useState(initialValue || '');
+  const [saving, setSaving] = useState(false);
+  async function save(){
+    setSaving(true);
+    try{ await apiPost('registerMandatoryRestMakeup', {employeeId, workDate, makeupDate}); onSaved(); }
+    catch(e){ alert(e.message); }
+    finally{ setSaving(false); }
+  }
+  return (
+    <div className="row-between" style={{marginBottom:8, gap:10}}>
+      <div style={{fontSize:13, flexShrink:0}}>出勤日：{workDate}</div>
+      <input type="date" value={makeupDate} onChange={e=>setMakeupDate(e.target.value)} style={{flex:1}} />
+      <button onClick={save} disabled={saving}>{saving?'儲存中':'儲存'}</button>
     </div>
   );
 }
@@ -851,7 +1035,12 @@ function NumCell({value, onChange}){
 }
 
 /* ========================= 薪資計算 / 明細總表 ========================= */
-function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave, dirty, saving}){
+function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave, dirty, saving, onEditEmployee}){
+  const [subTab, setSubTab] = useState('06');
+  const [settleBox, setSettleBox] = useState(null); // {year, items, loading, saving}
+  const scrollRef = useRef(null);
+  function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
+  function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
   const totals = useMemo(()=>{
     const t = {base:0, overtime:0, allowance:0, bonus:0, payable:0, labor:0, health:0, leaveDeduct:0, otherDeduct:0, deduct:0, pay06:0, pay26:0, grand:0};
     rows.forEach(({emp, entry, calc})=>{
@@ -875,6 +1064,37 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   const otCapAlerts = rows.filter(({calc})=>calc.monthlyOtHours > MONTHLY_OT_CAP_DEFAULT);
   const minWageAlerts = rows.filter(({calc})=>calc.belowMinWage);
   const restDayCapAlerts = rows.filter(({calc})=>calc.restDayOverCap);
+  const sickCapAlerts = rows.filter(({calc})=>calc.sickCapExceeded);
+
+  async function openSettleEstimate(){
+    const viewMonth = Number(String(month).split('-')[1]);
+    let msg = '「結算試算」建議只在「年度終了」或「員工離職時」使用。\n\n其他時間使用，可能會把員工之後還會請的特休也一併結算掉，造成金額不準確。';
+    if (viewMonth !== 12) {
+      msg += `\n\n⚠ 目前試算的是 ${viewMonth} 月，不是年底（12月）。除非是要幫離職員工結算，否則請再次確認這個時機是否正確。`;
+    }
+    msg += '\n\n確定要繼續試算嗎？';
+    if (!confirm(msg)) return;
+    const year = String(new Date().getFullYear());
+    setSettleBox({year, items:null, loading:true, saving:false});
+    try{
+      const data = await apiGet('getAnnualLeaveList', {year});
+      const items = rows.map(({emp})=>{
+        const grantedHours = data.granted[emp.id] ? data.granted[emp.id].hours : 0;
+        const usedHours = data.used[emp.id] || 0;
+        const remainHours = Math.max(0, grantedHours - usedHours);
+        const wageBase = n(emp.baseSalary); // 本薪已包含4項津貼，不重複相加
+        const hourly = wageBase > 0 ? wageBase/240 : 0;
+        const amount = Math.round(remainHours * hourly);
+        return {employeeId: emp.id, name: emp.name, remainHours, hourly: Math.round(hourly*100)/100, amount};
+      });
+      setSettleBox({year, items, loading:false, saving:false});
+    }catch(e){ alert(e.message); setSettleBox(null); }
+  }
+  function applySettleEstimate(){
+    settleBox.items.forEach(it=>{ setEntry(it.employeeId, {annualLeaveSettlement: it.amount}); });
+    setSettleBox(null);
+    alert('已套用特休結算金額，記得檢查後按「儲存薪資紀錄」。');
+  }
 
   function doExport(){
     const headers = ['公司','部門','姓名','投保級距','本薪','平日加班費','休息日加班費','國定假日加班費','加班費合計','津貼合計','獎金合計','特休結算','應付小計','勞保自付','健保自付','請假扣款','其他扣款','應扣小計','06日應付','26日應付','應付總計'];
@@ -891,110 +1111,184 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   return (
     <div>
       <div className="toolbar no-print">
-        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍／其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資。請假扣款：事假100%、病假/生理假50%、災防假0%</span>
+        <div style={{display:'flex', gap:6}}>
+          <button className={subTab==='06'?'':'ghost'} onClick={()=>setSubTab('06')}>06日明細</button>
+          <button className={subTab==='26'?'':'ghost'} onClick={()=>setSubTab('26')}>26日明細</button>
+        </div>
         <span className="grow"></span>
-        <button className="ghost" onClick={onApply}>套用出缺勤時數</button>
-        <button className="ghost" onClick={()=>window.print()}>列印本頁</button>
-        <button className="ghost" onClick={doExport}>匯出 CSV</button>
+        <button className="ghost sm" onClick={scrollToStart} title="跳到最左邊"><span className="material-icons" style={{fontSize:16}}>first_page</span></button>
+        <button className="ghost sm" onClick={scrollToEnd} title="跳到最右邊看總計"><span className="material-icons" style={{fontSize:16}}>last_page</span></button>
+        <button className="ghost sm" onClick={onApply}>套用出缺勤時數</button>
+        <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
+        <button className="ghost sm" onClick={doExport}>匯出 CSV</button>
         <button onClick={onSave} disabled={saving || !dirty}>{saving?'儲存中...':'儲存薪資紀錄'}</button>
       </div>
+      <div className="toolbar no-print">
+        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍／其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3天全薪、第4天起50%）、災防假0%；病假與生理假(超過3天部分)共用年度30天上限，超過後不給薪</span>
+      </div>
 
-      {(otCapAlerts.length>0 || minWageAlerts.length>0 || restDayCapAlerts.length>0) && (
+      {(otCapAlerts.length>0 || minWageAlerts.length>0 || restDayCapAlerts.length>0 || sickCapAlerts.length>0) && (
         <div className="card no-print" style={{borderColor:'var(--danger)', background:'#fdf2f0'}}>
           <h3 style={{color:'var(--danger)', fontSize:14}}>⚠ 合規提醒</h3>
-          {otCapAlerts.length>0 && <div className="hint">平日加班超過月上限 {MONTHLY_OT_CAP_DEFAULT} 小時：{otCapAlerts.map(r=>r.emp.name).join('、')}（依勞基法第32條，一般上限46小時，經工會或勞資會議同意可延長至54小時，但每3個月不得逾138小時；國定假日與例假加班不列入此上限）</div>}
+          {otCapAlerts.length>0 && <div className="hint">平日加班＋休息日出勤合計超過月上限 {MONTHLY_OT_CAP_DEFAULT} 小時：{otCapAlerts.map(r=>r.emp.name).join('、')}（依勞基法第32條，一般上限46小時，經工會或勞資會議同意可延長至54小時，但每3個月不得逾138小時；國定假日與例假加班不列入此上限）</div>}
           {restDayCapAlerts.length>0 && <div className="hint">休息日單日出勤超過12小時：{restDayCapAlerts.map(r=>r.emp.name).join('、')}，請確認是否合法並已依規定辦理</div>}
           {minWageAlerts.length>0 && <div className="hint">經常性給予（本薪＋伙食＋交通＋職務加給）低於2026年最低工資 {money(MIN_WAGE_MONTHLY)} 元：{minWageAlerts.map(r=>r.emp.name).join('、')}，請確認薪資結構是否合法（不含加班費、獎金與全勤獎金）</div>}
+          {sickCapAlerts.length>0 && <div className="hint">病假＋生理假(超過3天部分)已達年度30天上限，本月部分時數不給薪：{sickCapAlerts.map(r=>r.emp.name).join('、')}</div>}
         </div>
       )}
 
-      {loading ? <div className="hint">載入中...</div> : rows.length===0 ? <div className="empty card">尚無在職員工，請先至「員工資料」頁面新增。</div> : (
-      <div style={{overflowX:'auto'}}>
+      {loading ? <div className="hint">載入中...</div> : rows.length===0 ? <div className="empty card">尚無在職員工，請先至「員工資料」頁面新增。</div> : subTab==='06' ? (
+      <div ref={scrollRef} style={{overflowX:'auto'}}>
       <table>
         <thead>
           <tr>
-            <th className="left" rowSpan="2">姓名 / 部門</th>
-            <th rowSpan="2">本薪</th>
-            <th colSpan="4">加班時數</th>
-            <th rowSpan="2">加班費</th>
-            <th colSpan="4">獎金</th>
-            <th rowSpan="2">特休結算</th>
-            <th rowSpan="2">應付小計</th>
-            <th colSpan="4">請假時數</th>
-            <th rowSpan="2">勞保</th>
-            <th rowSpan="2">健保</th>
-            <th rowSpan="2">其他扣款</th>
-            <th rowSpan="2">應扣小計</th>
-            <th rowSpan="2">06日應付</th>
-            <th rowSpan="2">26日應付</th>
-            <th rowSpan="2">應付總計</th>
+            <th className="freeze-1" rowSpan="2">姓名 / 部門</th>
+            <th className="freeze-2" rowSpan="2">本薪</th>
+            <th rowSpan="2">伙食津貼</th>
+            <th rowSpan="2">交通津貼</th>
+            <th rowSpan="2">職務加給</th>
+            <th rowSpan="2">全勤獎金</th>
+            <th className="col-add" colSpan="4">加班時數</th>
+            <th className="col-add" rowSpan="2">加班費</th>
+            <th className="col-add" colSpan="4">獎金</th>
+            <th className="col-add" rowSpan="2">
+              特休結算<br/>
+              <button type="button" className="ghost sm no-print" style={{fontWeight:400, marginTop:4}} onClick={openSettleEstimate}>結算試算</button>
+            </th>
+            <th className="col-add" rowSpan="2">應付小計</th>
+            <th className="col-deduct" colSpan="5">請假時數</th>
+            <th className="col-deduct" rowSpan="2">勞保</th>
+            <th className="col-deduct" rowSpan="2">健保</th>
+            <th className="col-deduct" rowSpan="2">其他扣款</th>
+            <th className="col-deduct" rowSpan="2">應扣小計</th>
+            <th className="col-result" rowSpan="2">06日應付</th>
           </tr>
           <tr>
-            <th>平日1.34</th><th>平日1.67</th><th>休息日</th><th>國定假日</th>
-            <th>三節</th><th>年終</th><th>績效</th><th>其他</th>
-            <th>事假</th><th>病/生理</th><th>災防</th><th>其他</th>
+            <th className="col-add">平日1.34</th><th className="col-add">平日1.67</th><th className="col-add">休息日</th><th className="col-add">國定假日</th>
+            <th className="col-add">三節</th><th className="col-add">年終</th><th className="col-add">績效</th><th className="col-add">其他</th>
+            <th className="col-deduct">事假</th><th className="col-deduct">病假</th><th className="col-deduct">生理假</th><th className="col-deduct">災防</th><th className="col-deduct">其他</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(({emp, entry, calc})=>(
             <tr key={emp.id}>
-              <td className="left"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
-              <td>{money(emp.baseSalary)}</td>
-              <td><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} /></td>
-              <td><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} /></td>
-              <td><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} /></td>
-              <td><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} /></td>
-              <td className="num-pos">{money(calc.overtimePay)}</td>
-              <td><NumCell value={entry.festivalBonus} onChange={v=>setEntry(emp.id,{festivalBonus:v})} /></td>
-              <td><NumCell value={entry.yearEndBonus} onChange={v=>setEntry(emp.id,{yearEndBonus:v})} /></td>
-              <td><NumCell value={entry.performanceBonus} onChange={v=>setEntry(emp.id,{performanceBonus:v})} /></td>
-              <td><NumCell value={entry.otherBonus} onChange={v=>setEntry(emp.id,{otherBonus:v})} /></td>
-              <td><NumCell value={entry.annualLeaveSettlement} onChange={v=>setEntry(emp.id,{annualLeaveSettlement:v})} /></td>
-              <td className="num-pos"><b>{money(calc.payableTotal)}</b></td>
-              <td><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} /></td>
-              <td><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} /></td>
-              <td><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} /></td>
-              <td><NumCell value={entry.otherLeave} onChange={v=>setEntry(emp.id,{otherLeave:v})} /></td>
-              <td>{money(calc.laborFee)}</td>
-              <td>{money(calc.healthFee)}</td>
-              <td><NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} /></td>
-              <td className="num-neg">{money(calc.deductTotal)}</td>
-              <td>{money(calc.pay06)}</td>
-              <td>
-                <div style={{display:'flex', gap:3, flexWrap:'wrap', justifyContent:'flex-end'}}>
-                  <NumCell value={entry.businessExpense} onChange={v=>setEntry(emp.id,{businessExpense:v})} />
-                </div>
+              <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
+              <td className="freeze-2 center">{money(emp.baseSalary)}</td>
+              <td className="hint">{money(emp.mealAllowance)}</td>
+              <td className="hint">{money(emp.transportAllowance)}</td>
+              <td className="hint">{money(emp.positionAllowance)}</td>
+              <td className="hint">{money(emp.fullAttendanceBonus)}</td>
+              <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} /></td>
+              <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} /></td>
+              <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} /></td>
+              <td className="col-add"><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} /></td>
+              <td className="col-add num-pos">{money(calc.overtimePay)}</td>
+              <td className="col-add"><NumCell value={entry.festivalBonus} onChange={v=>setEntry(emp.id,{festivalBonus:v})} /></td>
+              <td className="col-add"><NumCell value={entry.yearEndBonus} onChange={v=>setEntry(emp.id,{yearEndBonus:v})} /></td>
+              <td className="col-add"><NumCell value={entry.performanceBonus} onChange={v=>setEntry(emp.id,{performanceBonus:v})} /></td>
+              <td className="col-add"><NumCell value={entry.otherBonus} onChange={v=>setEntry(emp.id,{otherBonus:v})} /></td>
+              <td className="col-add"><NumCell value={entry.annualLeaveSettlement} onChange={v=>setEntry(emp.id,{annualLeaveSettlement:v})} /></td>
+              <td className="col-add num-pos"><b>{money(calc.payableTotal)}</b></td>
+              <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} /></td>
+              <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} /></td>
+              <td className="col-deduct">
+                <NumCell value={entry.menstrualLeave} onChange={v=>setEntry(emp.id,{menstrualLeave:v})} />
+                {n(entry.menstrualLeave)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全薪{calc.menstrualPaidHours}／半薪{calc.menstrualHalfHours}</div>}
               </td>
-              <td className="mono"><b>{money(calc.grandTotal)}</b></td>
+              <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} /></td>
+              <td className="col-deduct"><NumCell value={entry.otherLeave} onChange={v=>setEntry(emp.id,{otherLeave:v})} /></td>
+              <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays}天比例計算`:''}>{money(calc.laborFee)}</td>
+              <td className="col-deduct" title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
+              <td className="col-deduct"><NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} /></td>
+              <td className="col-deduct num-neg">{money(calc.deductTotal)}</td>
+              <td className="col-result mono"><b>{money(calc.pay06)}</b></td>
             </tr>
           ))}
           <tr className="total-row">
-            <td className="left">合計</td>
-            <td>{money(totals.base)}</td>
+            <td className="center freeze-1">合計</td>
+            <td className="freeze-2 center">{money(totals.base)}</td>
+            <td colSpan="4"></td>
             <td colSpan="4"></td>
             <td className="num-pos">{money(totals.overtime)}</td>
             <td colSpan="4"></td>
             <td></td>
             <td className="num-pos">{money(totals.payable)}</td>
-            <td colSpan="4"></td>
+            <td colSpan="5"></td>
             <td>{money(totals.labor)}</td>
             <td>{money(totals.health)}</td>
             <td></td>
             <td className="num-neg">{money(totals.deduct)}</td>
-            <td>{money(totals.pay06)}</td>
-            <td>{money(totals.pay26)}</td>
-            <td className="mono">{money(totals.grand)}</td>
+            <td className="mono">{money(totals.pay06)}</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      ) : (
+      <div ref={scrollRef} style={{overflowX:'auto'}}>
+      <table>
+        <thead>
+          <tr>
+            <th className="freeze-1">姓名 / 部門</th>
+            <th>業務費用</th><th>業績獎金</th><th>其他獎金</th><th>其他費用</th><th>其他扣款</th>
+            <th>26日應付</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({emp, entry, calc})=>(
+            <tr key={emp.id}>
+              <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
+              <td><NumCell value={entry.businessExpense} onChange={v=>setEntry(emp.id,{businessExpense:v})} /></td>
+              <td><NumCell value={entry.salesPerformance} onChange={v=>setEntry(emp.id,{salesPerformance:v})} /></td>
+              <td><NumCell value={entry.salesBonus26} onChange={v=>setEntry(emp.id,{salesBonus26:v})} /></td>
+              <td><NumCell value={entry.otherExpense26} onChange={v=>setEntry(emp.id,{otherExpense26:v})} /></td>
+              <td><NumCell value={entry.deduction26} onChange={v=>setEntry(emp.id,{deduction26:v})} /></td>
+              <td className="col-result mono"><b>{money(calc.pay26)}</b></td>
+            </tr>
+          ))}
+          <tr className="total-row">
+            <td className="center freeze-1">合計</td>
+            <td colSpan="5"></td>
+            <td className="mono">{money(totals.pay26)}</td>
           </tr>
         </tbody>
       </table>
       </div>
       )}
-      <div className="hint" style={{marginTop:8}}>「26日應付」欄位可於此表填入「業務費用」，完整的業績獎金／銷售獎金／扣款2 等 26 日發放項目請至「匯款明細表」頁籤內的明細編輯，或直接於此欄輸入業務費用做快速試算。編輯完成別忘了按右上角「儲存薪資紀錄」，否則重新整理或切換月份會遺失變更。</div>
+      <div className="hint" style={{marginTop:8}}>「06日明細」與「26日明細」是分開的兩張表，各自獨立編輯。26日相關的業務費用、業績獎金等欄位請切到「26日明細」頁籤編輯。編輯完成別忘了按右上角「儲存薪資紀錄」，否則重新整理或切換月份會遺失變更。</div>
+      {settleBox && (
+        <div className="modal-bg">
+          <div className="modal" style={{maxWidth:560}}>
+            <h3><span className="material-icons">calculate</span>特休結算試算（{settleBox.year}年度）</h3>
+            <div className="hint" style={{marginBottom:10}}>依「特休設定」裡的核定時數與已使用時數，試算每位員工剩餘特休折算的金額。確認無誤後按「套用」，會自動填入下方「特休結算」欄位，仍可個別手動調整。</div>
+            {settleBox.loading ? <div className="hint">試算中...</div> : (
+              <table>
+                <thead><tr><th className="left">姓名</th><th>剩餘時數</th><th className="left">算式</th><th>結算金額</th></tr></thead>
+                <tbody>
+                  {settleBox.items.map(it=>(
+                    <tr key={it.employeeId}>
+                      <td className="left">{it.name}</td>
+                      <td>{it.remainHours}</td>
+                      <td className="left hint">{it.remainHours} hr × {it.hourly} 元/hr =</td>
+                      <td><b>{money(it.amount)}</b></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <div className="modal-actions">
+              <button className="ghost" onClick={()=>setSettleBox(null)}>取消</button>
+              <button onClick={applySettleEstimate} disabled={settleBox.loading}>套用全部</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function Payslip({emp, entry, calc, month}){
+function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
+  const show = v => !hideZero || Number(v) !== 0;
+  const hasAnyAllowance = n(emp.mealAllowance) || n(emp.transportAllowance) || n(emp.positionAllowance) || n(emp.fullAttendanceBonus);
   return (
     <div className="payslip">
       <h2>{emp.company || '（未設定公司）'} · 薪資條</h2>
@@ -1005,45 +1299,83 @@ function Payslip({emp, entry, calc, month}){
       <div className="meta"><div><b>到職日：</b>{emp.hireDate||'-'}</div><div><b>投保級距：</b>{emp.insuranceGrade||0}</div></div>
 
       <table style={{marginBottom:8}}>
-        <thead><tr><th colSpan="2">應發項目</th><th colSpan="2">應扣項目</th></tr></thead>
+        <colgroup><col /><col style={{width:100}} /></colgroup>
+        <thead><tr><th className="col-add" colSpan="2"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>add_circle</span> 應發項目</th></tr></thead>
         <tbody>
-          <tr><td className="left">本薪</td><td>{money(emp.baseSalary)}</td><td className="left">勞保費</td><td>{money(calc.laborFee)}</td></tr>
-          <tr><td className="left">伙食津貼</td><td>{money(emp.mealAllowance)}</td><td className="left">健保費</td><td>{money(calc.healthFee)}</td></tr>
-          <tr><td className="left">交通津貼</td><td>{money(emp.transportAllowance)}</td><td className="left">事假({n(entry.personalLeave)}hr)</td><td>{money(calc.hourly*n(entry.personalLeave))}</td></tr>
-          <tr><td className="left">職務加給</td><td>{money(emp.positionAllowance)}</td><td className="left">病/生理假({n(entry.sickLeave)}hr)</td><td>{money(calc.hourly*0.5*n(entry.sickLeave))}</td></tr>
-          <tr><td className="left">全勤獎金</td><td>{money(emp.fullAttendanceBonus)}</td><td className="left">災防假({n(entry.disasterLeave)}hr)</td><td>{money(calc.hourly*0*n(entry.disasterLeave))}</td></tr>
-          <tr><td className="left">三節獎金</td><td>{money(entry.festivalBonus)}</td><td className="left">其他扣款</td><td>{money(entry.otherDeduction)}</td></tr>
-          <tr><td className="left">年終獎金</td><td>{money(entry.yearEndBonus)}</td><td className="left"></td><td></td></tr>
-          <tr><td className="left">績效獎金</td><td>{money(entry.performanceBonus)}</td><td className="left"></td><td></td></tr>
-          <tr><td className="left">其他獎金</td><td>{money(entry.otherBonus)}</td><td className="left"></td><td></td></tr>
-          <tr><td className="left">平日加班（{n(entry.otWeekday134)}/{n(entry.otWeekday167)} hr）</td><td>{money(calc.weekdayOtPay)}</td><td className="left"></td><td></td></tr>
-          <tr><td className="left">休息日出勤（{n(entry.otRestDayHours)} hr，計{calc.restDayCountedHours}hr）</td><td>{money(calc.restDayPay)}</td><td className="left"></td><td></td></tr>
-          <tr><td className="left">國定假日出勤（{n(entry.otHolidayHours)} hr）</td><td>{money(calc.holidayPay)}</td><td className="left"></td><td></td></tr>
-          {n(entry.otMandatoryRestHours)>0 && <tr><td className="left" style={{color:'var(--outcome)'}}>例假日出勤（{n(entry.otMandatoryRestHours)} hr，需補休）</td><td>{money(calc.mandatoryRestPay)}</td><td className="left"></td><td></td></tr>}
-          <tr><td className="left">特休未休結算</td><td>{money(entry.annualLeaveSettlement)}</td><td className="left"></td><td></td></tr>
-          <tr className="total-row"><td className="left">應發合計</td><td>{money(calc.payableTotal)}</td><td className="left">應扣合計</td><td>{money(calc.deductTotal)}</td></tr>
+          <tr><td className="left col-add" style={{fontWeight:600}}>本薪</td><td className="col-add" style={{fontWeight:600}}>{money(emp.baseSalary)}</td></tr>
+          {(!hideZero || hasAnyAllowance) && <tr><td className="left col-add" colSpan="2" style={{fontSize:11, color:'var(--muted)', paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>}
+          {show(n(emp.mealAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>伙食津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.mealAllowance)}</td></tr>}
+          {show(n(emp.transportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.transportAllowance)}</td></tr>}
+          {show(n(emp.positionAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>職務加給</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.positionAllowance)}</td></tr>}
+          {show(n(emp.fullAttendanceBonus)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>全勤獎金</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.fullAttendanceBonus)}</td></tr>}
+          {show(n(entry.festivalBonus)) && <tr><td className="left col-add">三節獎金</td><td className="col-add">{money(entry.festivalBonus)}</td></tr>}
+          {show(n(entry.yearEndBonus)) && <tr><td className="left col-add">年終獎金</td><td className="col-add">{money(entry.yearEndBonus)}</td></tr>}
+          {show(n(entry.performanceBonus)) && <tr><td className="left col-add">績效獎金</td><td className="col-add">{money(entry.performanceBonus)}</td></tr>}
+          {show(n(entry.otherBonus)) && <tr><td className="left col-add">其他獎金</td><td className="col-add">{money(entry.otherBonus)}</td></tr>}
+          {show(calc.weekdayOtPay) && <tr><td className="left col-add">平日加班（{n(entry.otWeekday134)}/{n(entry.otWeekday167)} hr）</td><td className="col-add">{money(calc.weekdayOtPay)}</td></tr>}
+          {show(calc.restDayPay) && <tr><td className="left col-add">休息日出勤（{n(entry.otRestDayHours)} hr，計{calc.restDayCountedHours}hr）</td><td className="col-add">{money(calc.restDayPay)}</td></tr>}
+          {show(calc.holidayPay) && <tr><td className="left col-add">國定假日出勤（{n(entry.otHolidayHours)} hr）</td><td className="col-add">{money(calc.holidayPay)}</td></tr>}
+          {n(entry.otMandatoryRestHours)>0 && <tr><td className="left col-add" style={{color:'var(--outcome)'}}>例假日出勤（{n(entry.otMandatoryRestHours)} hr，需補休）</td><td className="col-add">{money(calc.mandatoryRestPay)}</td></tr>}
+          {show(n(entry.annualLeaveSettlement)) && <tr><td className="left col-add">特休未休結算</td><td className="col-add">{money(entry.annualLeaveSettlement)}</td></tr>}
+          <tr className="total-row"><td className="left">應發合計</td><td>{money(calc.payableTotal)}</td></tr>
         </tbody>
       </table>
 
       <table style={{marginBottom:8}}>
-        <thead><tr><th className="left">業務／獎金加發項目（26日發放）</th><th>金額</th></tr></thead>
+        <colgroup><col /><col style={{width:100}} /></colgroup>
+        <thead><tr><th className="col-deduct" colSpan="2"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>remove_circle</span> 應扣項目</th></tr></thead>
         <tbody>
-          <tr><td className="left">業務費用</td><td>{money(entry.businessExpense)}</td></tr>
-          <tr><td className="left">業績</td><td>{money(entry.salesPerformance)}</td></tr>
-          <tr><td className="left">銷售獎金</td><td>{money(entry.salesBonus26)}</td></tr>
-          <tr><td className="left">其他費用</td><td>{money(entry.otherExpense26)}</td></tr>
-          <tr><td className="left">扣款2</td><td>{money(entry.deduction26)}</td></tr>
+          <tr><td className="left col-deduct">勞保費{!calc.insFullMonth && <span style={{fontWeight:400}}>（按{calc.insLaborDays}天計）</span>}</td><td className="col-deduct">{money(calc.laborFee)}</td></tr>
+          <tr><td className="left col-deduct">健保費{!calc.insActiveAtMonthEnd && <span style={{fontWeight:400}}>（月底已離職不收）</span>}{calc.insActiveAtMonthEnd && n(emp.dependentCount)>0 && <span style={{fontWeight:400}}>（含眷屬{Math.min(n(emp.dependentCount),3)}人）</span>}</td><td className="col-deduct">{money(calc.healthFee)}</td></tr>
+          {show(n(entry.personalLeave)) && <tr><td className="left col-deduct">事假({n(entry.personalLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*n(entry.personalLeave))}</td></tr>}
+          {show(n(entry.sickLeave)) && <tr><td className="left col-deduct">病假({n(entry.sickLeave)}hr){calc.sickUnpaidHours>0 && <span style={{fontWeight:400, color:'var(--danger)'}}>（其中{calc.sickUnpaidHours}hr已達年度病假上限不給薪）</span>}</td><td className="col-deduct">{money(calc.hourly*0.5*calc.sickHalfPayHours + calc.hourly*calc.sickUnpaidHours)}</td></tr>}
+          {show(n(entry.menstrualLeave)) && <tr><td className="left col-deduct">生理假（半薪{calc.menstrualHalfPayHours}hr／全薪{calc.menstrualPaidHours}hr不扣{calc.menstrualUnpaidHours>0 ? `／已達病假年度上限${calc.menstrualUnpaidHours}hr不給薪` : ''}）</td><td className="col-deduct">{money(calc.hourly*0.5*calc.menstrualHalfPayHours + calc.hourly*calc.menstrualUnpaidHours)}</td></tr>}
+          {show(n(entry.disasterLeave)) && <tr><td className="left col-deduct">災防假({n(entry.disasterLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*0*n(entry.disasterLeave))}</td></tr>}
+          {show(n(entry.otherDeduction)) && <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct">{money(entry.otherDeduction)}</td></tr>}
+          <tr className="total-row"><td className="left">應扣合計</td><td>{money(calc.deductTotal)}</td></tr>
         </tbody>
       </table>
 
-      <div className="grand"><span>06日應付薪資：{money(calc.pay06)}　26日應付薪資：{money(calc.pay26)}</span><span>合計 NT$ {money(calc.grandTotal)}</span></div>
+      <table style={{marginBottom:8}}>
+        <colgroup><col /><col style={{width:100}} /></colgroup>
+        <thead><tr><th className="col-add left"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>add_circle</span> 業務／獎金加發項目（26日發放）</th><th className="col-add">金額</th></tr></thead>
+        <tbody>
+          {show(n(entry.businessExpense)) && <tr><td className="left col-add">業務費用</td><td className="col-add">{money(entry.businessExpense)}</td></tr>}
+          {show(n(entry.salesPerformance)) && <tr><td className="left col-add">業績獎金</td><td className="col-add">{money(entry.salesPerformance)}</td></tr>}
+          {show(n(entry.salesBonus26)) && <tr><td className="left col-add">其他獎金</td><td className="col-add">{money(entry.salesBonus26)}</td></tr>}
+          {show(n(entry.otherExpense26)) && <tr><td className="left col-add">其他費用</td><td className="col-add">{money(entry.otherExpense26)}</td></tr>}
+          {show(n(entry.deduction26)) && <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct">{money(entry.deduction26)}</td></tr>}
+        </tbody>
+      </table>
+
+      <div className="grand">
+        <div className="grand-item"><span className="grand-label">{payDate06||'06日'}應付</span><span className="grand-num">{money(calc.pay06)}</span></div>
+        <div className="grand-item"><span className="grand-label">{payDate26||'26日'}應付</span><span className="grand-num">{money(calc.pay26)}</span></div>
+        <div className="grand-item grand-total"><span className="grand-label">合計 NT$</span><span className="grand-num">{money(calc.grandTotal)}</span></div>
+      </div>
       <div className="foot-note">如有任何問題請提出，謝謝！本薪資條由系統自動產生，僅供內部核對使用。</div>
     </div>
   );
 }
 
-function PayslipTab({employees, payrollEntries, month}){
+function getActualPayDateJS(year, month, day, holidaySet){
+  let d = new Date(year, month-1, day);
+  while(true){
+    const dow = d.getDay();
+    const dateStr = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if(dow!==0 && dow!==6 && !holidaySet[dateStr]) return dateStr;
+    d.setDate(d.getDate()-1);
+  }
+}
+function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseline}){
   const [selected, setSelected] = useState('all');
+  const [holidays, setHolidays] = useState([]);
+  const [hideZero, setHideZero] = useState(true);
+  useEffect(()=>{ apiGet('getHolidays').then(setHolidays).catch(()=>{}); }, []);
+  const holidaySet = {}; holidays.forEach(h=>{ if(h.type==='國定假日') holidaySet[h.date]=true; });
+  const [py, pm] = month.split('-').map(Number);
+  const payDate06 = getActualPayDateJS(py, pm, 6, holidaySet);
+  const payDate26 = getActualPayDateJS(py, pm, 26, holidaySet);
   const list = selected==='all' ? employees : employees.filter(e=>e.id===selected);
   return (
     <div>
@@ -1054,13 +1386,17 @@ function PayslipTab({employees, payrollEntries, month}){
           {employees.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
         <span className="grow"></span>
-        <button onClick={()=>window.print()}>列印薪資條</button>
+        <label style={{display:'flex', alignItems:'center', gap:6, marginBottom:0, fontWeight:400}}>
+          <input type="checkbox" checked={hideZero} onChange={e=>setHideZero(e.target.checked)} style={{width:'auto'}} />
+          隱藏金額為0的項目
+        </label>
+        <button className="ghost sm" onClick={()=>window.print()}>列印薪資條</button>
       </div>
       {list.length===0 && <div className="empty card">尚無員工資料</div>}
       {list.map(emp=>{
         const entry = payrollEntries[emp.id] || emptyEntry();
-        const calc = calcForEmployee(emp, entry);
-        return <Payslip key={emp.id} emp={emp} entry={entry} calc={calc} month={month} />;
+        const calc = calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||{menstrual:0,sick:0}, month);
+        return <Payslip key={emp.id} emp={emp} entry={entry} calc={calc} month={month} payDate06={payDate06} payDate26={payDate26} hideZero={hideZero} />;
       })}
     </div>
   );
@@ -1068,62 +1404,211 @@ function PayslipTab({employees, payrollEntries, month}){
 
 /* ========================= 匯款明細表 ========================= */
 function TransferTab({rows, month}){
+  const [period, setPeriod] = useState('06');
   const byCompany = useMemo(()=>{
     const g = {};
-    rows.forEach(r => { (g[r.emp.company||'(未分類)'] = g[r.emp.company||'(未分類)']||[]).push(r); });
+    rows.forEach(r => { const key = r.emp.company||'其他'; (g[key] = g[key]||[]).push(r); });
     return g;
   }, [rows]);
 
-  function exportGroup(company, period, list){
+  function exportGroup(company, list){
     const headers = ['項次','姓名','銀行','帳號','金額','備註'];
     const data = list.map((r,idx)=>[idx+1, r.emp.name, r.emp.bankName, r.emp.bankAccount, Math.round(period==='06'?r.calc.pay06:r.calc.pay26), r.emp.note]);
     exportCSV(`匯款明細_${company}_${period}日_${month}.csv`, headers, data);
   }
 
+  const companyEntries = Object.entries(byCompany).map(([company, list])=>{
+    const active = list.filter(r => (period==='06'?r.calc.pay06:r.calc.pay26) !== 0);
+    const total = active.reduce((s,r)=>s+(period==='06'?r.calc.pay06:r.calc.pay26),0);
+    return {company, active, total};
+  }).filter(g=>g.active.length>0);
+
   return (
     <div>
       <div className="toolbar no-print">
-        <span className="hint">依公司與發薪日（06日／26日）分組列出應匯款人員與帳號，金額為 0 者仍會列出以利核對。</span>
+        <div style={{display:'flex', gap:6}}>
+          <button className={period==='06'?'':'ghost'} onClick={()=>setPeriod('06')}>6號明細</button>
+          <button className={period==='26'?'':'ghost'} onClick={()=>setPeriod('26')}>26號明細</button>
+        </div>
         <span className="grow"></span>
-        <button className="ghost" onClick={()=>window.print()}>列印全部</button>
+        <span className="hint">依公司分組列出應匯款人員與帳號，金額為 0 者不列出。</span>
+        <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
       </div>
 
-      {Object.keys(byCompany).length===0 && <div className="empty card">尚無資料</div>}
+      {companyEntries.length===0 && <div className="empty card">本期尚無需匯款資料</div>}
 
-      {Object.entries(byCompany).map(([company, list])=>(
-        <React.Fragment key={company}>
-          {['06','26'].map(period=>{
-            const active = list.filter(r => (period==='06'?r.calc.pay06:r.calc.pay26) !== 0);
-            if(active.length===0) return null;
-            const total = active.reduce((s,r)=>s+(period==='06'?r.calc.pay06:r.calc.pay26),0);
-            return (
-              <div className="card" key={company+period}>
-                <div className="toolbar" style={{marginBottom:8}}>
-                  <h3 style={{margin:0}}>{company} — {period}日 薪資轉帳明細表（{monthLabel(month)}）</h3>
-                  <span className="grow"></span>
-                  <button className="ghost sm no-print" onClick={()=>exportGroup(company, period, active)}>匯出 CSV</button>
-                </div>
-                <table>
-                  <thead><tr><th>項次</th><th className="left">姓名</th><th className="left">銀行</th><th className="left">帳號</th><th>金額</th><th className="left">備註</th></tr></thead>
-                  <tbody>
-                    {active.map((r,idx)=>(
-                      <tr key={r.emp.id}>
-                        <td>{idx+1}</td>
-                        <td className="left">{r.emp.name}</td>
-                        <td className="left">{r.emp.bankName}</td>
-                        <td className="left mono">{r.emp.bankAccount || '（未登錄帳號）'}</td>
-                        <td className="mono">{money(period==='06'?r.calc.pay06:r.calc.pay26)}</td>
-                        <td className="left">{r.emp.note}</td>
-                      </tr>
-                    ))}
-                    <tr className="total-row"><td colSpan="4" className="left">總計</td><td className="mono">{money(total)}</td><td></td></tr>
-                  </tbody>
-                </table>
-              </div>
-            );
-          })}
-        </React.Fragment>
+      {companyEntries.map(({company, active, total})=>(
+        <div className="card" key={company}>
+          <div className="toolbar" style={{marginBottom:8}}>
+            <h3 style={{margin:0}}>{company} — {period}日 薪資轉帳明細表（{monthLabel(month)}）</h3>
+            <span className="grow"></span>
+            <button className="ghost sm no-print" onClick={()=>exportGroup(company, active)}>匯出 CSV</button>
+          </div>
+          <table style={{tableLayout:'fixed', width:'100%'}}>
+            <colgroup>
+              <col style={{width:'8%'}} /><col style={{width:'16%'}} /><col style={{width:'16%'}} />
+              <col style={{width:'20%'}} /><col style={{width:'16%'}} /><col style={{width:'24%'}} />
+            </colgroup>
+            <thead><tr><th>項次</th><th>姓名</th><th>銀行</th><th>帳號</th><th>金額</th><th>備註</th></tr></thead>
+            <tbody>
+              {active.map((r,idx)=>(
+                <tr key={r.emp.id}>
+                  <td className="center">{idx+1}</td>
+                  <td className="center">{r.emp.name}</td>
+                  <td className="center">{r.emp.bankName}</td>
+                  <td className="center mono">{r.emp.bankAccount || '（未登錄帳號）'}</td>
+                  <td className="mono" style={{textAlign:'right'}}>{money(period==='06'?r.calc.pay06:r.calc.pay26)}</td>
+                  <td className="center">{r.emp.note}</td>
+                </tr>
+              ))}
+              <tr className="total-row"><td colSpan="4" className="center">總計</td><td className="mono" style={{textAlign:'right'}}>{money(total)}</td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
       ))}
+    </div>
+  );
+}
+
+/* ========================= 薪資印領清冊(全年度) ========================= */
+const REGISTER_ROW_DEFS = [
+  {key:'base', label:'本薪', anchor:true},
+  {key:'mealAllowance', label:'伙食津貼', indent:true},
+  {key:'transportAllowance', label:'交通津貼', indent:true},
+  {key:'positionAllowance', label:'職務加給', indent:true},
+  {key:'fullAttendanceBonus', label:'全勤獎金', indent:true},
+  {key:'overtimePay', label:'加班費'},
+  {key:'bonusTotal', label:'獎金'},
+  {key:'annualLeaveSettlement', label:'特休結算'},
+  {key:'payableTotal', label:'應發合計', bold:true},
+  {key:'laborFee', label:'勞保費'},
+  {key:'healthFee', label:'健保費'},
+  {key:'leaveDeduct', label:'請假扣款'},
+  {key:'otherDeduction', label:'其他扣款'},
+  {key:'deductTotal', label:'應扣合計', bold:true},
+  {key:'netPay', label:'實發淨額', bold:true, highlight:true}
+];
+function PayrollRegisterTab(){
+  const [year, setYear] = useState(String(new Date().getFullYear()));
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeCompany, setActiveCompany] = useState(null);
+  const scrollRef = useRef(null);
+  function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
+  function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
+
+  function load(){
+    setLoading(true);
+    apiGet('getAnnualPayrollRegister', {year}).then(d=>{ setData(d); const keys=Object.keys(d||{}); setActiveCompany(prev=> prev && keys.includes(prev) ? prev : (keys[0]||null)); }).catch(e=>alert(e.message)).finally(()=>setLoading(false));
+  }
+  useEffect(load, [year]);
+
+  const years = [];
+  const thisYear = new Date().getFullYear();
+  for(let y = thisYear + 1; y >= thisYear - 2; y--) years.push(String(y));
+  const companies = data ? Object.keys(data) : [];
+  const list = (data && activeCompany) ? data[activeCompany] : [];
+
+  return (
+    <div>
+      <div className="toolbar no-print">
+        <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+          {companies.map(co=>(
+            <button key={co} className={co===activeCompany?'':'ghost'} onClick={()=>setActiveCompany(co)}>{co}</button>
+          ))}
+        </div>
+        <label style={{marginBottom:0}}>年度</label>
+        <select value={year} onChange={e=>setYear(e.target.value)}>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={scrollToStart} title="跳到最左邊"><span className="material-icons" style={{fontSize:16}}>first_page</span></button>
+        <button className="ghost sm" onClick={scrollToEnd} title="跳到最右邊看全年合計"><span className="material-icons" style={{fontSize:16}}>last_page</span></button>
+        <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
+        <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
+      </div>
+      <div className="hint" style={{marginBottom:12}}>
+        依勞基法第23條規定製作，記載工資總額、各項目金額、扣除項目金額與實發金額，須保存5年。每人每月留一欄供簽名或蓋章確認領取。
+      </div>
+      {loading ? <div className="hint">載入中...</div> : !data || companies.length===0 ? <div className="empty card">尚無資料</div> : (
+          <div className="card" style={{overflowX:'auto'}} ref={scrollRef}>
+            <h3 style={{marginBottom:2}}>{activeCompany}</h3>
+            <div className="hint" style={{marginBottom:10}}>{year}年度薪資印領清冊</div>
+            <table style={{minWidth:1500}}>
+              <tbody>
+                {list.map(emp=>{
+                  const regRows = [
+                    {type:'header'},
+                    {type:'caption'},
+                    ...REGISTER_ROW_DEFS.map(def=>({type:'data', def})),
+                    {type:'signature'}
+                  ];
+                  const middleIdx = Math.floor(regRows.length/2);
+                  return (
+                    <React.Fragment key={emp.employeeId}>
+                      {regRows.map((row,idx)=>{
+                        const freeze1Style = {
+                          borderTop: idx===0 ? '1px solid var(--line)' : 'none',
+                          borderBottom: idx===regRows.length-1 ? '1px solid var(--line)' : 'none'
+                        };
+                        const nameCell = (
+                          <td className="reg-freeze-1" style={freeze1Style}>
+                            {idx===middleIdx && (
+                              <>
+                                <div style={{fontWeight:700}}>{emp.name}</div>
+                                <div className="hint" style={{marginTop:4}}>{emp.department}</div>
+                                <div className="hint" style={{marginTop:4}}>身分證字號：{emp.nationalId || '未填寫'}</div>
+                                <div className="hint" style={{marginTop:2}}>戶籍地：{emp.householdAddress || '未填寫'}</div>
+                              </>
+                            )}
+                          </td>
+                        );
+                        if(row.type==='header'){
+                          return (
+                            <tr key="header">
+                              {nameCell}
+                              <th className="left reg-freeze-2" style={{minWidth:90}}>項目</th>
+                              {Array.from({length:12},(_,i)=>i+1).map(m=><th key={m}>{m}月</th>)}
+                              <th>全年合計</th>
+                            </tr>
+                          );
+                        }
+                        if(row.type==='caption'){
+                          return (
+                            <tr key="caption">
+                              {nameCell}
+                              <td className="reg-freeze-2"></td>
+                              <td colSpan="13" className="left hint" style={{fontSize:11, paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td>
+                            </tr>
+                          );
+                        }
+                        if(row.type==='signature'){
+                          return (
+                            <tr key="signature">
+                              {nameCell}
+                              <td className="left reg-freeze-2">簽名／蓋章</td>
+                              {Array.from({length:12},(_,i)=><td key={i} style={{height:34}}></td>)}
+                              <td></td>
+                            </tr>
+                          );
+                        }
+                        const def = row.def;
+                        return (
+                          <tr key={def.key}>
+                            {nameCell}
+                            <td className="left reg-freeze-2" style={def.indent?{paddingLeft:14, fontSize:11, color:'var(--muted)'}:{fontWeight:def.bold?700:(def.anchor?600:400)}}>{def.label}</td>
+                            {emp.monthly.map(mo=>(
+                              <td key={mo.month} className={def.highlight?'num-pos':''} style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}}>{money(mo[def.key])}</td>
+                            ))}
+                            <td style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}} className={def.highlight?'num-pos':''}>{money(emp.yearTotal[def.key])}</td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+      )}
     </div>
   );
 }
@@ -1635,6 +2120,8 @@ function AnnualLeaveTab({employees}){
   const [edits, setEdits] = useState({});
   const [savingId, setSavingId] = useState(null);
   const [estimatingId, setEstimatingId] = useState(null);
+  const [batchBox, setBatchBox] = useState(null); // 批次試算預覽 {items, saving}
+  const [batchLoading, setBatchLoading] = useState(false);
 
   function load(){
     setLoading(true);
@@ -1661,6 +2148,25 @@ function AnnualLeaveTab({employees}){
     finally{ setEstimatingId(null); }
   }
 
+  async function batchEstimate(){
+    setBatchLoading(true);
+    try{
+      const items = await apiGet('batchEstimateAnnualLeave', {year, system});
+      setBatchBox({items, saving:false});
+    }catch(e){ alert(e.message); }
+    finally{ setBatchLoading(false); }
+  }
+  async function batchApply(){
+    setBatchBox({...batchBox, saving:true});
+    try{
+      const items = batchBox.items.filter(it=>it.hours!==null).map(it=>({employeeId:it.employeeId, hours:it.hours}));
+      const r = await apiPost('batchSaveAnnualLeave', {year, items});
+      alert(`批次套用完成，共更新 ${r.saved} 位員工，請個別確認後如需微調可在下方表格調整。`);
+      setBatchBox(null);
+      await load();
+    }catch(e){ alert(e.message); setBatchBox({...batchBox, saving:false}); }
+  }
+
   const years = [];
   const thisYear = new Date().getFullYear();
   for(let y = thisYear + 1; y >= thisYear - 2; y--) years.push(String(y));
@@ -1676,6 +2182,7 @@ function AnnualLeaveTab({employees}){
           <option value="anniversary">週年制（到職日起算）</option>
         </select>
         <span className="grow"></span>
+        <button onClick={batchEstimate} disabled={batchLoading}>{batchLoading?'試算中...':'批次試算全部員工'}</button>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>
@@ -1711,11 +2218,34 @@ function AnnualLeaveTab({employees}){
           </table>
         )}
       </div>
+      {batchBox && (
+        <div className="modal-bg">
+          <div className="modal" style={{maxWidth:520}}>
+            <h3><span className="material-icons">calculate</span>批次試算預覽（{year}年・{system==='calendar'?'歷年制':'週年制'}）</h3>
+            <div className="hint" style={{marginBottom:10}}>以下為系統依到職日試算的建議天數，確認無誤後按「套用全部」，會覆蓋這些員工目前的核定時數。個別員工仍可在下方表格單獨微調。</div>
+            <table>
+              <thead><tr><th className="left">姓名</th><th>建議天數</th><th>建議時數</th><th className="left">備註</th></tr></thead>
+              <tbody>
+                {batchBox.items.map(it=>(
+                  <tr key={it.employeeId}>
+                    <td className="left">{it.name}</td>
+                    <td>{it.days===null?'-':it.days}</td>
+                    <td>{it.hours===null?'-':it.hours}</td>
+                    <td className="left" style={{color:'var(--danger)'}}>{it.error}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="modal-actions">
+              <button className="ghost" onClick={()=>setBatchBox(null)}>取消</button>
+              <button onClick={batchApply} disabled={batchBox.saving}>{batchBox.saving?'套用中...':'套用全部'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-/* ========================= Dashboard ========================= */
 function DashboardTab({setTab}){
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1802,7 +2332,7 @@ function CompLedgerTab({employees}){
         </select>
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
-        <button className="ghost" onClick={doExport}><span className="material-icons" style={{fontSize:16}}>download</span>匯出 CSV</button>
+        <button className="ghost sm" onClick={doExport}><span className="material-icons" style={{fontSize:16}}>download</span>匯出 CSV</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>每筆加班換補休核准後會自動「轉入」，員工請補休假核准後會自動「使用」扣抵，餘額為累計結果。到期日到了仍未使用完的補休，依規定應折算工資發給。</div>
       <div className="card" style={{overflowX:'auto'}}>
@@ -1925,7 +2455,7 @@ function AnnouncementsTab(){
 }
 
 /* ========================= 系統設定 ========================= */
-function SettingsTab(){
+function SettingsTab({onSaved}){
   const [s, setS] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
@@ -1935,7 +2465,7 @@ function SettingsTab(){
   useEffect(load, []);
 
   async function save(){
-    try{ await apiPost('updateSettings', s); alert('設定已儲存'); }catch(e){ alert(e.message); }
+    try{ await apiPost('updateSettings', s); alert('設定已儲存'); if(onSaved) onSaved(); }catch(e){ alert(e.message); }
   }
   function useCurrentLocation(){
     setLocating(true);
@@ -1981,6 +2511,14 @@ function SettingsTab(){
           <select value={s.mandatoryRestDay} onChange={e=>setS({...s,mandatoryRestDay:Number(e.target.value)})}>{DOW.map((d,i)=><option key={i} value={i}>星期{d}</option>)}</select>
         </div>
         <div className="field"><label>平日加班月上限（小時）</label><input type="number" value={s.monthlyOtCap} onChange={e=>setS({...s,monthlyOtCap:e.target.value})} /></div>
+        <div className="field">
+          <label>例假日出勤薪資算法</label>
+          <select value={s.mandatoryRestPayMode || 'double'} onChange={e=>setS({...s,mandatoryRestPayMode:e.target.value})}>
+            <option value="double">優於勞基法（時薪 × 2倍）</option>
+            <option value="legal">依勞基法（加發一日工資＋超過8小時比照平日加班費）</option>
+          </select>
+          <div className="hint" style={{marginTop:4}}>例假日原則不可出勤，僅天災事變等特殊狀況例外（勞基法第40條），事後仍須完成補休登記。</div>
+        </div>
       </div>
       <div className="hint">依勞基法第32條，平日延長工時原則每月不得超過46小時（經工會或無工會則經勞資會議同意可延長至54小時，但每3個月不得逾138小時）；此上限不含國定假日與例假日出勤。</div>
 
