@@ -1228,35 +1228,51 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26}){
       <div className="meta"><div><b>到職日：</b>{emp.hireDate||'-'}</div><div><b>投保級距：</b>{emp.insuranceGrade||0}</div></div>
 
       <table style={{marginBottom:8}}>
-        <thead><tr><th colSpan="2">應發項目</th><th colSpan="2">應扣項目</th></tr></thead>
+        <colgroup><col /><col style={{width:100}} /></colgroup>
+        <thead><tr><th className="col-add" colSpan="2"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>add_circle</span> 應發項目</th></tr></thead>
         <tbody>
-          <tr><td className="left">本薪</td><td>{money(emp.baseSalary)}</td><td className="left">勞保費</td><td>{money(calc.laborFee)}</td></tr>
-          <tr><td className="left">伙食津貼</td><td>{money(emp.mealAllowance)}</td><td className="left">健保費</td><td>{money(calc.healthFee)}</td></tr>
-          <tr><td className="left">交通津貼</td><td>{money(emp.transportAllowance)}</td><td className="left">事假({n(entry.personalLeave)}hr)</td><td>{money(calc.hourly*n(entry.personalLeave))}</td></tr>
-          <tr><td className="left">職務加給</td><td>{money(emp.positionAllowance)}</td><td className="left">病假({n(entry.sickLeave)}hr)</td><td>{money(calc.hourly*0.5*n(entry.sickLeave))}</td></tr>
-          <tr><td className="left"></td><td></td><td className="left">生理假半薪({calc.menstrualHalfHours}hr，全薪{calc.menstrualPaidHours}hr不扣)</td><td>{money(calc.hourly*0.5*calc.menstrualHalfHours)}</td></tr>
-          <tr><td className="left">全勤獎金</td><td>{money(emp.fullAttendanceBonus)}</td><td className="left">災防假({n(entry.disasterLeave)}hr)</td><td>{money(calc.hourly*0*n(entry.disasterLeave))}</td></tr>
-          <tr><td className="left">三節獎金</td><td>{money(entry.festivalBonus)}</td><td className="left">其他扣款</td><td>{money(entry.otherDeduction)}</td></tr>
-          <tr><td className="left">年終獎金</td><td>{money(entry.yearEndBonus)}</td><td className="left"></td><td></td></tr>
-          <tr><td className="left">績效獎金</td><td>{money(entry.performanceBonus)}</td><td className="left"></td><td></td></tr>
-          <tr><td className="left">其他獎金</td><td>{money(entry.otherBonus)}</td><td className="left"></td><td></td></tr>
-          <tr><td className="left">平日加班（{n(entry.otWeekday134)}/{n(entry.otWeekday167)} hr）</td><td>{money(calc.weekdayOtPay)}</td><td className="left"></td><td></td></tr>
-          <tr><td className="left">休息日出勤（{n(entry.otRestDayHours)} hr，計{calc.restDayCountedHours}hr）</td><td>{money(calc.restDayPay)}</td><td className="left"></td><td></td></tr>
-          <tr><td className="left">國定假日出勤（{n(entry.otHolidayHours)} hr）</td><td>{money(calc.holidayPay)}</td><td className="left"></td><td></td></tr>
-          {n(entry.otMandatoryRestHours)>0 && <tr><td className="left" style={{color:'var(--outcome)'}}>例假日出勤（{n(entry.otMandatoryRestHours)} hr，需補休）</td><td>{money(calc.mandatoryRestPay)}</td><td className="left"></td><td></td></tr>}
-          <tr><td className="left">特休未休結算</td><td>{money(entry.annualLeaveSettlement)}</td><td className="left"></td><td></td></tr>
-          <tr className="total-row"><td className="left">應發合計</td><td>{money(calc.payableTotal)}</td><td className="left">應扣合計</td><td>{money(calc.deductTotal)}</td></tr>
+          <tr><td className="left col-add">本薪</td><td className="col-add">{money(emp.baseSalary)}</td></tr>
+          <tr><td className="left col-add">伙食津貼</td><td className="col-add">{money(emp.mealAllowance)}</td></tr>
+          <tr><td className="left col-add">交通津貼</td><td className="col-add">{money(emp.transportAllowance)}</td></tr>
+          <tr><td className="left col-add">職務加給</td><td className="col-add">{money(emp.positionAllowance)}</td></tr>
+          <tr><td className="left col-add">全勤獎金</td><td className="col-add">{money(emp.fullAttendanceBonus)}</td></tr>
+          <tr><td className="left col-add">三節獎金</td><td className="col-add">{money(entry.festivalBonus)}</td></tr>
+          <tr><td className="left col-add">年終獎金</td><td className="col-add">{money(entry.yearEndBonus)}</td></tr>
+          <tr><td className="left col-add">績效獎金</td><td className="col-add">{money(entry.performanceBonus)}</td></tr>
+          <tr><td className="left col-add">其他獎金</td><td className="col-add">{money(entry.otherBonus)}</td></tr>
+          <tr><td className="left col-add">平日加班（{n(entry.otWeekday134)}/{n(entry.otWeekday167)} hr）</td><td className="col-add">{money(calc.weekdayOtPay)}</td></tr>
+          <tr><td className="left col-add">休息日出勤（{n(entry.otRestDayHours)} hr，計{calc.restDayCountedHours}hr）</td><td className="col-add">{money(calc.restDayPay)}</td></tr>
+          <tr><td className="left col-add">國定假日出勤（{n(entry.otHolidayHours)} hr）</td><td className="col-add">{money(calc.holidayPay)}</td></tr>
+          {n(entry.otMandatoryRestHours)>0 && <tr><td className="left col-add" style={{color:'var(--outcome)'}}>例假日出勤（{n(entry.otMandatoryRestHours)} hr，需補休）</td><td className="col-add">{money(calc.mandatoryRestPay)}</td></tr>}
+          <tr><td className="left col-add">特休未休結算</td><td className="col-add">{money(entry.annualLeaveSettlement)}</td></tr>
+          <tr className="total-row"><td className="left">應發合計</td><td>{money(calc.payableTotal)}</td></tr>
         </tbody>
       </table>
 
       <table style={{marginBottom:8}}>
-        <thead><tr><th className="left">業務／獎金加發項目（26日發放）</th><th>金額</th></tr></thead>
+        <colgroup><col /><col style={{width:100}} /></colgroup>
+        <thead><tr><th className="col-deduct" colSpan="2"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>remove_circle</span> 應扣項目</th></tr></thead>
         <tbody>
-          <tr><td className="left">業務費用</td><td>{money(entry.businessExpense)}</td></tr>
-          <tr><td className="left">業績</td><td>{money(entry.salesPerformance)}</td></tr>
-          <tr><td className="left">銷售獎金</td><td>{money(entry.salesBonus26)}</td></tr>
-          <tr><td className="left">其他費用</td><td>{money(entry.otherExpense26)}</td></tr>
-          <tr><td className="left">扣款2</td><td>{money(entry.deduction26)}</td></tr>
+          <tr><td className="left col-deduct">勞保費</td><td className="col-deduct">{money(calc.laborFee)}</td></tr>
+          <tr><td className="left col-deduct">健保費</td><td className="col-deduct">{money(calc.healthFee)}</td></tr>
+          <tr><td className="left col-deduct">事假({n(entry.personalLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*n(entry.personalLeave))}</td></tr>
+          <tr><td className="left col-deduct">病假({n(entry.sickLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*0.5*n(entry.sickLeave))}</td></tr>
+          <tr><td className="left col-deduct">生理假半薪({calc.menstrualHalfHours}hr，全薪{calc.menstrualPaidHours}hr不扣)</td><td className="col-deduct">{money(calc.hourly*0.5*calc.menstrualHalfHours)}</td></tr>
+          <tr><td className="left col-deduct">災防假({n(entry.disasterLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*0*n(entry.disasterLeave))}</td></tr>
+          <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct">{money(entry.otherDeduction)}</td></tr>
+          <tr className="total-row"><td className="left">應扣合計</td><td>{money(calc.deductTotal)}</td></tr>
+        </tbody>
+      </table>
+
+      <table style={{marginBottom:8}}>
+        <colgroup><col /><col style={{width:100}} /></colgroup>
+        <thead><tr><th className="col-add left"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>add_circle</span> 業務／獎金加發項目（26日發放）</th><th className="col-add">金額</th></tr></thead>
+        <tbody>
+          <tr><td className="left col-add">業務費用</td><td className="col-add">{money(entry.businessExpense)}</td></tr>
+          <tr><td className="left col-add">業績</td><td className="col-add">{money(entry.salesPerformance)}</td></tr>
+          <tr><td className="left col-add">銷售獎金</td><td className="col-add">{money(entry.salesBonus26)}</td></tr>
+          <tr><td className="left col-add">其他費用</td><td className="col-add">{money(entry.otherExpense26)}</td></tr>
+          <tr><td className="left col-deduct">扣款2</td><td className="col-deduct">{money(entry.deduction26)}</td></tr>
         </tbody>
       </table>
 
