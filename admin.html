@@ -775,11 +775,16 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
           {companiesByCo.concat(employees.some(e=>!e.company)?['(未分類)']:[]).map(co => (
             <div className="card" key={co}>
               <h3><span className="material-icons" style={{fontSize:17, color:'var(--brand)'}}>business</span> {co} <span className="badge">{employees.filter(e=>(e.company||'(未分類)')===co).length} 人</span></h3>
-              <table>
+              <table style={{tableLayout:'fixed'}}>
+                <colgroup>
+                  <col style={{width:'10%'}} /><col style={{width:'12%'}} /><col style={{width:'12%'}} />
+                  <col style={{width:'9%'}} /><col style={{width:'10%'}} /><col style={{width:'9%'}} />
+                  <col style={{width:'10%'}} /><col style={{width:'13%'}} /><col style={{width:'15%'}} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th className="left">部門</th><th className="left">姓名</th><th className="left">手機</th><th>班別</th><th>到職日</th>
-                    <th>投保級距</th><th>本薪</th><th className="left">銀行帳號</th><th>操作</th>
+                    <th>投保級距</th><th>本薪</th><th className="left">銀行帳號</th><th style={{whiteSpace:'normal'}}>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -793,10 +798,10 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
                       <td>{emp.insuranceGrade || 0}</td>
                       <td>{money(emp.baseSalary)}</td>
                       <td className="left mono">{emp.bankAccount}</td>
-                      <td>
-                        <button className="ghost sm" onClick={()=>onEdit(emp)}>編輯</button>{' '}
-                        <button className="ghost sm" onClick={()=>setAccountBox({employeeId:emp.id, name:emp.name, account:emp.phone||'', password: Math.random().toString(36).slice(2,8)})}>帳號</button>{' '}
-                        <button className="danger sm" onClick={()=>{ alert(`請在編輯視窗中手動填寫「${emp.name}」的離職日，儲存後即會標記為離職。`); onEdit(emp); }}>離職</button>
+                      <td style={{whiteSpace:'normal'}}>
+                        <button className="ghost sm" onClick={()=>onEdit(emp)}><span className="material-icons" style={{fontSize:14}}>edit</span>編輯</button>{' '}
+                        <button className="ghost sm" onClick={()=>setAccountBox({employeeId:emp.id, name:emp.name, account:emp.phone||'', password: Math.random().toString(36).slice(2,8)})}><span className="material-icons" style={{fontSize:14}}>vpn_key</span>帳號</button>{' '}
+                        <button className="danger sm" onClick={()=>{ alert(`請在編輯視窗中手動填寫「${emp.name}」的離職日，儲存後即會標記為離職。`); onEdit(emp); }}><span className="material-icons" style={{fontSize:14}}>person_remove</span>離職</button>
                       </td>
                     </tr>
                   ))}
