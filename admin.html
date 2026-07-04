@@ -68,7 +68,7 @@
   th.freeze-1, th.freeze-2{ z-index:4; background:#EDEDED; }
   tr.total-row .freeze-1, tr.total-row .freeze-2{ background:#EDEDED; }
   .reg-freeze-1, .reg-freeze-2{ position:sticky; z-index:3; background:#F2F0E8; }
-  .reg-freeze-1{ left:0; min-width:150px; max-width:150px; white-space:normal; vertical-align:top; }
+  .reg-freeze-1{ left:0; min-width:150px; max-width:150px; white-space:normal; text-align:center; vertical-align:middle; }
   .reg-freeze-2{ left:150px; min-width:90px; border-right:2px solid var(--brand); }
   th.reg-freeze-2{ z-index:4; background:#EDEDED; }
   .col-add{background:#EAF6ED;}
@@ -1451,7 +1451,6 @@ const REGISTER_ROW_DEFS = [
   {key:'deductTotal', label:'應扣合計', bold:true},
   {key:'netPay', label:'實發淨額', bold:true, highlight:true}
 ];
-const REG_ROWSPAN = 1 + REGISTER_ROW_DEFS.length + 1 + 1; // 月份表頭列 + 明細列(含縮排說明列) + 簽名列
 function PayrollRegisterTab(){
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [data, setData] = useState(null);
@@ -1501,7 +1500,7 @@ function PayrollRegisterTab(){
                 {list.map(emp=>(
                   <React.Fragment key={emp.employeeId}>
                     <tr>
-                      <td rowSpan={REG_ROWSPAN} className="left reg-freeze-1">
+                      <td className="reg-freeze-1">
                         <div style={{fontWeight:700}}>{emp.name}</div>
                         <div className="hint" style={{marginTop:4}}>{emp.department}</div>
                         <div className="hint" style={{marginTop:4}}>身分證字號：{emp.nationalId || '未填寫'}</div>
@@ -1514,9 +1513,10 @@ function PayrollRegisterTab(){
                     {REGISTER_ROW_DEFS.map(def=>(
                       <React.Fragment key={def.key}>
                         {def.indent===true && def.key==='mealAllowance' && (
-                          <tr><td className="reg-freeze-2"></td><td colSpan="13" className="left hint" style={{fontSize:11, paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>
+                          <tr><td className="reg-freeze-1"></td><td className="reg-freeze-2"></td><td colSpan="13" className="left hint" style={{fontSize:11, paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>
                         )}
                         <tr>
+                          <td className="reg-freeze-1"></td>
                           <td className="left reg-freeze-2" style={def.indent?{paddingLeft:14, fontSize:11, color:'var(--muted)'}:{fontWeight:def.bold?700:(def.anchor?600:400)}}>{def.label}</td>
                           {emp.monthly.map(mo=>(
                             <td key={mo.month} className={def.highlight?'num-pos':''} style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}}>{money(mo[def.key])}</td>
@@ -1526,6 +1526,7 @@ function PayrollRegisterTab(){
                       </React.Fragment>
                     ))}
                     <tr>
+                      <td className="reg-freeze-1"></td>
                       <td className="left reg-freeze-2">簽名／蓋章</td>
                       {Array.from({length:12},(_,i)=><td key={i} style={{height:34}}></td>)}
                       <td></td>
