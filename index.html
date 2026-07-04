@@ -1302,6 +1302,8 @@ function PayslipModal({onClose, showToast}){
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [expanded, setExpanded] = useState({base:true, overtime:true, leave:true, sales26:true});
+  function toggleSection(key){ setExpanded(prev=>({...prev, [key]: !prev[key]})); }
 
   function load(m){
     setLoading(true);
@@ -1310,7 +1312,54 @@ function PayslipModal({onClose, showToast}){
   useEffect(()=>{ load(month); }, [month]);
 
   const money = v => Math.round(Number(v)||0).toLocaleString('zh-TW');
+  const n = v => Number(v)||0;
   const [my, mm] = month.split('-');
+
+  const emp = data ? data.employee : {};
+  const entry = data ? data.entry : {};
+  const calc = data ? data.calc : {};
+
+  const allowanceItems = data ? [
+    {label:'伙食津貼', value:n(emp.mealAllowance)},
+    {label:'交通津貼', value:n(emp.transportAllowance)},
+    {label:'職務加給', value:n(emp.positionAllowance)},
+    {label:'全勤獎金', value:n(emp.fullAttendanceBonus)}
+  ].filter(it=>it.value>0) : [];
+
+  const overtimeItems = data ? [
+    {label:`平日加班（${n(entry.otWeekday134)}/${n(entry.otWeekday167)}hr）`, value:n(calc.weekdayOtPay)},
+    {label:`休息日出勤（${n(entry.otRestDayHours)}hr）`, value:n(calc.restDayPay)},
+    {label:`國定假日出勤（${n(entry.otHolidayHours)}hr）`, value:n(calc.holidayPay)},
+    {label:`例假日出勤（${n(entry.otMandatoryRestHours)}hr，需補休）`, value:n(calc.mandatoryRestPay)}
+  ].filter(it=>it.value>0) : [];
+
+  const leaveItems = data ? [
+    {show:n(entry.personalLeave)>0, label:`事假（${n(entry.personalLeave)}hr）`, value:n(calc.hourly)*n(entry.personalLeave)},
+    {show:n(entry.sickLeave)>0, label:`病假（${n(entry.sickLeave)}hr）${n(calc.sickUnpaidHours)>0?'（部分已達年度上限不給薪）':''}`, value:n(calc.hourly)*0.5*n(calc.sickHalfPayHours)+n(calc.hourly)*n(calc.sickUnpaidHours)},
+    {show:n(entry.menstrualLeave)>0, label:`生理假（半薪${n(calc.menstrualHalfPayHours)}hr／全薪${n(calc.menstrualPaidHours)}hr不扣${n(calc.menstrualUnpaidHours)>0?`／已達上限${n(calc.menstrualUnpaidHours)}hr不給薪`:''}）`, value:n(calc.hourly)*0.5*n(calc.menstrualHalfPayHours)+n(calc.hourly)*n(calc.menstrualUnpaidHours)},
+    {show:n(entry.disasterLeave)>0, label:`災防假（${n(entry.disasterLeave)}hr）`, value:0},
+    {show:n(entry.otherLeave)>0, label:`其他假（${n(entry.otherLeave)}hr）`, value:n(calc.hourly)*n(entry.otherLeave)}
+  ].filter(it=>it.show) : [];
+
+  const sales26Items = data ? [
+    {label:'業務費用', value:n(entry.businessExpense)},
+    {label:'業績獎金', value:n(entry.salesPerformance)},
+    {label:'其他獎金', value:n(entry.salesBonus26)},
+    {label:'其他費用', value:n(entry.otherExpense26)},
+    {label:'其他扣款', value:-n(entry.deduction26)}
+  ].filter(it=>it.value!==0) : [];
+
+  function SectionHeader({label, amount, amountStyle, sectionKey, hasDetail}){
+    return (
+      <div className="row-between" style={{cursor: hasDetail?'pointer':'default'}} onClick={hasDetail?()=>toggleSection(sectionKey):undefined}>
+        <span className="hint" style={{display:'flex', alignItems:'center', gap:2}}>
+          {label}
+          {hasDetail && <span className="material-icons" style={{fontSize:18, color:'var(--muted)'}}>{expanded[sectionKey]?'expand_less':'expand_more'}</span>}
+        </span>
+        <span style={amountStyle}>{amount}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="modal-bg">
@@ -1332,18 +1381,70 @@ function PayslipModal({onClose, showToast}){
               <div className="balance-cell"><div className="num">{money(data.calc.pay26)}</div><div className="lbl">{data.payDate26 ? data.payDate26.slice(5).replace('-','/') : '26日'}應付</div></div>
             </div>
             <div className="card" style={{padding:14}}>
-              <div className="row-between"><span className="hint">本薪</span><span>{money(data.employee.baseSalary)}</span></div>
-              <div className="row-between"><span className="hint">加班費</span><span className="num-pos" style={{color:'var(--green)'}}>{money(data.calc.overtimePay)}</span></div>
-              <div className="row-between"><span className="hint">津貼合計</span><span>{money(data.calc.allowanceTotal)}</span></div>
-              <div className="row-between"><span className="hint">獎金合計</span><span>{money(data.calc.bonusTotal)}</span></div>
-              <div className="row-between"><span className="hint">應發合計</span><span style={{fontWeight:700}}>{money(data.calc.payableTotal)}</span></div>
+              <SectionHeader label="本薪" amount={money(emp.baseSalary)} sectionKey="base" hasDetail={allowanceItems.length>0} />
+              {expanded.base && allowanceItems.length>0 && (
+                <div style={{padding:'2px 0 8px 4px'}}>
+                  <div className="hint" style={{fontSize:11, marginBottom:4}}>已含在本薪內，僅供對照</div>
+                  {allowanceItems.map(it=>(
+                    <div className="row-between" key={it.label} style={{fontSize:13, color:'var(--muted)', padding:'2px 0'}}><span>{it.label}</span><span>{money(it.value)}</span></div>
+                  ))}
+                </div>
+              )}
+
+              {overtimeItems.length>0 && (
+                <>
+                  <SectionHeader label="加班費" amount={money(calc.overtimePay)} amountStyle={{color:'var(--green)'}} sectionKey="overtime" hasDetail={true} />
+                  {expanded.overtime && (
+                    <div style={{padding:'2px 0 8px 4px'}}>
+                      {overtimeItems.map(it=>(
+                        <div className="row-between" key={it.label} style={{fontSize:13, color:'var(--muted)', padding:'2px 0'}}><span>{it.label}</span><span>{money(it.value)}</span></div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {n(calc.bonusTotal)>0 && <div className="row-between"><span className="hint">獎金合計</span><span>{money(calc.bonusTotal)}</span></div>}
+              {n(entry.annualLeaveSettlement)>0 && <div className="row-between"><span className="hint">特休結算</span><span>{money(entry.annualLeaveSettlement)}</span></div>}
+              <div className="row-between"><span className="hint" style={{fontWeight:700}}>應發合計</span><span style={{fontWeight:700}}>{money(calc.payableTotal)}</span></div>
               <div style={{borderTop:'1px solid var(--line)', margin:'8px 0'}}></div>
               <div className="row-between"><span className="hint">勞保費{data.calc.insFullMonth===false && <span style={{fontSize:11}}>（按{data.calc.insLaborDays}天計）</span>}</span><span style={{color:'var(--red)'}}>-{money(data.calc.laborFee)}</span></div>
               <div className="row-between"><span className="hint">健保費{data.calc.insActiveAtMonthEnd===false && <span style={{fontSize:11}}>（月底已離職不收）</span>}{data.calc.insActiveAtMonthEnd!==false && Number(data.employee.dependentCount)>0 && <span style={{fontSize:11}}>（含眷屬{Math.min(Number(data.employee.dependentCount),3)}人）</span>}</span><span style={{color:'var(--red)'}}>-{money(data.calc.healthFee)}</span></div>
-              <div className="row-between"><span className="hint">請假扣款</span><span style={{color:'var(--red)'}}>-{money(data.calc.leaveDeduct)}</span></div>
-              <div className="row-between"><span className="hint">應扣合計</span><span style={{fontWeight:700, color:'var(--red)'}}>-{money(data.calc.deductTotal)}</span></div>
+
+              {leaveItems.length>0 && (
+                <>
+                  <SectionHeader label="請假扣款" amount={`-${money(calc.leaveDeduct)}`} amountStyle={{color:'var(--red)'}} sectionKey="leave" hasDetail={true} />
+                  {expanded.leave && (
+                    <div style={{padding:'2px 0 8px 4px'}}>
+                      {leaveItems.map(it=>(
+                        <div className="row-between" key={it.label} style={{fontSize:13, color:'var(--muted)', padding:'2px 0'}}><span>{it.label}</span><span>-{money(it.value)}</span></div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {n(entry.otherDeduction)>0 && <div className="row-between"><span className="hint">其他扣款</span><span style={{color:'var(--red)'}}>-{money(entry.otherDeduction)}</span></div>}
+              <div className="row-between"><span className="hint" style={{fontWeight:700}}>應扣合計</span><span style={{fontWeight:700, color:'var(--red)'}}>-{money(calc.deductTotal)}</span></div>
             </div>
-            <div className="hint" style={{marginTop:8, textAlign:'center'}}>合計 NT$ {money(data.calc.grandTotal)}</div>
+
+            {sales26Items.length>0 && (
+              <div className="card" style={{padding:14, marginTop:10}}>
+                <SectionHeader label="業務／獎金項目（26日）" amount="" sectionKey="sales26" hasDetail={true} />
+                {expanded.sales26 && (
+                  <div style={{marginTop:2}}>
+                    {sales26Items.map(it=>(
+                      <div className="row-between" key={it.label} style={{padding:'3px 0'}}>
+                        <span className="hint">{it.label}</span>
+                        <span style={{color: it.value<0?'var(--red)':undefined}}>{it.value<0?'-':''}{money(Math.abs(it.value))}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="hint" style={{marginTop:8, textAlign:'center'}}>合計 NT$ {money(calc.grandTotal)}</div>
           </>
         )}
         <div className="modal-actions"><button className="stay" onClick={onClose} style={{flex:1}}>關閉</button></div>
