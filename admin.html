@@ -1245,7 +1245,9 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   );
 }
 
-function Payslip({emp, entry, calc, month, payDate06, payDate26}){
+function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
+  const show = v => !hideZero || Number(v) !== 0;
+  const hasAnyAllowance = n(emp.mealAllowance) || n(emp.transportAllowance) || n(emp.positionAllowance) || n(emp.fullAttendanceBonus);
   return (
     <div className="payslip">
       <h2>{emp.company || '（未設定公司）'} · 薪資條</h2>
@@ -1260,20 +1262,20 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26}){
         <thead><tr><th className="col-add" colSpan="2"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>add_circle</span> 應發項目</th></tr></thead>
         <tbody>
           <tr><td className="left col-add" style={{fontWeight:600}}>本薪</td><td className="col-add" style={{fontWeight:600}}>{money(emp.baseSalary)}</td></tr>
-          <tr><td className="left col-add" colSpan="2" style={{fontSize:11, color:'var(--muted)', paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>
-          <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>伙食津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.mealAllowance)}</td></tr>
-          <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.transportAllowance)}</td></tr>
-          <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>職務加給</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.positionAllowance)}</td></tr>
-          <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>全勤獎金</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.fullAttendanceBonus)}</td></tr>
-          <tr><td className="left col-add">三節獎金</td><td className="col-add">{money(entry.festivalBonus)}</td></tr>
-          <tr><td className="left col-add">年終獎金</td><td className="col-add">{money(entry.yearEndBonus)}</td></tr>
-          <tr><td className="left col-add">績效獎金</td><td className="col-add">{money(entry.performanceBonus)}</td></tr>
-          <tr><td className="left col-add">其他獎金</td><td className="col-add">{money(entry.otherBonus)}</td></tr>
-          <tr><td className="left col-add">平日加班（{n(entry.otWeekday134)}/{n(entry.otWeekday167)} hr）</td><td className="col-add">{money(calc.weekdayOtPay)}</td></tr>
-          <tr><td className="left col-add">休息日出勤（{n(entry.otRestDayHours)} hr，計{calc.restDayCountedHours}hr）</td><td className="col-add">{money(calc.restDayPay)}</td></tr>
-          <tr><td className="left col-add">國定假日出勤（{n(entry.otHolidayHours)} hr）</td><td className="col-add">{money(calc.holidayPay)}</td></tr>
+          {(!hideZero || hasAnyAllowance) && <tr><td className="left col-add" colSpan="2" style={{fontSize:11, color:'var(--muted)', paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>}
+          {show(n(emp.mealAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>伙食津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.mealAllowance)}</td></tr>}
+          {show(n(emp.transportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.transportAllowance)}</td></tr>}
+          {show(n(emp.positionAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>職務加給</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.positionAllowance)}</td></tr>}
+          {show(n(emp.fullAttendanceBonus)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>全勤獎金</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.fullAttendanceBonus)}</td></tr>}
+          {show(n(entry.festivalBonus)) && <tr><td className="left col-add">三節獎金</td><td className="col-add">{money(entry.festivalBonus)}</td></tr>}
+          {show(n(entry.yearEndBonus)) && <tr><td className="left col-add">年終獎金</td><td className="col-add">{money(entry.yearEndBonus)}</td></tr>}
+          {show(n(entry.performanceBonus)) && <tr><td className="left col-add">績效獎金</td><td className="col-add">{money(entry.performanceBonus)}</td></tr>}
+          {show(n(entry.otherBonus)) && <tr><td className="left col-add">其他獎金</td><td className="col-add">{money(entry.otherBonus)}</td></tr>}
+          {show(calc.weekdayOtPay) && <tr><td className="left col-add">平日加班（{n(entry.otWeekday134)}/{n(entry.otWeekday167)} hr）</td><td className="col-add">{money(calc.weekdayOtPay)}</td></tr>}
+          {show(calc.restDayPay) && <tr><td className="left col-add">休息日出勤（{n(entry.otRestDayHours)} hr，計{calc.restDayCountedHours}hr）</td><td className="col-add">{money(calc.restDayPay)}</td></tr>}
+          {show(calc.holidayPay) && <tr><td className="left col-add">國定假日出勤（{n(entry.otHolidayHours)} hr）</td><td className="col-add">{money(calc.holidayPay)}</td></tr>}
           {n(entry.otMandatoryRestHours)>0 && <tr><td className="left col-add" style={{color:'var(--outcome)'}}>例假日出勤（{n(entry.otMandatoryRestHours)} hr，需補休）</td><td className="col-add">{money(calc.mandatoryRestPay)}</td></tr>}
-          <tr><td className="left col-add">特休未休結算</td><td className="col-add">{money(entry.annualLeaveSettlement)}</td></tr>
+          {show(n(entry.annualLeaveSettlement)) && <tr><td className="left col-add">特休未休結算</td><td className="col-add">{money(entry.annualLeaveSettlement)}</td></tr>}
           <tr className="total-row"><td className="left">應發合計</td><td>{money(calc.payableTotal)}</td></tr>
         </tbody>
       </table>
@@ -1284,11 +1286,11 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26}){
         <tbody>
           <tr><td className="left col-deduct">勞保費{!calc.insFullMonth && <span style={{fontWeight:400}}>（按{calc.insLaborDays}天計）</span>}</td><td className="col-deduct">{money(calc.laborFee)}</td></tr>
           <tr><td className="left col-deduct">健保費{!calc.insActiveAtMonthEnd && <span style={{fontWeight:400}}>（月底已離職不收）</span>}</td><td className="col-deduct">{money(calc.healthFee)}</td></tr>
-          <tr><td className="left col-deduct">事假({n(entry.personalLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*n(entry.personalLeave))}</td></tr>
-          <tr><td className="left col-deduct">病假({n(entry.sickLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*0.5*n(entry.sickLeave))}</td></tr>
-          <tr><td className="left col-deduct">生理假半薪({calc.menstrualHalfHours}hr，全薪{calc.menstrualPaidHours}hr不扣)</td><td className="col-deduct">{money(calc.hourly*0.5*calc.menstrualHalfHours)}</td></tr>
-          <tr><td className="left col-deduct">災防假({n(entry.disasterLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*0*n(entry.disasterLeave))}</td></tr>
-          <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct">{money(entry.otherDeduction)}</td></tr>
+          {show(n(entry.personalLeave)) && <tr><td className="left col-deduct">事假({n(entry.personalLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*n(entry.personalLeave))}</td></tr>}
+          {show(n(entry.sickLeave)) && <tr><td className="left col-deduct">病假({n(entry.sickLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*0.5*n(entry.sickLeave))}</td></tr>}
+          {show(n(entry.menstrualLeave)) && <tr><td className="left col-deduct">生理假半薪({calc.menstrualHalfHours}hr，全薪{calc.menstrualPaidHours}hr不扣)</td><td className="col-deduct">{money(calc.hourly*0.5*calc.menstrualHalfHours)}</td></tr>}
+          {show(n(entry.disasterLeave)) && <tr><td className="left col-deduct">災防假({n(entry.disasterLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*0*n(entry.disasterLeave))}</td></tr>}
+          {show(n(entry.otherDeduction)) && <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct">{money(entry.otherDeduction)}</td></tr>}
           <tr className="total-row"><td className="left">應扣合計</td><td>{money(calc.deductTotal)}</td></tr>
         </tbody>
       </table>
@@ -1297,11 +1299,11 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26}){
         <colgroup><col /><col style={{width:100}} /></colgroup>
         <thead><tr><th className="col-add left"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>add_circle</span> 業務／獎金加發項目（26日發放）</th><th className="col-add">金額</th></tr></thead>
         <tbody>
-          <tr><td className="left col-add">業務費用</td><td className="col-add">{money(entry.businessExpense)}</td></tr>
-          <tr><td className="left col-add">業績獎金</td><td className="col-add">{money(entry.salesPerformance)}</td></tr>
-          <tr><td className="left col-add">其他獎金</td><td className="col-add">{money(entry.salesBonus26)}</td></tr>
-          <tr><td className="left col-add">其他費用</td><td className="col-add">{money(entry.otherExpense26)}</td></tr>
-          <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct">{money(entry.deduction26)}</td></tr>
+          {show(n(entry.businessExpense)) && <tr><td className="left col-add">業務費用</td><td className="col-add">{money(entry.businessExpense)}</td></tr>}
+          {show(n(entry.salesPerformance)) && <tr><td className="left col-add">業績獎金</td><td className="col-add">{money(entry.salesPerformance)}</td></tr>}
+          {show(n(entry.salesBonus26)) && <tr><td className="left col-add">其他獎金</td><td className="col-add">{money(entry.salesBonus26)}</td></tr>}
+          {show(n(entry.otherExpense26)) && <tr><td className="left col-add">其他費用</td><td className="col-add">{money(entry.otherExpense26)}</td></tr>}
+          {show(n(entry.deduction26)) && <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct">{money(entry.deduction26)}</td></tr>}
         </tbody>
       </table>
 
@@ -1327,6 +1329,7 @@ function getActualPayDateJS(year, month, day, holidaySet){
 function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseline}){
   const [selected, setSelected] = useState('all');
   const [holidays, setHolidays] = useState([]);
+  const [hideZero, setHideZero] = useState(true);
   useEffect(()=>{ apiGet('getHolidays').then(setHolidays).catch(()=>{}); }, []);
   const holidaySet = {}; holidays.forEach(h=>{ if(h.type==='國定假日') holidaySet[h.date]=true; });
   const [py, pm] = month.split('-').map(Number);
@@ -1342,13 +1345,17 @@ function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseli
           {employees.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
         <span className="grow"></span>
+        <label style={{display:'flex', alignItems:'center', gap:6, marginBottom:0, fontWeight:400}}>
+          <input type="checkbox" checked={hideZero} onChange={e=>setHideZero(e.target.checked)} style={{width:'auto'}} />
+          隱藏金額為0的項目
+        </label>
         <button onClick={()=>window.print()}>列印薪資條</button>
       </div>
       {list.length===0 && <div className="empty card">尚無員工資料</div>}
       {list.map(emp=>{
         const entry = payrollEntries[emp.id] || emptyEntry();
         const calc = calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||0, month);
-        return <Payslip key={emp.id} emp={emp} entry={entry} calc={calc} month={month} payDate06={payDate06} payDate26={payDate26} />;
+        return <Payslip key={emp.id} emp={emp} entry={entry} calc={calc} month={month} payDate06={payDate06} payDate26={payDate26} hideZero={hideZero} />;
       })}
     </div>
   );
