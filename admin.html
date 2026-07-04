@@ -267,8 +267,9 @@ function calcMandatoryRestPay(hourly, dailyWage, hours, mode){
 function calcForEmployee(emp, entryRaw, settings){
   const entry = {...emptyEntry(), ...(entryRaw||{})};
   const base = n(emp.baseSalary);
-  const hourly = base>0 ? base/240 : 0;
-  const dailyWage = base>0 ? base/30 : 0;
+  const wageBase = base + n(emp.mealAllowance) + n(emp.transportAllowance) + n(emp.positionAllowance) + n(emp.fullAttendanceBonus);
+  const hourly = wageBase>0 ? wageBase/240 : 0;
+  const dailyWage = wageBase>0 ? wageBase/30 : 0;
 
   const weekdayOtPay = hourly*1.34*n(entry.otWeekday134) + hourly*1.67*n(entry.otWeekday167);
   const restDay = calcRestDayPay(hourly, entry.otRestDayHours);
@@ -975,7 +976,8 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         const grantedHours = data.granted[emp.id] ? data.granted[emp.id].hours : 0;
         const usedHours = data.used[emp.id] || 0;
         const remainHours = Math.max(0, grantedHours - usedHours);
-        const hourly = n(emp.baseSalary) > 0 ? n(emp.baseSalary)/240 : 0;
+        const wageBase = n(emp.baseSalary) + n(emp.mealAllowance) + n(emp.transportAllowance) + n(emp.positionAllowance) + n(emp.fullAttendanceBonus);
+        const hourly = wageBase > 0 ? wageBase/240 : 0;
         const amount = Math.round(remainHours * hourly);
         return {employeeId: emp.id, name: emp.name, remainHours, hourly: Math.round(hourly*100)/100, amount};
       });
