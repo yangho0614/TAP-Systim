@@ -273,10 +273,9 @@ function calcMandatoryRestPay(hourly, dailyWage, hours, mode){
 }
 function calcForEmployee(emp, entryRaw, settings, menstrualUsedBefore){
   const entry = {...emptyEntry(), ...(entryRaw||{})};
-  const base = n(emp.baseSalary);
-  const wageBase = base + n(emp.mealAllowance) + n(emp.transportAllowance) + n(emp.positionAllowance) + n(emp.fullAttendanceBonus);
-  const hourly = wageBase>0 ? wageBase/240 : 0;
-  const dailyWage = wageBase>0 ? wageBase/30 : 0;
+  const base = n(emp.baseSalary); // 本薪已包含伙食/交通/職務加給/全勤獎金，以下4個欄位僅為拆解說明用途，不重複相加
+  const hourly = base>0 ? base/240 : 0;
+  const dailyWage = base>0 ? base/30 : 0;
 
   const weekdayOtPay = hourly*1.34*n(entry.otWeekday134) + hourly*1.67*n(entry.otWeekday167);
   const restDay = calcRestDayPay(hourly, entry.otRestDayHours);
@@ -286,10 +285,10 @@ function calcForEmployee(emp, entryRaw, settings, menstrualUsedBefore){
   const overtimePay = weekdayOtPay + restDay.pay + holiday.pay + mandatoryRestPay;
   const monthlyOtHours = n(entry.otWeekday134) + n(entry.otWeekday167);
 
-  const allowanceTotal = n(emp.mealAllowance)+n(emp.transportAllowance)+n(emp.positionAllowance)+n(emp.fullAttendanceBonus);
+  const allowanceTotal = n(emp.mealAllowance)+n(emp.transportAllowance)+n(emp.positionAllowance)+n(emp.fullAttendanceBonus); // 僅供顯示參考，已含在本薪內
   const bonusTotal = n(entry.festivalBonus)+n(entry.yearEndBonus)+n(entry.otherBonus)+n(entry.performanceBonus);
 
-  const payableA = base + allowanceTotal + bonusTotal + n(entry.annualLeaveSettlement);
+  const payableA = base + bonusTotal + n(entry.annualLeaveSettlement);
   const payableTotal = payableA + overtimePay;
 
   const ins = findInsurance(emp.insuranceGrade);
@@ -307,7 +306,7 @@ function calcForEmployee(emp, entryRaw, settings, menstrualUsedBefore){
   const pay26 = n(entry.businessExpense)+n(entry.salesPerformance)+n(entry.otherExpense26)+n(entry.salesBonus26)-n(entry.deduction26);
   const grandTotal = pay06 + pay26;
 
-  const recurringPay = base + n(emp.mealAllowance)+n(emp.transportAllowance)+n(emp.positionAllowance);
+  const recurringPay = base; // 本薪已包含伙食/交通/職務加給，不重複相加
   const belowMinWage = base>0 && recurringPay < MIN_WAGE_MONTHLY;
 
   return {
@@ -1004,7 +1003,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         const grantedHours = data.granted[emp.id] ? data.granted[emp.id].hours : 0;
         const usedHours = data.used[emp.id] || 0;
         const remainHours = Math.max(0, grantedHours - usedHours);
-        const wageBase = n(emp.baseSalary) + n(emp.mealAllowance) + n(emp.transportAllowance) + n(emp.positionAllowance) + n(emp.fullAttendanceBonus);
+        const wageBase = n(emp.baseSalary); // 本薪已包含4項津貼，不重複相加
         const hourly = wageBase > 0 ? wageBase/240 : 0;
         const amount = Math.round(remainHours * hourly);
         return {employeeId: emp.id, name: emp.name, remainHours, hourly: Math.round(hourly*100)/100, amount};
