@@ -183,7 +183,7 @@ function todayMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.g
 function monthLabel(m){
   if(!m) return '';
   const [y,mo] = m.split('-');
-  return (Number(y)-1911) + '年' + Number(mo) + '月 (' + m + ')';
+  return y + '年' + Number(mo) + '月';
 }
 function exportCSV(filename, headers, rows){
   const esc = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
@@ -293,7 +293,8 @@ function calcForEmployee(emp, entryRaw, settings, menstrualUsedBefore){
 
   const ins = findInsurance(emp.insuranceGrade);
   const laborFee = ins ? ins.empLabor : 0;
-  const healthFee = ins ? ins.empHealth : 0;
+  const dependentCount = Math.min(n(emp.dependentCount), 3); // 眷屬保費同本人金額，超過3人以3人計
+  const healthFee = ins ? ins.empHealth * (1 + dependentCount) : 0;
 
   const MENSTRUAL_FULL_PAY_HOURS = 24; // 每年前3天(以8hr/天計)生理假全薪
   const remainFullPay = Math.max(0, MENSTRUAL_FULL_PAY_HOURS - n(menstrualUsedBefore));
@@ -420,7 +421,7 @@ function App(){
     setEditingEmployee({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
       mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
       companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false,
-      nationalId:'', householdAddress:''});
+      nationalId:'', householdAddress:'', dependentCount:0});
     setIsNewEmployee(true);
   }
   function openEditEmployee(emp){ setEditingEmployee({...emp}); setIsNewEmployee(false); }
@@ -657,6 +658,11 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
               </select>
               <button type="button" className="ghost sm" onClick={()=>setEditing({...editing, insuranceGrade: suggestGrade(editing.baseSalary)})}>依本薪建議</button>
             </div>
+          </div>
+          <div className="field">
+            <label>健保眷屬人數</label>
+            <input type="number" min="0" value={editing.dependentCount} onChange={e=>setEditing({...editing, dependentCount:Number(e.target.value)})} />
+            <div className="hint" style={{marginTop:4}}>眷屬保費同本人金額，超過3人一律以3人計算</div>
           </div>
           <div className="field"><label>本薪</label><input type="number" value={editing.baseSalary} onChange={e=>setEditing({...editing, baseSalary:Number(e.target.value)})} /></div>
 
@@ -1341,20 +1347,24 @@ function TransferTab({rows, month}){
             <span className="grow"></span>
             <button className="ghost sm no-print" onClick={()=>exportGroup(company, active)}>匯出 CSV</button>
           </div>
-          <table>
-            <thead><tr><th>項次</th><th className="left">姓名</th><th className="left">銀行</th><th className="left">帳號</th><th>金額</th><th className="left">備註</th></tr></thead>
+          <table style={{tableLayout:'fixed', width:'100%'}}>
+            <colgroup>
+              <col style={{width:'8%'}} /><col style={{width:'16%'}} /><col style={{width:'16%'}} />
+              <col style={{width:'20%'}} /><col style={{width:'16%'}} /><col style={{width:'24%'}} />
+            </colgroup>
+            <thead><tr><th>項次</th><th>姓名</th><th>銀行</th><th>帳號</th><th>金額</th><th>備註</th></tr></thead>
             <tbody>
               {active.map((r,idx)=>(
                 <tr key={r.emp.id}>
-                  <td>{idx+1}</td>
-                  <td className="left">{r.emp.name}</td>
-                  <td className="left">{r.emp.bankName}</td>
-                  <td className="left mono">{r.emp.bankAccount || '（未登錄帳號）'}</td>
-                  <td className="mono">{money(period==='06'?r.calc.pay06:r.calc.pay26)}</td>
-                  <td className="left">{r.emp.note}</td>
+                  <td className="center">{idx+1}</td>
+                  <td className="center">{r.emp.name}</td>
+                  <td className="center">{r.emp.bankName}</td>
+                  <td className="center mono">{r.emp.bankAccount || '（未登錄帳號）'}</td>
+                  <td className="mono" style={{textAlign:'right'}}>{money(period==='06'?r.calc.pay06:r.calc.pay26)}</td>
+                  <td className="center">{r.emp.note}</td>
                 </tr>
               ))}
-              <tr className="total-row"><td colSpan="4" className="left">總計</td><td className="mono">{money(total)}</td><td></td></tr>
+              <tr className="total-row"><td colSpan="4" className="center">總計</td><td className="mono" style={{textAlign:'right'}}>{money(total)}</td><td></td></tr>
             </tbody>
           </table>
         </div>
@@ -1395,7 +1405,6 @@ function PayrollRegisterTab(){
   const years = [];
   const thisYear = new Date().getFullYear();
   for(let y = thisYear + 1; y >= thisYear - 2; y--) years.push(String(y));
-  const rocYear = Number(year) - 1911;
 
   return (
     <div>
@@ -1413,7 +1422,7 @@ function PayrollRegisterTab(){
         Object.entries(data).map(([company, list])=>(
           <div className="card" key={company} style={{overflowX:'auto'}}>
             <h3 style={{marginBottom:2}}>{company}</h3>
-            <div className="hint" style={{marginBottom:10}}>民國{rocYear}年度（{year}年）薪資印領清冊</div>
+            <div className="hint" style={{marginBottom:10}}>{year}年度薪資印領清冊</div>
             <table style={{minWidth:1400}}>
               <thead>
                 <tr>
