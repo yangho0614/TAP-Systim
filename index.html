@@ -410,8 +410,9 @@ function announceDateShort(createdAt){
   const now = new Date();
   const todayPart = now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
   if(datePart === todayPart) return '今天';
-  if(datePart.slice(0,4) === String(now.getFullYear())) return datePart.slice(5).replace('-','/'); // MM/dd
-  return datePart;
+  const [y,m,d] = datePart.split('-').map(Number);
+  if(y === now.getFullYear()) return `${m}月${d}日`;
+  return `${y}年${m}月${d}日`;
 }
 function hhmm(dt){
   if(!dt) return '—';
@@ -837,7 +838,7 @@ function HomePage({session, setSession, status, pendingCount, goForms, goNews, s
   const dateStr = `${now.getMonth()+1}月${now.getDate()}日　星期${'日一二三四五六'[now.getDay()]}`;
 
   useEffect(()=>{ apiGet('getLeaveBalances').then(setBalances).catch(()=>{}); }, []);
-  useEffect(()=>{ apiGet('getAnnouncements').then(list=>setPinnedAnnounces((list||[]).filter(a=>a.pinned))).catch(()=>{}); }, []);
+  useEffect(()=>{ apiGet('getAnnouncements').then(list=>setPinnedAnnounces((list||[]).filter(a=>a.showOnHome))).catch(()=>{}); }, []);
 
   function onAvatarFileChange(e){
     const file = e.target.files && e.target.files[0];
@@ -927,6 +928,14 @@ function HomePage({session, setSession, status, pendingCount, goForms, goNews, s
         </div>
       </div>
 
+      <div className="card row-between" style={{cursor:'pointer'}} onClick={()=>setPayslipOpen(true)}>
+        <div style={{display:'flex', alignItems:'center', gap:10}}>
+          <span className="material-icons" style={{color:'var(--muted)'}}>receipt_long</span>
+          <div style={{fontSize:14}}>我的薪資條</div>
+        </div>
+        <span className="material-icons" style={{color:'var(--muted)'}}>chevron_right</span>
+      </div>
+
       {pinnedAnnounces.length > 0 && (
         <div className="card" style={{borderColor:'var(--gold)', background:'rgba(212,175,55,0.08)', cursor:'pointer'}} onClick={goNews}>
           {pinnedAnnounces.map((a,idx)=>(
@@ -940,14 +949,6 @@ function HomePage({session, setSession, status, pendingCount, goForms, goNews, s
           ))}
         </div>
       )}
-
-      <div className="card row-between" style={{cursor:'pointer'}} onClick={()=>setPayslipOpen(true)}>
-        <div style={{display:'flex', alignItems:'center', gap:10}}>
-          <span className="material-icons" style={{color:'var(--muted)'}}>receipt_long</span>
-          <div style={{fontSize:14}}>我的薪資條</div>
-        </div>
-        <span className="material-icons" style={{color:'var(--muted)'}}>chevron_right</span>
-      </div>
 
       {payslipOpen && <PayslipModal onClose={()=>setPayslipOpen(false)} showToast={showToast} />}
     </div>
@@ -1626,7 +1627,8 @@ function NewsPage({showToast, onMarkedRead}){
       ) : list.map(a=>{
         const isOpen = expanded===a.id;
         return (
-          <div className="card" key={a.id} onClick={()=>setExpanded(isOpen?null:a.id)} style={{cursor:'pointer'}}>
+          <div className="card" key={a.id} onClick={()=>setExpanded(isOpen?null:a.id)}
+            style={{cursor:'pointer', borderLeft: a.pinned?'4px solid var(--gold)':undefined, paddingLeft: a.pinned?12:undefined}}>
             <div className="title-row">
               <div style={{display:'flex', alignItems:'center', gap:7, minWidth:0}}>
                 {a.pinned && (
@@ -1636,10 +1638,7 @@ function NewsPage({showToast, onMarkedRead}){
                 )}
                 <div className="type" style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{a.title}</div>
               </div>
-              <div style={{display:'flex', alignItems:'center', gap:6, flexShrink:0}}>
-                <span style={{fontSize:11, fontWeight:700, borderRadius:5, padding:'2px 6px', color: a.unread?'#fff':'var(--muted)', background: a.unread?'var(--brand,#1B2027)':'var(--panel-2)'}}>{a.unread?'未讀':'已讀'}</span>
-                <span className="material-icons" style={{color:'var(--muted)', fontSize:20}}>{isOpen?'expand_less':'expand_more'}</span>
-              </div>
+              <span style={{fontSize:11, fontWeight:700, borderRadius:5, padding:'2px 6px', flexShrink:0, color: a.unread?'#fff':'var(--muted)', background: a.unread?'var(--brand,#1B2027)':'var(--panel-2)'}}>{a.unread?'未讀':'已讀'}</span>
             </div>
             <div className="meta">{announceDateShort(a.createdAt)}　· {a.author}</div>
             {isOpen ? (
@@ -1671,6 +1670,9 @@ function NewsPage({showToast, onMarkedRead}){
                 )}
               </div>
             )}
+            <div style={{display:'flex', justifyContent:'flex-end', marginTop:4}}>
+              <span className="material-icons" style={{color:'var(--muted)', fontSize:20}}>{isOpen?'expand_less':'expand_more'}</span>
+            </div>
           </div>
         );
       })}

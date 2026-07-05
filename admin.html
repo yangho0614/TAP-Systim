@@ -2795,7 +2795,7 @@ function AnnouncementsTab(){
   }
   useEffect(load, []);
 
-  function openNew(){ setEditing({id:null, title:'', content:'', companyId:'', pinned:false, status:'已發布', attachments:[]}); setIsNew(true); }
+  function openNew(){ setEditing({id:null, title:'', content:'', companyId:'', pinned:false, status:'已發布', attachments:[], showOnHome:false}); setIsNew(true); }
   function openEdit(a){ setEditing({...a, attachments: a.attachments||[]}); setIsNew(false); }
   async function save(){
     if(!editing.title.trim()){ alert('請輸入標題'); return; }
@@ -2904,7 +2904,11 @@ function AnnouncementsTab(){
               </div>
             </div>
             <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)'}}>
-              <input type="checkbox" checked={editing.pinned} onChange={e=>setEditing({...editing,pinned:e.target.checked})} style={{width:'auto'}} />置頂
+              <input type="checkbox" checked={editing.pinned} onChange={e=>{ const checked=e.target.checked; setEditing({...editing, pinned:checked, showOnHome: checked ? editing.showOnHome : false}); }} style={{width:'auto'}} />置頂
+            </label>
+            <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color: editing.pinned?'var(--ink)':'var(--muted)', marginTop:6}}>
+              <input type="checkbox" checked={!!editing.showOnHome} disabled={!editing.pinned} onChange={e=>setEditing({...editing,showOnHome:e.target.checked})} style={{width:'auto'}} />
+              顯示在首頁{!editing.pinned && <span className="hint" style={{marginLeft:4}}>（需先勾選「置頂」）</span>}
             </label>
             <div className="modal-actions">
               <button className="ghost" onClick={()=>setEditing(null)}>取消</button>
