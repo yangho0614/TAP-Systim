@@ -766,6 +766,16 @@ function App(){
 
 /* ========================= 員工資料 ========================= */
 function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companies, departments, shifts}){
+  const [resignPreview, setResignPreview] = useState(null);
+  const [resignPreviewLoading, setResignPreviewLoading] = useState(false);
+  useEffect(()=>{ setResignPreview(null); }, [editing && editing.id]);
+  async function loadResignPreview(){
+    setResignPreviewLoading(true);
+    try{
+      const data = await apiGet('calcResignationLeaveSettlement', {employeeId: editing.id, resignDate: editing.resignDate, baseOverride: editing.baseSalary});
+      setResignPreview(data);
+    }catch(e){ alert(e.message); } finally{ setResignPreviewLoading(false); }
+  }
   if(!editing) return null;
   return (
     <div className="modal-bg">
@@ -798,8 +808,24 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           <div className="field"><label>到職日</label><input type="date" value={editing.hireDate} onChange={e=>setEditing({...editing, hireDate:e.target.value})} /></div>
           <div className="field">
             <label>離職日</label>
-            <input type="date" value={editing.resignDate||''} onChange={e=>setEditing({...editing, resignDate:e.target.value, status: e.target.value ? '離職' : editing.status})} />
+            <input type="date" value={editing.resignDate||''} onChange={e=>{ setEditing({...editing, resignDate:e.target.value, status: e.target.value ? '離職' : editing.status}); setResignPreview(null); }} />
             <div className="hint" style={{marginTop:4}}>有填離職日時，勞保費當月按在職天數比例計算，健保費則看月底當天是否仍在職（在職才收整月保費）</div>
+            {editing.resignDate && editing.hireDate && !isNew && (
+              <div style={{marginTop:6}}>
+                <button type="button" className="ghost sm" disabled={resignPreviewLoading} onClick={loadResignPreview}>
+                  <span className="material-icons" style={{fontSize:14}}>calculate</span>{resignPreviewLoading?'試算中...':'試算特休結算'}
+                </button>
+                {resignPreview && (
+                  <div className="hint" style={{marginTop:6, background:'var(--bg-soft, #f5f5f5)', padding:8, borderRadius:6, lineHeight:1.7}}>
+                    週年制重新計算期間：{resignPreview.periodStart} ～ {resignPreview.periodEnd}<br/>
+                    應有 {resignPreview.entitledDays} 天，已休 {resignPreview.usedDays} 天，可結算 {resignPreview.settleDays} 天（{resignPreview.settleHours}小時）<br/>
+                    {resignPreview.overUsed && <span style={{color:'var(--danger)'}}>⚠ 已超休 {resignPreview.overDays} 天，公司不能扣薪，結算金額以0計<br/></span>}
+                    以本薪 {money(editing.baseSalary)} 估算，結算金額約 <b>{money(resignPreview.settlePay)}</b> 元
+                    <div style={{marginTop:4, color:'var(--muted, #888)'}}>正式金額請至「薪資結算」頁該員工當月薪資列，按同樣的試算按鈕帶入。</div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="field">
             <label>年資中斷起（選填）</label>
@@ -1160,6 +1186,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   const [subTab, setSubTab] = useState('06');
   const [settleBox, setSettleBox] = useState(null); // {year, items, loading, saving}
   const [lockBox, setLockBox] = useState(null); // {items, loading, saving}
+  const [resignRowBox, setResignRowBox] = useState(null); // {employeeId, name, loading, data}
   const [locking, setLocking] = useState(false);
   const scrollRef = useRef(null);
   function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
@@ -1233,11 +1260,13 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
       const items = rows.map(({emp})=>{
         const grantedHours = data.granted[emp.id] ? data.granted[emp.id].hours : 0;
         const usedHours = data.used[emp.id] || 0;
-        const remainHours = Math.max(0, grantedHours - usedHours);
+        const rawHours = Math.round((grantedHours - usedHours) * 100) / 100;
+        const overUsed = rawHours < 0;
+        const remainHours = Math.max(0, rawHours);
         const wageBase = n(emp.baseSalary); // 本薪已包含4項津貼，不重複相加
         const hourly = wageBase > 0 ? wageBase/240 : 0;
         const amount = Math.round(remainHours * hourly);
-        return {employeeId: emp.id, name: emp.name, remainHours, hourly: Math.round(hourly*100)/100, amount};
+        return {employeeId: emp.id, name: emp.name, remainHours, hourly: Math.round(hourly*100)/100, amount, overUsed, overHours: overUsed ? Math.abs(rawHours) : 0};
       });
       setSettleBox({year, items, loading:false, saving:false});
     }catch(e){ alert(e.message); setSettleBox(null); }
@@ -1246,6 +1275,18 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
     settleBox.items.forEach(it=>{ setEntry(it.employeeId, {annualLeaveSettlement: it.amount}); });
     setSettleBox(null);
     alert('已套用特休結算金額，記得檢查後按「儲存薪資紀錄」。');
+  }
+
+  async function openResignRowSettle(emp){
+    setResignRowBox({employeeId: emp.id, name: emp.name, loading:true, data:null});
+    try{
+      const data = await apiGet('calcResignationLeaveSettlement', {employeeId: emp.id, resignDate: emp.resignDate, baseOverride: emp.baseSalary});
+      setResignRowBox({employeeId: emp.id, name: emp.name, loading:false, data});
+    }catch(e){ alert(e.message); setResignRowBox(null); }
+  }
+  function applyResignRowSettle(){
+    setEntry(resignRowBox.employeeId, {annualLeaveSettlement: resignRowBox.data.settlePay});
+    setResignRowBox(null);
   }
 
   function doExport(){
@@ -1347,7 +1388,14 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="col-add"><NumCell value={entry.yearEndBonus} onChange={v=>setEntry(emp.id,{yearEndBonus:v})} disabled={entry.locked} /></td>
               <td className="col-add"><NumCell value={entry.performanceBonus} onChange={v=>setEntry(emp.id,{performanceBonus:v})} disabled={entry.locked} /></td>
               <td className="col-add"><NumCell value={entry.otherBonus} onChange={v=>setEntry(emp.id,{otherBonus:v})} disabled={entry.locked} /></td>
-              <td className="col-add"><NumCell value={entry.annualLeaveSettlement} onChange={v=>setEntry(emp.id,{annualLeaveSettlement:v})} disabled={entry.locked} /></td>
+              <td className="col-add">
+                <NumCell value={entry.annualLeaveSettlement} onChange={v=>setEntry(emp.id,{annualLeaveSettlement:v})} disabled={entry.locked} />
+                {emp.resignDate && !entry.locked && (
+                  <button type="button" className="ghost sm" title="試算離職特休結算（週年制）" style={{marginTop:2, padding:'2px 6px'}} onClick={()=>openResignRowSettle(emp)}>
+                    <span className="material-icons" style={{fontSize:14}}>calculate</span>
+                  </button>
+                )}
+              </td>
               <td className="col-add num-pos"><b>{money(calc.payableTotal)}</b></td>
               <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} disabled={entry.locked} /></td>
               <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} disabled={entry.locked} /></td>
@@ -1426,7 +1474,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
                 <tbody>
                   {settleBox.items.map(it=>(
                     <tr key={it.employeeId}>
-                      <td className="left">{it.name}</td>
+                      <td className="left">{it.name}{it.overUsed && <div className="hint" style={{color:'var(--danger)'}}>⚠ 已超休 {it.overHours} 小時，公司不能扣薪，金額以0計</div>}</td>
                       <td>{it.remainHours}</td>
                       <td className="left hint">{it.remainHours} hr × {it.hourly} 元/hr =</td>
                       <td><b>{money(it.amount)}</b></td>
@@ -1466,6 +1514,35 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
             <div className="modal-actions">
               <button className="ghost" onClick={()=>setLockBox(null)}>取消</button>
               <button onClick={confirmLock} disabled={lockBox.loading || lockBox.saving}>{lockBox.saving?'鎖定中...':'確認鎖定'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {resignRowBox && (
+        <div className="modal-bg">
+          <div className="modal" style={{maxWidth:480}}>
+            <h3><span className="material-icons">calculate</span>特休結算試算：{resignRowBox.name}</h3>
+            {resignRowBox.loading ? <div className="hint">試算中...</div> : resignRowBox.data && (
+              <div>
+                <div className="hint" style={{marginBottom:10}}>不論平常特休用歷年制或週年制核定，離職一律改用「週年制」重新計算最後一個未滿的服務年度，已休超過應有天數不倒扣。</div>
+                <table>
+                  <tbody>
+                    <tr><td className="left">重新計算期間</td><td>{resignRowBox.data.periodStart} ～ {resignRowBox.data.periodEnd}</td></tr>
+                    <tr><td className="left">應有天數</td><td>{resignRowBox.data.entitledDays} 天</td></tr>
+                    <tr><td className="left">已休天數</td><td>{resignRowBox.data.usedDays} 天（{resignRowBox.data.usedHours} 小時）</td></tr>
+                    <tr><td className="left">可結算天數</td><td><b>{resignRowBox.data.settleDays} 天</b>（{resignRowBox.data.settleHours} 小時）</td></tr>
+                    <tr><td className="left">日薪基準</td><td>{money(resignRowBox.data.dailyWage)}</td></tr>
+                    <tr><td className="left">結算金額</td><td><b>{money(resignRowBox.data.settlePay)}</b></td></tr>
+                  </tbody>
+                </table>
+                {resignRowBox.data.overUsed && (
+                  <div className="hint" style={{color:'var(--danger)', marginTop:8}}>⚠ 已超休 {resignRowBox.data.overDays} 天，依規定公司不能扣薪，結算金額以0計，僅提醒留意。</div>
+                )}
+              </div>
+            )}
+            <div className="modal-actions">
+              <button className="ghost" onClick={()=>setResignRowBox(null)}>取消</button>
+              <button onClick={applyResignRowSettle} disabled={resignRowBox.loading || !resignRowBox.data}>帶入特休結算欄位</button>
             </div>
           </div>
         </div>
@@ -2232,8 +2309,9 @@ function RequestsTab({month}){
   async function doReview(){
     setBusy(true);
     try{
-      await apiPost(reviewBox.mode==='approve'?'approveRequest':'rejectRequest', {id: reviewBox.req.id, comment: reviewBox.comment||''});
+      const result = await apiPost(reviewBox.mode==='approve'?'approveRequest':'rejectRequest', {id: reviewBox.req.id, comment: reviewBox.comment||''});
       setReviewBox(null); load();
+      if(result && result.warning) alert(result.warning);
     }catch(e){ alert(e.message); }
     finally{ setBusy(false); }
   }
