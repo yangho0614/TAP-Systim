@@ -1221,20 +1221,6 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
         </div>
       )}
 
-      {pickerFor && (
-        <CustomDateTimePicker
-          dateOnly={pickerFor==='comp'}
-          value={pickerFor==='start' ? leaveBox.startDT : pickerFor==='end' ? leaveBox.endDT : compBox.date}
-          onConfirm={(v)=>{
-            if(pickerFor==='start') updateLeaveField({startDT:v, endDT: leaveBox.endDT || v});
-            else if(pickerFor==='end') updateLeaveField({endDT:v});
-            else setCompBox({...compBox, date:v});
-            setPickerFor(null);
-          }}
-          onClose={()=>setPickerFor(null)}
-        />
-      )}
-
       {compBox && (
         <div className="modal-bg">
           <div className="modal">
@@ -1260,6 +1246,20 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
             </div>
           </div>
         </div>
+      )}
+
+      {pickerFor && (
+        <CustomDateTimePicker
+          dateOnly={pickerFor==='comp'}
+          value={pickerFor==='start' ? leaveBox.startDT : pickerFor==='end' ? leaveBox.endDT : compBox.date}
+          onConfirm={(v)=>{
+            if(pickerFor==='start') updateLeaveField({startDT:v, endDT: leaveBox.endDT || v});
+            else if(pickerFor==='end') updateLeaveField({endDT:v});
+            else setCompBox({...compBox, date:v});
+            setPickerFor(null);
+          }}
+          onClose={()=>setPickerFor(null)}
+        />
       )}
 
       {reviewBox && (
