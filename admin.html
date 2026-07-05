@@ -2334,11 +2334,12 @@ function AnnualLeaveTab({employees}){
             <h3><span className="material-icons">calculate</span>批次試算預覽（{year}年・{system==='calendar'?'歷年制':'週年制'}）</h3>
             <div className="hint" style={{marginBottom:10}}>以下為系統依到職日試算的建議天數，確認無誤後按「套用全部」，會覆蓋這些員工目前的核定時數。個別員工仍可在下方表格單獨微調。</div>
             <table>
-              <thead><tr><th className="left">姓名</th><th>建議天數</th><th>建議時數</th><th className="left">備註</th></tr></thead>
+              <thead><tr><th className="left">姓名</th><th>到職日</th><th>建議天數</th><th>建議時數</th><th className="left">備註</th></tr></thead>
               <tbody>
                 {batchBox.items.map(it=>(
                   <tr key={it.employeeId}>
                     <td className="left">{it.name}</td>
+                    <td>{(employees.find(e=>e.id===it.employeeId)||{}).hireDate || '-'}</td>
                     <td>{it.days===null?'-':it.days.toFixed(1)}</td>
                     <td>{it.hours===null?'-':it.hours.toFixed(2)}</td>
                     <td className="left" style={{color:'var(--danger)'}}>{it.error}</td>
