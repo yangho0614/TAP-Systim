@@ -203,6 +203,27 @@ function exportCSV(filename, headers, rows){
 }
 const n = v => { const x = Number(v); return isNaN(x) ? 0 : x; };
 const money = v => Math.round(n(v)).toLocaleString('zh-TW');
+function attachIcon(name){
+  const s = String(name||'').toLowerCase();
+  if(s.endsWith('.pdf')) return 'picture_as_pdf';
+  if(s.endsWith('.doc') || s.endsWith('.docx')) return 'description';
+  if(s.endsWith('.xls') || s.endsWith('.xlsx')) return 'table_chart';
+  if(s.endsWith('.ppt') || s.endsWith('.pptx')) return 'slideshow';
+  return 'insert_drive_file';
+}
+function fileSizeText(bytes){
+  if(!bytes) return '';
+  if(bytes < 1024*1024) return Math.round(bytes/1024) + 'KB';
+  return (bytes/1024/1024).toFixed(1) + 'MB';
+}
+function fileToBase64(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(String(reader.result).split(',')[1]);
+    reader.onerror = ()=>reject(new Error('檔案讀取失敗'));
+    reader.readAsDataURL(file);
+  });
+}
 // 數字格式化到指定小數位，但小數是0就不顯示（例如22.0→22，17.5維持17.5）
 function trimNum(v, decimals){
   const num = Number(v)||0;
@@ -2763,6 +2784,8 @@ function AnnouncementsTab(){
   const [editing, setEditing] = useState(null);
   const [isNew, setIsNew] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [attachUploading, setAttachUploading] = useState(false);
+  const attachInputRef = useRef(null);
 
   function load(){
     setLoading(true);
@@ -2772,8 +2795,8 @@ function AnnouncementsTab(){
   }
   useEffect(load, []);
 
-  function openNew(){ setEditing({id:null, title:'', content:'', companyId:'', pinned:false, status:'已發布'}); setIsNew(true); }
-  function openEdit(a){ setEditing({...a}); setIsNew(false); }
+  function openNew(){ setEditing({id:null, title:'', content:'', companyId:'', pinned:false, status:'已發布', attachments:[]}); setIsNew(true); }
+  function openEdit(a){ setEditing({...a, attachments: a.attachments||[]}); setIsNew(false); }
   async function save(){
     if(!editing.title.trim()){ alert('請輸入標題'); return; }
     setSaving(true);
@@ -2789,6 +2812,23 @@ function AnnouncementsTab(){
     try{ await apiPost('deleteAnnouncement', {id}); load(); }catch(e){ alert(e.message); }
   }
   function companyName(id){ if(!id) return '全公司'; const c = companies.find(x=>x.id===id); return c?c.name:'-'; }
+
+  async function onAttachFileChange(e){
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    if(file.size > 10*1024*1024){ alert('檔案不能超過 10MB'); return; }
+    setAttachUploading(true);
+    try{
+      const base64 = await fileToBase64(file);
+      const data = await apiPost('uploadAnnouncementAttachment', {fileBase64: base64, mimeType: file.type, filename: file.name});
+      setEditing(prev=>({...prev, attachments:[...(prev.attachments||[]), {name: data.name, url: data.url, size: data.size, mimeType: data.mimeType}]}));
+    }catch(err){ alert(err.message); }
+    finally{ setAttachUploading(false); }
+  }
+  function removeAttachment(idx){
+    setEditing(prev=>({...prev, attachments: prev.attachments.filter((_,i)=>i!==idx)}));
+  }
 
   return (
     <div>
@@ -2812,6 +2852,15 @@ function AnnouncementsTab(){
           </div>
           <div className="hint" style={{margin:'6px 0'}}>{companyName(a.companyId)}　·　{a.author}　·　{a.createdAt}</div>
           <div style={{fontSize:13}} dangerouslySetInnerHTML={{__html: a.content}} />
+          {a.attachments && a.attachments.length > 0 && (
+            <div style={{display:'flex', flexWrap:'wrap', gap:6, marginTop:8}}>
+              {a.attachments.map((att,idx)=>(
+                <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" className="hint" style={{display:'flex', alignItems:'center', gap:4, background:'var(--bg-2,#f2f2f2)', padding:'4px 8px', borderRadius:6, fontSize:12}}>
+                  <span className="material-icons" style={{fontSize:15}}>{attachIcon(att.name)}</span>{att.name}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       ))}
 
@@ -2821,6 +2870,25 @@ function AnnouncementsTab(){
             <h3><span className="material-icons">campaign</span>{isNew?'發布公告':'編輯公告'}</h3>
             <div className="field"><label>標題 *</label><input value={editing.title} onChange={e=>setEditing({...editing,title:e.target.value})} style={{width:'100%'}} /></div>
             <div className="field"><label>內容</label><RichTextEditor value={editing.content} onChange={html=>setEditing(prev=>({...prev, content:html}))} /></div>
+            <div className="field">
+              <label>附件（PDF、Word、Excel等檔案，非圖片）</label>
+              <div style={{display:'flex', flexDirection:'column', gap:6}}>
+                {(editing.attachments||[]).map((att,idx)=>(
+                  <div className="row-between" key={idx} style={{background:'var(--bg-2, #f2f2f2)', padding:'6px 10px', borderRadius:6}}>
+                    <div style={{display:'flex', alignItems:'center', gap:8, minWidth:0}}>
+                      <span className="material-icons" style={{fontSize:18, color:'var(--muted)'}}>{attachIcon(att.name)}</span>
+                      <a href={att.url} target="_blank" rel="noopener noreferrer" style={{fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{att.name}</a>
+                      <span className="hint" style={{fontSize:11, flexShrink:0}}>{fileSizeText(att.size)}</span>
+                    </div>
+                    <button type="button" className="ghost sm" onClick={()=>removeAttachment(idx)}><span className="material-icons" style={{fontSize:14}}>close</span></button>
+                  </div>
+                ))}
+                <button type="button" className="ghost sm" disabled={attachUploading} onClick={()=>attachInputRef.current && attachInputRef.current.click()} style={{alignSelf:'flex-start'}}>
+                  <span className="material-icons" style={{fontSize:15}}>{attachUploading?'hourglass_top':'attach_file'}</span>{attachUploading?'上傳中...':'新增附件'}
+                </button>
+                <input ref={attachInputRef} type="file" style={{display:'none'}} onChange={onAttachFileChange} />
+              </div>
+            </div>
             <div className="grid-2">
               <div className="field"><label>發布對象</label>
                 <select value={editing.companyId} onChange={e=>setEditing({...editing,companyId:e.target.value})}>
