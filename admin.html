@@ -202,6 +202,19 @@ function exportCSV(filename, headers, rows){
 }
 const n = v => { const x = Number(v); return isNaN(x) ? 0 : x; };
 const money = v => Math.round(n(v)).toLocaleString('zh-TW');
+// 數字格式化到指定小數位，但小數是0就不顯示（例如22.0→22，17.5維持17.5）
+function trimNum(v, decimals){
+  const num = Number(v)||0;
+  const fixed = num.toFixed(decimals);
+  return fixed.replace(/\.?0+$/, '') || '0';
+}
+// 西元日期字串轉民國年份標示，例如 2023-09-25 → 2023-09-25 (民國112年)
+function rocDate(dateStr){
+  if(!dateStr) return '';
+  const y = Number(String(dateStr).slice(0,4));
+  if(!y) return dateStr;
+  return `${dateStr} (民國${y-1911}年)`;
+}
 function tenureText(hireDate){
   if(!hireDate) return '未設定到職日';
   const h = new Date(hireDate);
@@ -2306,16 +2319,16 @@ function AnnualLeaveTab({employees}){
                 const granted = data.granted[emp.id] ? data.granted[emp.id].hours : 0;
                 const used = data.used[emp.id] || 0;
                 const editVal = edits[emp.id] !== undefined ? edits[emp.id] : granted;
-                const editDays = Number(editVal)>0 ? (Number(editVal)/8).toFixed(1) : '0.0';
+                const editDays = Number(editVal)>0 ? trimNum(Number(editVal)/8, 1) : '0';
                 return (
                   <tr key={emp.id}>
                     <td className="left"><b>{emp.name}</b></td>
                     <td className="left">{emp.department}</td>
-                    <td>{emp.hireDate || '-'}</td>
+                    <td>{emp.hireDate ? rocDate(emp.hireDate) : '-'}</td>
                     <td className="hint">{editDays} 天</td>
                     <td><input type="number" min="0" step="0.01" value={editVal} onChange={e=>setEdits({...edits, [emp.id]: e.target.value})} style={{width:80}} /></td>
-                    <td>{Number(used).toFixed(2)}</td>
-                    <td className={granted-used < 8 ? 'flag' : ''}>{Math.max(0, granted-used).toFixed(2)}</td>
+                    <td>{trimNum(used, 2)}</td>
+                    <td className={granted-used < 8 ? 'flag' : ''}>{trimNum(Math.max(0, granted-used), 2)}</td>
                     <td>
                       <button className="ghost sm" onClick={()=>estimate(emp.id)} disabled={estimatingId===emp.id || !emp.hireDate} title={!emp.hireDate?'請先設定到職日':''}>{estimatingId===emp.id?'試算中':'試算'}</button>{' '}
                       <button className="ghost sm" onClick={()=>save(emp.id)} disabled={savingId===emp.id}>{savingId===emp.id?'儲存中':'儲存'}</button>
@@ -2339,9 +2352,9 @@ function AnnualLeaveTab({employees}){
                 {batchBox.items.map(it=>(
                   <tr key={it.employeeId}>
                     <td className="left">{it.name}</td>
-                    <td>{(employees.find(e=>e.id===it.employeeId)||{}).hireDate || '-'}</td>
-                    <td>{it.days===null?'-':it.days.toFixed(1)}</td>
-                    <td>{it.hours===null?'-':it.hours.toFixed(2)}</td>
+                    <td>{(employees.find(e=>e.id===it.employeeId)||{}).hireDate ? rocDate((employees.find(e=>e.id===it.employeeId)||{}).hireDate) : '-'}</td>
+                    <td>{it.days===null?'-':trimNum(it.days,1)}</td>
+                    <td>{it.hours===null?'-':trimNum(it.hours,2)}</td>
                     <td className="left" style={{color:'var(--danger)'}}>{it.error}</td>
                   </tr>
                 ))}
