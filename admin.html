@@ -2959,6 +2959,31 @@ function SettingsTab({onSaved}){
       <div className="field" style={{marginTop:10}}><label>允許誤差半徑（公尺）</label><input type="number" value={s.radius} onChange={e=>setS({...s,radius:e.target.value})} /></div>
       <div className="hint">超出範圍不會擋下打卡，但紀錄會標示「超出範圍」讓後台核對，避免員工在店外因訊號誤差被卡住。</div>
 
+      <h3 style={{marginTop:18}}><span className="material-icons">wb_sunny</span> 首頁天氣顯示</h3>
+      <div className="field">
+        <label>資料來源</label>
+        <select value={s.weatherSource||'open-meteo'} onChange={e=>setS({...s,weatherSource:e.target.value})}>
+          <option value="open-meteo">Open-Meteo（免設定，直接用上方GPS座標）</option>
+          <option value="cwa">中央氣象署（需自行申請API Key）</option>
+        </select>
+      </div>
+      {s.weatherSource==='cwa' && (
+        <div className="grid-2">
+          <div className="field">
+            <label>中央氣象署 API Key</label>
+            <input value={s.cwaApiKey||''} onChange={e=>setS({...s,cwaApiKey:e.target.value})} placeholder="到 opendata.cwa.gov.tw 免費申請" />
+          </div>
+          <div className="field">
+            <label>所在縣市</label>
+            <select value={s.cwaCity||''} onChange={e=>setS({...s,cwaCity:e.target.value})}>
+              <option value="">請選擇</option>
+              {['臺北市','新北市','桃園市','臺中市','臺南市','高雄市','基隆市','新竹市','新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義市','嘉義縣','屏東縣','宜蘭縣','花蓮縣','臺東縣','澎湖縣','金門縣','連江縣'].map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
+      <div className="hint">Open-Meteo 顯示即時單一溫度；中央氣象署顯示的是預報溫度區間（例如 24°～28°C）。</div>
+
       <h3 style={{marginTop:18}}><span className="material-icons">schedule</span> 預設班表</h3>
       <div className="hint" style={{marginTop:-4, marginBottom:8}}>員工若在「員工資料」未指定班別，會套用這裡的預設班表。</div>
       <div className="grid-2">
