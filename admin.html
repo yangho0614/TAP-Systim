@@ -268,7 +268,7 @@ function emptyEntry(){
     locked:false, lockedAt:'', lockedBaseSalary:0, lockedMealAllowance:0, lockedTransportAllowance:0,
     lockedPositionAllowance:0, lockedFullAttendanceBonus:0, lockedInsuranceGrade:0, lockedDependentCount:0,
     lockedLaborFee:0, lockedHealthFee:0,
-    lateMinutes:0, lateCount:0, earlyMinutes:0, earlyCount:0
+    lateMinutes:0, lateCount:0, earlyMinutes:0, earlyCount:0, presentDays:0
   };
 }
 function calcRestDayPay(hourly, hours){
@@ -321,7 +321,8 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   // 若該月已鎖定，改用鎖定當下凍結的數值，不受員工資料日後異動影響
   const base = isLocked ? n(entry.lockedBaseSalary) : n(emp.baseSalary);
   const effMeal = isLocked ? n(entry.lockedMealAllowance) : n(emp.mealAllowance);
-  const effTransport = isLocked ? n(entry.lockedTransportAllowance) : n(emp.transportAllowance);
+  const effTransport = isLocked ? n(entry.lockedTransportAllowance)
+    : (emp.transportAllowanceMode === 'daily' ? Math.round(n(emp.transportAllowance) * n(entry.presentDays)) : n(emp.transportAllowance));
   const effPosition = isLocked ? n(entry.lockedPositionAllowance) : n(emp.positionAllowance);
   const effFullAttendance = isLocked ? n(entry.lockedFullAttendanceBonus) : n(emp.fullAttendanceBonus);
   const hourly = base>0 ? base/240 : 0;
@@ -550,7 +551,7 @@ function App(){
     setEditingEmployee({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
       mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
       companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false,
-      nationalId:'', householdAddress:'', dependentCount:0, resignDate:'', gender:''});
+      nationalId:'', householdAddress:'', dependentCount:0, resignDate:'', gender:'', transportAllowanceMode:'fixed'});
     setIsNewEmployee(true);
   }
   function openEditEmployee(emp){ setEditingEmployee({...emp}); setIsNewEmployee(false); }
@@ -642,7 +643,8 @@ function App(){
             personalLeave: s.personalLeave || 0, sickLeave: s.sickLeave || 0, disasterLeave: s.disasterLeave || 0,
             menstrualLeave: s.menstrualLeave || 0,
             lateMinutes: s.lateMinutes || 0, lateCount: s.lateCount || 0,
-            earlyMinutes: s.earlyLeaveMinutes || 0, earlyCount: s.earlyLeaveCount || 0};
+            earlyMinutes: s.earlyLeaveMinutes || 0, earlyCount: s.earlyLeaveCount || 0,
+            presentDays: s.presentDays || 0};
         });
         return next;
       });
@@ -810,7 +812,15 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           <div className="field"><label>本薪</label><input type="number" value={editing.baseSalary} onChange={e=>setEditing({...editing, baseSalary:Number(e.target.value)})} /></div>
 
           <div className="field"><label>伙食津貼</label><input type="number" value={editing.mealAllowance} onChange={e=>setEditing({...editing, mealAllowance:Number(e.target.value)})} /></div>
-          <div className="field"><label>交通津貼</label><input type="number" value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} /></div>
+          <div className="field"><label>交通津貼計算方式</label>
+            <select value={editing.transportAllowanceMode||'fixed'} onChange={e=>setEditing({...editing, transportAllowanceMode:e.target.value})}>
+              <option value="fixed">固定金額（每月）</option>
+              <option value="daily">依出勤天數計算</option>
+            </select>
+          </div>
+          <div className="field"><label>{editing.transportAllowanceMode==='daily' ? '每日補貼金額' : '交通津貼'}</label><input type="number" value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} />
+            {editing.transportAllowanceMode==='daily' && <div className="hint" style={{marginTop:4}}>系統會用「套用出缺勤時數」抓當月實際出勤天數 × 這個金額，自動算出當月交通津貼</div>}
+          </div>
           <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
           <div className="field"><label>全勤獎金（固定）</label><input type="number" value={editing.fullAttendanceBonus} onChange={e=>setEditing({...editing, fullAttendanceBonus:Number(e.target.value)})} /></div>
 
@@ -1302,7 +1312,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
               <td className="freeze-2 center">{money(calc.effBaseSalary)}</td>
               <td className="hint">{money(calc.effMealAllowance)}</td>
-              <td className="hint">{money(calc.effTransportAllowance)}</td>
+              <td className="hint" title={emp.transportAllowanceMode==='daily'?`依出勤天數計算：${entry.presentDays||0}天 × ${money(emp.transportAllowance)}`:''}>{money(calc.effTransportAllowance)}</td>
               <td className="hint">{money(calc.effPositionAllowance)}</td>
               <td className="hint" title={calc.fullAttendanceDeductRatio>0?`依請假/遲到早退比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%`:(calc.fullAttendanceRatio<1?`依在職天數比例試算（${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')} style={calc.fullAttendanceDeductRatio>0?{color:'var(--danger)'}:undefined}>{money(calc.fullAttendanceAdjusted)}</td>
               <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} /></td>
@@ -1460,7 +1470,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
           <tr><td className="left col-add" style={{fontWeight:600}}>本薪</td><td className="col-add" style={{fontWeight:600}}>{money(calc.effBaseSalary)}</td></tr>
           {(!hideZero || hasAnyAllowance) && <tr><td className="left col-add" colSpan="2" style={{fontSize:11, color:'var(--muted)', paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>}
           {show(n(calc.effMealAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>伙食津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effMealAllowance)}</td></tr>}
-          {show(n(calc.effTransportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effTransportAllowance)}</td></tr>}
+          {show(n(calc.effTransportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼{emp.transportAllowanceMode==='daily' && <span>（{entry.presentDays||0}天×{money(emp.transportAllowance)}）</span>}</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effTransportAllowance)}</td></tr>}
           {show(n(calc.effPositionAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>職務加給</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effPositionAllowance)}</td></tr>}
           {show(n(calc.effFullAttendanceBonus)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>全勤獎金{calc.fullAttendanceDeductRatio>0 && <span style={{color:'var(--danger)'}}>（依比例扣{(calc.fullAttendanceDeductRatio*100).toFixed(1)}%）</span>}{calc.fullAttendanceRatio<1 && <span>（依在職比例{(calc.fullAttendanceRatio*100).toFixed(0)}%）</span>}</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.fullAttendanceAdjusted)}</td></tr>}
           {show(n(entry.festivalBonus)) && <tr><td className="left col-add">三節獎金</td><td className="col-add">{money(entry.festivalBonus)}</td></tr>}
