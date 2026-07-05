@@ -250,7 +250,10 @@ function emptyEntry(){
     personalLeave:0, sickLeave:0, menstrualLeave:0, disasterLeave:0, otherLeave:0,
     annualLeaveSettlement:0,
     businessExpense:0, salesPerformance:0, otherExpense26:0, salesBonus26:0, deduction26:0,
-    otherDeduction:0, note:''
+    otherDeduction:0, note:'',
+    locked:false, lockedAt:'', lockedBaseSalary:0, lockedMealAllowance:0, lockedTransportAllowance:0,
+    lockedPositionAllowance:0, lockedFullAttendanceBonus:0, lockedInsuranceGrade:0, lockedDependentCount:0,
+    lockedLaborFee:0, lockedHealthFee:0
   };
 }
 function calcRestDayPay(hourly, hours){
@@ -298,7 +301,14 @@ function getInsuranceStatusForMonth(hireDate, resignDate, month){
 }
 function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const entry = {...emptyEntry(), ...(entryRaw||{})};
-  const base = n(emp.baseSalary); // 本薪已包含伙食/交通/職務加給/全勤獎金，以下4個欄位僅為拆解說明用途，不重複相加
+  const isLocked = !!entry.locked;
+  // 本薪已包含伙食/交通/職務加給/全勤獎金，以下4個欄位僅為拆解說明用途，不重複相加
+  // 若該月已鎖定，改用鎖定當下凍結的數值，不受員工資料日後異動影響
+  const base = isLocked ? n(entry.lockedBaseSalary) : n(emp.baseSalary);
+  const effMeal = isLocked ? n(entry.lockedMealAllowance) : n(emp.mealAllowance);
+  const effTransport = isLocked ? n(entry.lockedTransportAllowance) : n(emp.transportAllowance);
+  const effPosition = isLocked ? n(entry.lockedPositionAllowance) : n(emp.positionAllowance);
+  const effFullAttendance = isLocked ? n(entry.lockedFullAttendanceBonus) : n(emp.fullAttendanceBonus);
   const hourly = base>0 ? base/240 : 0;
   const dailyWage = base>0 ? base/30 : 0;
 
@@ -310,17 +320,24 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const overtimePay = weekdayOtPay + restDay.pay + holiday.pay + mandatoryRestPay;
   const monthlyOtHours = n(entry.otWeekday134) + n(entry.otWeekday167) + n(entry.otRestDayHours); // 依勞動部見解，休息日出勤時數也算入延長工作時間月上限
 
-  const allowanceTotal = n(emp.mealAllowance)+n(emp.transportAllowance)+n(emp.positionAllowance)+n(emp.fullAttendanceBonus); // 僅供顯示參考，已含在本薪內
+  const allowanceTotal = effMeal+effTransport+effPosition+effFullAttendance; // 僅供顯示參考，已含在本薪內
   const bonusTotal = n(entry.festivalBonus)+n(entry.yearEndBonus)+n(entry.otherBonus)+n(entry.performanceBonus);
 
   const payableA = base + bonusTotal + n(entry.annualLeaveSettlement);
   const payableTotal = payableA + overtimePay;
 
-  const ins = findInsurance(emp.insuranceGrade);
-  const insStatus = getInsuranceStatusForMonth(emp.hireDate, emp.resignDate, month);
-  const laborFee = ins ? (insStatus.fullMonth ? ins.empLabor : Math.round(ins.empLabor * insStatus.laborDays / 30)) : 0;
-  const dependentCount = Math.min(n(emp.dependentCount), 3); // 眷屬保費同本人金額，超過3人以3人計
-  const healthFee = (ins && insStatus.activeAtMonthEnd) ? ins.empHealth * (1 + dependentCount) : 0;
+  let laborFee, healthFee, insStatus;
+  if(isLocked){
+    laborFee = n(entry.lockedLaborFee);
+    healthFee = n(entry.lockedHealthFee);
+    insStatus = {laborDays:30, activeAtMonthEnd:true, fullMonth:true};
+  } else {
+    const ins = findInsurance(emp.insuranceGrade);
+    insStatus = getInsuranceStatusForMonth(emp.hireDate, emp.resignDate, month);
+    laborFee = ins ? (insStatus.fullMonth ? ins.empLabor : Math.round(ins.empLabor * insStatus.laborDays / 30)) : 0;
+    const dependentCount = Math.min(n(emp.dependentCount), 3); // 眷屬保費同本人金額，超過3人以3人計
+    healthFee = (ins && insStatus.activeAtMonthEnd) ? ins.empHealth * (1 + dependentCount) : 0;
+  }
 
   const MENSTRUAL_FULL_PAY_HOURS = 24; // 每年前3天(以8hr/天計)生理假全薪
   const SICK_LEAVE_ANNUAL_CAP_HOURS = 240; // 病假年度30天(以8hr/天計)上限，生理假超過3天部分需併入計算
@@ -362,7 +379,9 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
     laborFee, healthFee, leaveDeduct, deductTotal, menstrualPaidHours, menstrualHalfHours,
     sickHalfPayHours, sickUnpaidHours, menstrualHalfPayHours, menstrualUnpaidHours, sickCapExceeded,
     pay06, pay26, grandTotal, belowMinWage,
-    insLaborDays: insStatus.laborDays, insFullMonth: insStatus.fullMonth, insActiveAtMonthEnd: insStatus.activeAtMonthEnd
+    insLaborDays: insStatus.laborDays, insFullMonth: insStatus.fullMonth, insActiveAtMonthEnd: insStatus.activeAtMonthEnd,
+    locked: isLocked, effBaseSalary: base, effMealAllowance: effMeal, effTransportAllowance: effTransport,
+    effPositionAllowance: effPosition, effFullAttendanceBonus: effFullAttendance
   };
 }
 
@@ -435,6 +454,23 @@ const NAV = [
   {group:'組織設定', id:'settings', label:'系統設定', icon:'settings'},
 ];
 
+// 年份/月份兩段式下拉選單，取代原生 <input type="month">（避免行動裝置瀏覽器渲染不一致）
+function YearMonthPicker({value, onChange}){
+  const [y, m] = value.split('-');
+  const thisYear = new Date().getFullYear();
+  const years = [];
+  for(let yy = thisYear + 1; yy >= thisYear - 5; yy--) years.push(String(yy));
+  return (
+    <div style={{display:'flex', gap:6}}>
+      <select value={y} onChange={e=>onChange(e.target.value+'-'+m)}>
+        {years.map(yy=><option key={yy} value={yy}>{yy}年</option>)}
+      </select>
+      <select value={m} onChange={e=>onChange(y+'-'+e.target.value)}>
+        {Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')).map(mm=><option key={mm} value={mm}>{Number(mm)}月</option>)}
+      </select>
+    </div>
+  );
+}
 function App(){
   const [configError] = useState(GAS_URL.indexOf('請填入') !== -1);
   const [session, setSession] = useState(null);
@@ -632,7 +668,7 @@ function App(){
             {needsMonth && (
               <>
                 <label style={{marginBottom:0}}>月份</label>
-                <input type="month" value={month} onChange={e=>setMonth(e.target.value)} />
+                <YearMonthPicker value={month} onChange={setMonth} />
               </>
             )}
             {dirty && <button onClick={savePayroll} disabled={saving}>{saving?'儲存中...':'儲存薪資紀錄'}</button>}
@@ -646,7 +682,7 @@ function App(){
           {tab==='annual' && <AnnualLeaveTab employees={employees}/>}
           {tab==='comp' && <CompLedgerTab employees={employees}/>}
           {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}/>}
-          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee}/>}
+          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee} onReload={()=>reloadPayroll(month)}/>}
           {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month} settings={settings} menstrualBaseline={menstrualBaseline}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
           {tab==='register' && <PayrollRegisterTab/>}
@@ -1035,21 +1071,23 @@ function MakeupRow({employeeId, workDate, initialValue, onSaved}){
   );
 }
 
-function NumCell({value, onChange}){
-  return <input type="number" value={value} onChange={e=>onChange(Number(e.target.value))} />;
+function NumCell({value, onChange, disabled}){
+  return <input type="number" value={value} disabled={disabled} onChange={e=>onChange(Number(e.target.value))} />;
 }
 
 /* ========================= 薪資計算 / 明細總表 ========================= */
-function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave, dirty, saving, onEditEmployee}){
+function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave, dirty, saving, onEditEmployee, onReload}){
   const [subTab, setSubTab] = useState('06');
   const [settleBox, setSettleBox] = useState(null); // {year, items, loading, saving}
+  const [lockBox, setLockBox] = useState(null); // {items, loading, saving}
+  const [locking, setLocking] = useState(false);
   const scrollRef = useRef(null);
   function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
   function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
   const totals = useMemo(()=>{
     const t = {base:0, overtime:0, allowance:0, bonus:0, payable:0, labor:0, health:0, leaveDeduct:0, otherDeduct:0, deduct:0, pay06:0, pay26:0, grand:0};
     rows.forEach(({emp, entry, calc})=>{
-      t.base += n(emp.baseSalary);
+      t.base += calc.effBaseSalary;
       t.overtime += calc.overtimePay;
       t.allowance += calc.allowanceTotal;
       t.bonus += calc.bonusTotal;
@@ -1070,6 +1108,35 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   const minWageAlerts = rows.filter(({calc})=>calc.belowMinWage);
   const restDayCapAlerts = rows.filter(({calc})=>calc.restDayOverCap);
   const sickCapAlerts = rows.filter(({calc})=>calc.sickCapExceeded);
+  const allLocked = rows.length>0 && rows.every(({entry})=>entry.locked);
+  const anyLocked = rows.some(({entry})=>entry.locked);
+
+  async function openLockPreview(){
+    setLockBox({items:null, loading:true, saving:false});
+    try{
+      const items = await apiGet('getPayrollLockPreview', {month});
+      setLockBox({items, loading:false, saving:false});
+    }catch(e){ alert(e.message); setLockBox(null); }
+  }
+  async function confirmLock(){
+    const overrides = {};
+    lockBox.items.forEach(it=>{ overrides[it.employeeId] = {laborFee: it.laborFee, healthFee: it.healthFee}; });
+    setLockBox(prev=>({...prev, saving:true}));
+    try{
+      await apiPost('lockPayrollMonth', {month, overrides});
+      setLockBox(null);
+      await onReload();
+      alert('本月薪資已鎖定，欄位改為唯讀。要修改需先按「解除鎖定」。');
+    }catch(e){ alert(e.message); setLockBox(prev=>({...prev, saving:false})); }
+  }
+  async function doUnlock(){
+    if(!confirm(`確定要解除 ${month} 的鎖定嗎？解除後這個月的欄位就可以再編輯。`)) return;
+    setLocking(true);
+    try{
+      await apiPost('unlockPayrollMonth', {month});
+      await onReload();
+    }catch(e){ alert(e.message); } finally{ setLocking(false); }
+  }
 
   async function openSettleEstimate(){
     const viewMonth = Number(String(month).split('-')[1]);
@@ -1104,7 +1171,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   function doExport(){
     const headers = ['公司','部門','姓名','投保級距','本薪','平日加班費','休息日加班費','國定假日加班費','加班費合計','津貼合計','獎金合計','特休結算','應付小計','勞保自付','健保自付','請假扣款','其他扣款','應扣小計','06日應付','26日應付','應付總計'];
     const data = rows.map(({emp, entry, calc})=>[
-      emp.company, emp.department, emp.name, emp.insuranceGrade, emp.baseSalary,
+      emp.company, emp.department, emp.name, emp.insuranceGrade, calc.effBaseSalary,
       Math.round(calc.weekdayOtPay), Math.round(calc.restDayPay), Math.round(calc.holidayPay), Math.round(calc.overtimePay),
       calc.allowanceTotal, calc.bonusTotal, n(entry.annualLeaveSettlement),
       Math.round(calc.payableTotal), calc.laborFee, calc.healthFee, Math.round(calc.leaveDeduct), n(entry.otherDeduction),
@@ -1121,12 +1188,20 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
           <button className={subTab==='26'?'':'ghost'} onClick={()=>setSubTab('26')}>26日明細</button>
         </div>
         <span className="grow"></span>
+        {allLocked ? (
+          <>
+            <span className="badge warn"><span className="material-icons" style={{fontSize:14}}>lock</span>本月已鎖定</span>
+            <button className="danger sm" onClick={doUnlock} disabled={locking}>{locking?'處理中...':'解除鎖定'}</button>
+          </>
+        ) : (
+          <button className="ghost sm" onClick={openLockPreview}><span className="material-icons" style={{fontSize:14}}>lock</span>鎖定本月</button>
+        )}
         <button className="ghost sm" onClick={scrollToStart} title="跳到最左邊"><span className="material-icons" style={{fontSize:16}}>first_page</span></button>
         <button className="ghost sm" onClick={scrollToEnd} title="跳到最右邊看總計"><span className="material-icons" style={{fontSize:16}}>last_page</span></button>
-        <button className="ghost sm" onClick={onApply}>套用出缺勤時數</button>
+        <button className="ghost sm" onClick={onApply} disabled={allLocked}>套用出缺勤時數</button>
         <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
         <button className="ghost sm" onClick={doExport}>匯出 CSV</button>
-        <button onClick={onSave} disabled={saving || !dirty}>{saving?'儲存中...':'儲存薪資紀錄'}</button>
+        <button onClick={onSave} disabled={saving || !dirty || allLocked}>{saving?'儲存中...':'儲存薪資紀錄'}</button>
       </div>
       <div className="toolbar no-print">
         <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍／其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3天全薪、第4天起50%）、災防假0%；病假與生理假(超過3天部分)共用年度30天上限，超過後不給薪</span>
@@ -1178,33 +1253,33 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
           {rows.map(({emp, entry, calc})=>(
             <tr key={emp.id}>
               <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
-              <td className="freeze-2 center">{money(emp.baseSalary)}</td>
-              <td className="hint">{money(emp.mealAllowance)}</td>
-              <td className="hint">{money(emp.transportAllowance)}</td>
-              <td className="hint">{money(emp.positionAllowance)}</td>
-              <td className="hint">{money(emp.fullAttendanceBonus)}</td>
-              <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} /></td>
-              <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} /></td>
-              <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} /></td>
-              <td className="col-add"><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} /></td>
+              <td className="freeze-2 center">{money(calc.effBaseSalary)}</td>
+              <td className="hint">{money(calc.effMealAllowance)}</td>
+              <td className="hint">{money(calc.effTransportAllowance)}</td>
+              <td className="hint">{money(calc.effPositionAllowance)}</td>
+              <td className="hint">{money(calc.effFullAttendanceBonus)}</td>
+              <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} /></td>
+              <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} disabled={entry.locked} /></td>
+              <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} disabled={entry.locked} /></td>
+              <td className="col-add"><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} disabled={entry.locked} /></td>
               <td className="col-add num-pos">{money(calc.overtimePay)}</td>
-              <td className="col-add"><NumCell value={entry.festivalBonus} onChange={v=>setEntry(emp.id,{festivalBonus:v})} /></td>
-              <td className="col-add"><NumCell value={entry.yearEndBonus} onChange={v=>setEntry(emp.id,{yearEndBonus:v})} /></td>
-              <td className="col-add"><NumCell value={entry.performanceBonus} onChange={v=>setEntry(emp.id,{performanceBonus:v})} /></td>
-              <td className="col-add"><NumCell value={entry.otherBonus} onChange={v=>setEntry(emp.id,{otherBonus:v})} /></td>
-              <td className="col-add"><NumCell value={entry.annualLeaveSettlement} onChange={v=>setEntry(emp.id,{annualLeaveSettlement:v})} /></td>
+              <td className="col-add"><NumCell value={entry.festivalBonus} onChange={v=>setEntry(emp.id,{festivalBonus:v})} disabled={entry.locked} /></td>
+              <td className="col-add"><NumCell value={entry.yearEndBonus} onChange={v=>setEntry(emp.id,{yearEndBonus:v})} disabled={entry.locked} /></td>
+              <td className="col-add"><NumCell value={entry.performanceBonus} onChange={v=>setEntry(emp.id,{performanceBonus:v})} disabled={entry.locked} /></td>
+              <td className="col-add"><NumCell value={entry.otherBonus} onChange={v=>setEntry(emp.id,{otherBonus:v})} disabled={entry.locked} /></td>
+              <td className="col-add"><NumCell value={entry.annualLeaveSettlement} onChange={v=>setEntry(emp.id,{annualLeaveSettlement:v})} disabled={entry.locked} /></td>
               <td className="col-add num-pos"><b>{money(calc.payableTotal)}</b></td>
-              <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} /></td>
-              <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} /></td>
+              <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} disabled={entry.locked} /></td>
+              <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} disabled={entry.locked} /></td>
               <td className="col-deduct">
-                <NumCell value={entry.menstrualLeave} onChange={v=>setEntry(emp.id,{menstrualLeave:v})} />
+                <NumCell value={entry.menstrualLeave} onChange={v=>setEntry(emp.id,{menstrualLeave:v})} disabled={entry.locked} />
                 {n(entry.menstrualLeave)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全薪{calc.menstrualPaidHours}／半薪{calc.menstrualHalfHours}</div>}
               </td>
-              <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} /></td>
-              <td className="col-deduct"><NumCell value={entry.otherLeave} onChange={v=>setEntry(emp.id,{otherLeave:v})} /></td>
+              <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} /></td>
+              <td className="col-deduct"><NumCell value={entry.otherLeave} onChange={v=>setEntry(emp.id,{otherLeave:v})} disabled={entry.locked} /></td>
               <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays}天比例計算`:''}>{money(calc.laborFee)}</td>
               <td className="col-deduct" title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
-              <td className="col-deduct"><NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} /></td>
+              <td className="col-deduct"><NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} disabled={entry.locked} /></td>
               <td className="col-deduct num-neg">{money(calc.deductTotal)}</td>
               <td className="col-result mono"><b>{money(calc.pay06)}</b></td>
             </tr>
@@ -1242,11 +1317,11 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
           {rows.map(({emp, entry, calc})=>(
             <tr key={emp.id}>
               <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
-              <td><NumCell value={entry.businessExpense} onChange={v=>setEntry(emp.id,{businessExpense:v})} /></td>
-              <td><NumCell value={entry.salesPerformance} onChange={v=>setEntry(emp.id,{salesPerformance:v})} /></td>
-              <td><NumCell value={entry.salesBonus26} onChange={v=>setEntry(emp.id,{salesBonus26:v})} /></td>
-              <td><NumCell value={entry.otherExpense26} onChange={v=>setEntry(emp.id,{otherExpense26:v})} /></td>
-              <td><NumCell value={entry.deduction26} onChange={v=>setEntry(emp.id,{deduction26:v})} /></td>
+              <td><NumCell value={entry.businessExpense} onChange={v=>setEntry(emp.id,{businessExpense:v})} disabled={entry.locked} /></td>
+              <td><NumCell value={entry.salesPerformance} onChange={v=>setEntry(emp.id,{salesPerformance:v})} disabled={entry.locked} /></td>
+              <td><NumCell value={entry.salesBonus26} onChange={v=>setEntry(emp.id,{salesBonus26:v})} disabled={entry.locked} /></td>
+              <td><NumCell value={entry.otherExpense26} onChange={v=>setEntry(emp.id,{otherExpense26:v})} disabled={entry.locked} /></td>
+              <td><NumCell value={entry.deduction26} onChange={v=>setEntry(emp.id,{deduction26:v})} disabled={entry.locked} /></td>
               <td className="col-result mono"><b>{money(calc.pay26)}</b></td>
             </tr>
           ))}
@@ -1287,13 +1362,41 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
           </div>
         </div>
       )}
+      {lockBox && (
+        <div className="modal-bg">
+          <div className="modal" style={{maxWidth:640}}>
+            <h3><span className="material-icons">lock</span>鎖定 {month} 薪資</h3>
+            <div className="hint" style={{marginBottom:10}}>鎖定後，這個月的本薪、津貼、投保級距與勞健保金額會凍結成下面這份數字，之後不管員工資料怎麼調整都不會變動。勞保費／健保費可以手動修改成正確金額（例如匯入歷史紀錄時）。</div>
+            {lockBox.loading ? <div className="hint">載入中...</div> : (
+              <table>
+                <thead><tr><th className="left">姓名</th><th>本薪</th><th>投保級距</th><th>勞保費</th><th>健保費</th></tr></thead>
+                <tbody>
+                  {lockBox.items.map((it,idx)=>(
+                    <tr key={it.employeeId}>
+                      <td className="left">{it.name}{it.alreadyLocked && <span className="hint" style={{marginLeft:4}}>（已鎖定過）</span>}</td>
+                      <td>{money(it.baseSalary)}</td>
+                      <td>{it.insuranceGrade}</td>
+                      <td><NumCell value={it.laborFee} onChange={v=>setLockBox(prev=>{ const items=[...prev.items]; items[idx]={...items[idx], laborFee:v}; return {...prev, items}; })} /></td>
+                      <td><NumCell value={it.healthFee} onChange={v=>setLockBox(prev=>{ const items=[...prev.items]; items[idx]={...items[idx], healthFee:v}; return {...prev, items}; })} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <div className="modal-actions">
+              <button className="ghost" onClick={()=>setLockBox(null)}>取消</button>
+              <button onClick={confirmLock} disabled={lockBox.loading || lockBox.saving}>{lockBox.saving?'鎖定中...':'確認鎖定'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
   const show = v => !hideZero || Number(v) !== 0;
-  const hasAnyAllowance = n(emp.mealAllowance) || n(emp.transportAllowance) || n(emp.positionAllowance) || n(emp.fullAttendanceBonus);
+  const hasAnyAllowance = n(calc.effMealAllowance) || n(calc.effTransportAllowance) || n(calc.effPositionAllowance) || n(calc.effFullAttendanceBonus);
   return (
     <div className="payslip">
       <h2>{emp.company || '（未設定公司）'} · 薪資條</h2>
@@ -1301,18 +1404,18 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
         <div><b>姓名：</b>{emp.name}　<b>部門：</b>{emp.department}</div>
         <div><b>計薪月份：</b>{monthLabel(month)}</div>
       </div>
-      <div className="meta"><div><b>到職日：</b>{emp.hireDate||'-'}</div><div><b>投保級距：</b>{emp.insuranceGrade||0}</div></div>
+      <div className="meta"><div><b>到職日：</b>{emp.hireDate||'-'}</div><div><b>投保級距：</b>{emp.insuranceGrade||0}</div>{calc.locked && <div><span className="badge warn"><span className="material-icons" style={{fontSize:12}}>lock</span>已鎖定</span></div>}</div>
 
       <table style={{marginBottom:8}}>
         <colgroup><col /><col style={{width:100}} /></colgroup>
         <thead><tr><th className="col-add" colSpan="2"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>add_circle</span> 應發項目</th></tr></thead>
         <tbody>
-          <tr><td className="left col-add" style={{fontWeight:600}}>本薪</td><td className="col-add" style={{fontWeight:600}}>{money(emp.baseSalary)}</td></tr>
+          <tr><td className="left col-add" style={{fontWeight:600}}>本薪</td><td className="col-add" style={{fontWeight:600}}>{money(calc.effBaseSalary)}</td></tr>
           {(!hideZero || hasAnyAllowance) && <tr><td className="left col-add" colSpan="2" style={{fontSize:11, color:'var(--muted)', paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>}
-          {show(n(emp.mealAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>伙食津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.mealAllowance)}</td></tr>}
-          {show(n(emp.transportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.transportAllowance)}</td></tr>}
-          {show(n(emp.positionAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>職務加給</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.positionAllowance)}</td></tr>}
-          {show(n(emp.fullAttendanceBonus)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>全勤獎金</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(emp.fullAttendanceBonus)}</td></tr>}
+          {show(n(calc.effMealAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>伙食津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effMealAllowance)}</td></tr>}
+          {show(n(calc.effTransportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effTransportAllowance)}</td></tr>}
+          {show(n(calc.effPositionAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>職務加給</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effPositionAllowance)}</td></tr>}
+          {show(n(calc.effFullAttendanceBonus)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>全勤獎金</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effFullAttendanceBonus)}</td></tr>}
           {show(n(entry.festivalBonus)) && <tr><td className="left col-add">三節獎金</td><td className="col-add">{money(entry.festivalBonus)}</td></tr>}
           {show(n(entry.yearEndBonus)) && <tr><td className="left col-add">年終獎金</td><td className="col-add">{money(entry.yearEndBonus)}</td></tr>}
           {show(n(entry.performanceBonus)) && <tr><td className="left col-add">績效獎金</td><td className="col-add">{money(entry.performanceBonus)}</td></tr>}
@@ -2197,20 +2300,22 @@ function AnnualLeaveTab({employees}){
       <div className="card">
         {loading || !data ? <div className="hint">載入中...</div> : (
           <table>
-            <thead><tr><th className="left">姓名</th><th className="left">部門</th><th>到職日</th><th>核定時數</th><th>已用</th><th>剩餘</th><th>操作</th></tr></thead>
+            <thead><tr><th className="left">姓名</th><th className="left">部門</th><th>到職日</th><th>核定天數</th><th>核定時數</th><th>已用(hr)</th><th>剩餘(hr)</th><th>操作</th></tr></thead>
             <tbody>
               {employees.map(emp=>{
                 const granted = data.granted[emp.id] ? data.granted[emp.id].hours : 0;
                 const used = data.used[emp.id] || 0;
                 const editVal = edits[emp.id] !== undefined ? edits[emp.id] : granted;
+                const editDays = Number(editVal)>0 ? (Number(editVal)/8).toFixed(1) : '0.0';
                 return (
                   <tr key={emp.id}>
                     <td className="left"><b>{emp.name}</b></td>
                     <td className="left">{emp.department}</td>
                     <td>{emp.hireDate || '-'}</td>
-                    <td><input type="number" min="0" value={editVal} onChange={e=>setEdits({...edits, [emp.id]: e.target.value})} style={{width:80}} /></td>
-                    <td>{used}</td>
-                    <td className={granted-used < 8 ? 'flag' : ''}>{Math.max(0, granted-used)}</td>
+                    <td className="hint">{editDays} 天</td>
+                    <td><input type="number" min="0" step="0.01" value={editVal} onChange={e=>setEdits({...edits, [emp.id]: e.target.value})} style={{width:80}} /></td>
+                    <td>{Number(used).toFixed(2)}</td>
+                    <td className={granted-used < 8 ? 'flag' : ''}>{Math.max(0, granted-used).toFixed(2)}</td>
                     <td>
                       <button className="ghost sm" onClick={()=>estimate(emp.id)} disabled={estimatingId===emp.id || !emp.hireDate} title={!emp.hireDate?'請先設定到職日':''}>{estimatingId===emp.id?'試算中':'試算'}</button>{' '}
                       <button className="ghost sm" onClick={()=>save(emp.id)} disabled={savingId===emp.id}>{savingId===emp.id?'儲存中':'儲存'}</button>
@@ -2218,7 +2323,7 @@ function AnnualLeaveTab({employees}){
                   </tr>
                 );
               })}
-              {employees.length===0 && <tr><td colSpan="7" className="hint" style={{textAlign:'center'}}>尚無員工</td></tr>}
+              {employees.length===0 && <tr><td colSpan="8" className="hint" style={{textAlign:'center'}}>尚無員工</td></tr>}
             </tbody>
           </table>
         )}
@@ -2234,8 +2339,8 @@ function AnnualLeaveTab({employees}){
                 {batchBox.items.map(it=>(
                   <tr key={it.employeeId}>
                     <td className="left">{it.name}</td>
-                    <td>{it.days===null?'-':it.days}</td>
-                    <td>{it.hours===null?'-':it.hours}</td>
+                    <td>{it.days===null?'-':it.days.toFixed(1)}</td>
+                    <td>{it.hours===null?'-':it.hours.toFixed(2)}</td>
                     <td className="left" style={{color:'var(--danger)'}}>{it.error}</td>
                   </tr>
                 ))}
