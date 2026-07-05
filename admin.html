@@ -266,7 +266,8 @@ function emptyEntry(){
     otherDeduction:0, note:'',
     locked:false, lockedAt:'', lockedBaseSalary:0, lockedMealAllowance:0, lockedTransportAllowance:0,
     lockedPositionAllowance:0, lockedFullAttendanceBonus:0, lockedInsuranceGrade:0, lockedDependentCount:0,
-    lockedLaborFee:0, lockedHealthFee:0
+    lockedLaborFee:0, lockedHealthFee:0,
+    lateMinutes:0, lateCount:0, earlyMinutes:0, earlyCount:0
   };
 }
 function calcRestDayPay(hourly, hours){
@@ -336,9 +337,6 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const allowanceTotal = effMeal+effTransport+effPosition+effFullAttendance; // 僅供顯示參考，已含在本薪內
   const bonusTotal = n(entry.festivalBonus)+n(entry.yearEndBonus)+n(entry.otherBonus)+n(entry.performanceBonus);
 
-  const payableA = base + bonusTotal + n(entry.annualLeaveSettlement);
-  const payableTotal = payableA + overtimePay;
-
   let laborFee, healthFee, insStatus;
   if(isLocked){
     laborFee = n(entry.lockedLaborFee);
@@ -351,6 +349,38 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
     const dependentCount = Math.min(n(emp.dependentCount), 3); // 眷屬保費同本人金額，超過3人以3人計
     healthFee = (ins && insStatus.activeAtMonthEnd) ? ins.empHealth * (1 + dependentCount) : 0;
   }
+
+  // 全勤獎金：依2026年新制《勞工請假規則》第9條，扣發不得「全有全無」，須按比例計算
+  let fullAttendanceDeductRatio = 0, fullAttendanceRatio = 1, adjustedFullAttendance = effFullAttendance;
+  if(!isLocked){
+    const s = settings || {};
+    const leaveHours = n(entry.sickLeave) + n(entry.personalLeave);
+    let deductRatio = leaveHours / 240;
+
+    const mode = s.fullAttendanceLateEarlyMode || 'minutes';
+    const lateEarlyMinutes = n(entry.lateMinutes) + n(entry.earlyMinutes);
+    const lateEarlyCount = n(entry.lateCount) + n(entry.earlyCount);
+    if(mode==='minutes' || mode==='both'){
+      deductRatio += lateEarlyMinutes / (240*60);
+    }
+    if(mode==='count' || mode==='both'){
+      const freeCount = n(s.fullAttendanceLateEarlyFreeCount) || 0;
+      const percentPerCount = n(s.fullAttendanceLateEarlyPercentPerCount) || 0;
+      const excessCount = Math.max(0, lateEarlyCount - freeCount);
+      deductRatio += excessCount * (percentPerCount/100);
+    }
+    fullAttendanceDeductRatio = Math.max(0, Math.min(1, deductRatio));
+
+    const parts = String(month||'').split('-').map(Number);
+    const daysInMonthTotal = (parts[0] && parts[1]) ? new Date(parts[0], parts[1], 0).getDate() : 30;
+    fullAttendanceRatio = insStatus.fullMonth ? 1 : Math.max(0, Math.min(1, insStatus.laborDays / daysInMonthTotal));
+    adjustedFullAttendance = Math.round(effFullAttendance * (1-fullAttendanceDeductRatio) * fullAttendanceRatio);
+  }
+  const fullAttendanceAdjustment = adjustedFullAttendance - effFullAttendance;
+
+  const payableA = base + bonusTotal + n(entry.annualLeaveSettlement) + fullAttendanceAdjustment;
+  const payableTotal = payableA + overtimePay;
+
 
   const MENSTRUAL_FULL_PAY_HOURS = 24; // 每年前3天(以8hr/天計)生理假全薪
   const SICK_LEAVE_ANNUAL_CAP_HOURS = 240; // 病假年度30天(以8hr/天計)上限，生理假超過3天部分需併入計算
@@ -394,7 +424,8 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
     pay06, pay26, grandTotal, belowMinWage,
     insLaborDays: insStatus.laborDays, insFullMonth: insStatus.fullMonth, insActiveAtMonthEnd: insStatus.activeAtMonthEnd,
     locked: isLocked, effBaseSalary: base, effMealAllowance: effMeal, effTransportAllowance: effTransport,
-    effPositionAllowance: effPosition, effFullAttendanceBonus: effFullAttendance
+    effPositionAllowance: effPosition, effFullAttendanceBonus: effFullAttendance,
+    fullAttendanceDeductRatio, fullAttendanceRatio, fullAttendanceAdjusted: adjustedFullAttendance, fullAttendanceAdjustment
   };
 }
 
@@ -608,7 +639,9 @@ function App(){
             otWeekday134: s.otWeekday134, otWeekday167: s.otWeekday167,
             otRestDayHours: s.otRestDayHours, otHolidayHours: s.otHolidayHours, otMandatoryRestHours: s.otMandatoryRestHours,
             personalLeave: s.personalLeave || 0, sickLeave: s.sickLeave || 0, disasterLeave: s.disasterLeave || 0,
-            menstrualLeave: s.menstrualLeave || 0};
+            menstrualLeave: s.menstrualLeave || 0,
+            lateMinutes: s.lateMinutes || 0, lateCount: s.lateCount || 0,
+            earlyMinutes: s.earlyLeaveMinutes || 0, earlyCount: s.earlyLeaveCount || 0};
         });
         return next;
       });
@@ -786,7 +819,7 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
         {editing.baseSalary>0 && (n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance)) < MIN_WAGE_MONTHLY && (
           <div className="hint" style={{color:'var(--danger)'}}>⚠ 本薪＋伙食＋交通＋職務加給合計 {money(n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance))} 元，低於2026年最低工資 {money(MIN_WAGE_MONTHLY)} 元，可能違反《最低工資法》（全勤獎金為條件式給予，不列入計算基準）</div>
         )}
-        <div className="hint">依2026年新制，婚假、喪假、公假、產假、陪產假、生理假等法定假別不得作為扣發全勤獎金的理由，僅事假、遲到、曠工等得依公司規定扣發。</div>
+        <div className="hint">依2026年新制《勞工請假規則》第9條，婚假、喪假、公傷病假、公假、生理假、家庭照顧事假等法定假別不得作為扣發全勤獎金的理由。病假、事假、遲到、早退依「設定」頁的比例規則自動扣除（不是全有全無），這裡填的是正常整月應發的金額。</div>
         <div className="field"><label>備註</label><input value={editing.note} onChange={e=>setEditing({...editing, note:e.target.value})} style={{width:'100%'}} /></div>
         <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
           <input type="checkbox" checked={editing.canBeDelegate !== false} onChange={e=>setEditing({...editing, canBeDelegate:e.target.checked})} style={{width:'auto'}} />
@@ -822,9 +855,9 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
         <>
           {employees.length===0 && <div className="empty card">尚無員工資料，請點擊「＋ 新增員工」開始建立。</div>}
           {companiesByCo.concat(employees.some(e=>!e.company)?['(未分類)']:[]).map(co => (
-            <div className="card" key={co}>
+            <div className="card" key={co} style={{overflowX:'auto'}}>
               <h3><span className="material-icons" style={{fontSize:17, color:'var(--brand)'}}>business</span> {co} <span className="badge">{employees.filter(e=>(e.company||'(未分類)')===co).length} 人</span></h3>
-              <table style={{tableLayout:'fixed'}}>
+              <table style={{tableLayout:'fixed', minWidth:900}}>
                 <colgroup>
                   <col style={{width:'10%'}} /><col style={{width:'12%'}} /><col style={{width:'12%'}} />
                   <col style={{width:'9%'}} /><col style={{width:'10%'}} /><col style={{width:'9%'}} />
@@ -1270,7 +1303,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="hint">{money(calc.effMealAllowance)}</td>
               <td className="hint">{money(calc.effTransportAllowance)}</td>
               <td className="hint">{money(calc.effPositionAllowance)}</td>
-              <td className="hint">{money(calc.effFullAttendanceBonus)}</td>
+              <td className="hint" title={calc.fullAttendanceDeductRatio>0?`依請假/遲到早退比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%`:(calc.fullAttendanceRatio<1?`依在職天數比例試算（${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')} style={calc.fullAttendanceDeductRatio>0?{color:'var(--danger)'}:undefined}>{money(calc.fullAttendanceAdjusted)}</td>
               <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} /></td>
               <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} disabled={entry.locked} /></td>
               <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} disabled={entry.locked} /></td>
@@ -1428,7 +1461,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
           {show(n(calc.effMealAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>伙食津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effMealAllowance)}</td></tr>}
           {show(n(calc.effTransportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effTransportAllowance)}</td></tr>}
           {show(n(calc.effPositionAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>職務加給</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effPositionAllowance)}</td></tr>}
-          {show(n(calc.effFullAttendanceBonus)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>全勤獎金</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effFullAttendanceBonus)}</td></tr>}
+          {show(n(calc.effFullAttendanceBonus)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>全勤獎金{calc.fullAttendanceDeductRatio>0 && <span style={{color:'var(--danger)'}}>（依比例扣{(calc.fullAttendanceDeductRatio*100).toFixed(1)}%）</span>}{calc.fullAttendanceRatio<1 && <span>（依在職比例{(calc.fullAttendanceRatio*100).toFixed(0)}%）</span>}</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.fullAttendanceAdjusted)}</td></tr>}
           {show(n(entry.festivalBonus)) && <tr><td className="left col-add">三節獎金</td><td className="col-add">{money(entry.festivalBonus)}</td></tr>}
           {show(n(entry.yearEndBonus)) && <tr><td className="left col-add">年終獎金</td><td className="col-add">{money(entry.yearEndBonus)}</td></tr>}
           {show(n(entry.performanceBonus)) && <tr><td className="left col-add">績效獎金</td><td className="col-add">{money(entry.performanceBonus)}</td></tr>}
@@ -1559,13 +1592,13 @@ function TransferTab({rows, month}){
       {companyEntries.length===0 && <div className="empty card">本期尚無需匯款資料</div>}
 
       {companyEntries.map(({company, active, total})=>(
-        <div className="card" key={company}>
+        <div className="card" key={company} style={{overflowX:'auto'}}>
           <div className="toolbar" style={{marginBottom:8}}>
             <h3 style={{margin:0}}>{company} — {period}日 薪資轉帳明細表（{monthLabel(month)}）</h3>
             <span className="grow"></span>
             <button className="ghost sm no-print" onClick={()=>exportGroup(company, active)}>匯出 CSV</button>
           </div>
-          <table style={{tableLayout:'fixed', width:'100%'}}>
+          <table style={{tableLayout:'fixed', width:'100%', minWidth:640}}>
             <colgroup>
               <col style={{width:'8%'}} /><col style={{width:'16%'}} /><col style={{width:'16%'}} />
               <col style={{width:'20%'}} /><col style={{width:'16%'}} /><col style={{width:'24%'}} />
@@ -1748,7 +1781,8 @@ function InsuranceTab(){
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder="輸入級距數字" style={{width:140}} />
         <span className="hint">共 {INSURANCE_TABLE.length} 個級距</span>
       </div>
-      <table>
+      <div style={{overflowX:'auto'}}>
+      <table style={{minWidth:700}}>
         <thead>
           <tr>
             <th rowSpan="2">投保級距</th>
@@ -1769,6 +1803,7 @@ function InsuranceTab(){
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -1807,9 +1842,9 @@ function CompanyTab(){
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
-      <div className="card">
+      <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
+          <table style={{minWidth:800}}>
             <thead><tr><th className="left">公司名稱</th><th className="left">統一編號</th><th className="left">地址</th><th className="left">負責人</th><th className="left">電話</th><th>操作</th></tr></thead>
             <tbody>
               {list.map(c=>(
@@ -1887,9 +1922,9 @@ function DepartmentTab({employees}){
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
-      <div className="card">
+      <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
+          <table style={{minWidth:600}}>
             <thead><tr><th className="left">部門名稱</th><th className="left">所屬公司</th><th className="left">部門主管</th><th>操作</th></tr></thead>
             <tbody>
               {list.map(d=>(
@@ -1965,9 +2000,9 @@ function ShiftTab({employees}){
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>目前每位員工固定對應一種班別；每天輪班不同班別的排班表功能之後有需要再開發。</div>
-      <div className="card">
+      <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
+          <table style={{minWidth:600}}>
             <thead><tr><th className="left">班別名稱</th><th>上班時間</th><th>下班時間</th><th>午休扣除(分)</th><th>使用人數</th><th>操作</th></tr></thead>
             <tbody>
               {list.map(s=>(
@@ -2054,9 +2089,9 @@ function HolidaysTab(){
           <button onClick={add}><span className="material-icons" style={{fontSize:16}}>add</span>新增</button>
         </div>
       </div>
-      <div className="card">
+      <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
+          <table style={{minWidth:500}}>
             <thead><tr><th className="left">日期</th><th className="left">名稱</th><th className="left">類型</th><th>操作</th></tr></thead>
             <tbody>
               {holidays.sort((a,b)=>a.date.localeCompare(b.date)).map(h=>(
@@ -2109,9 +2144,9 @@ function AccountsTab({employees}){
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>要新增員工登入帳號，請至「員工資料」頁籤，編輯該位員工後點選「帳號」按鈕建立。</div>
-      <div className="card">
+      <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
+          <table style={{minWidth:700}}>
             <thead><tr><th className="left">帳號</th><th className="left">對應員工</th><th>角色</th><th>狀態</th><th className="left">最後登入</th><th>操作</th></tr></thead>
             <tbody>
               {list.map(a=>(
@@ -2310,9 +2345,9 @@ function AnnualLeaveTab({employees}){
         核定每位員工當年度的特休「時數」（1天＝8小時）。按「試算」可依到職日自動帶入建議天數，仍可手動調整後再儲存。
         <br/>⚠ 系統試算僅供參考，正式天數請以<a href="https://calcr2.mol.gov.tw/RestDays" target="_blank" rel="noopener" style={{color:'var(--brand)'}}>勞動部特別休假日數試算系統</a>或人資顧問確認為準。
       </div>
-      <div className="card">
+      <div className="card" style={{overflowX:'auto'}}>
         {loading || !data ? <div className="hint">載入中...</div> : (
-          <table style={{tableLayout:'fixed'}}>
+          <table style={{tableLayout:'fixed', minWidth:900}}>
             <colgroup>
               <col style={{width:'11%'}} /><col style={{width:'11%'}} /><col style={{width:'19%'}} />
               <col style={{width:'10%'}} /><col style={{width:'12%'}} /><col style={{width:'10%'}} />
@@ -2667,6 +2702,23 @@ function SettingsTab({onSaved}){
         <div className="field"><label>補休使用期限（月）</label><input type="number" min="1" value={s.compTimeExpireMonths} onChange={e=>setS({...s,compTimeExpireMonths:e.target.value})} /></div>
       </div>
       <div className="hint">補休期限自核准日起算，依勞基法第32條之1，補休期限屆滿或契約終止仍未休完的時數，應依原加班費標準折算工資。</div>
+
+      <h3 style={{marginTop:18}}><span className="material-icons">verified</span> 全勤獎金比例扣除</h3>
+      <div className="hint" style={{marginTop:-4, marginBottom:8}}>依2026年新制《勞工請假規則》第9條，全勤獎金扣發不得「全有全無」，一律按比例計算。病假、事假時數會依比例自動扣（時數÷240）；婚喪公傷病假、公假、生理假等法定假別不受影響。⚠ 目前「事假」尚未區分一般事假／家庭照顧事假，所有事假時數都會列入扣除，如需區分請告知。</div>
+      <div className="field"><label>遲到／早退計算方式</label>
+        <select value={s.fullAttendanceLateEarlyMode || 'minutes'} onChange={e=>setS({...s,fullAttendanceLateEarlyMode:e.target.value})}>
+          <option value="minutes">只算累積分鐘數比例</option>
+          <option value="count">只算次數階梯扣除</option>
+          <option value="both">兩者都算（分鐘數＋次數）</option>
+        </select>
+        <div className="hint" style={{marginTop:4}}>遲到、早退合併計算（同一組規則）。分鐘數比例＝全勤獎金÷240小時÷60分鐘×累積分鐘數。</div>
+      </div>
+      {(s.fullAttendanceLateEarlyMode==='count' || s.fullAttendanceLateEarlyMode==='both') && (
+        <div className="grid-2">
+          <div className="field"><label>前幾次不扣（遲到+早退合計）</label><input type="number" min="0" value={s.fullAttendanceLateEarlyFreeCount} onChange={e=>setS({...s,fullAttendanceLateEarlyFreeCount:e.target.value})} /></div>
+          <div className="field"><label>超過後每次扣全勤獎金（%）</label><input type="number" min="0" max="100" value={s.fullAttendanceLateEarlyPercentPerCount} onChange={e=>setS({...s,fullAttendanceLateEarlyPercentPerCount:e.target.value})} /></div>
+        </div>
+      )}
 
       <div style={{marginTop:16}}><button onClick={save}><span className="material-icons" style={{fontSize:16}}>save</span>儲存設定</button></div>
     </div>
