@@ -822,9 +822,9 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
         <>
           {employees.length===0 && <div className="empty card">尚無員工資料，請點擊「＋ 新增員工」開始建立。</div>}
           {companiesByCo.concat(employees.some(e=>!e.company)?['(未分類)']:[]).map(co => (
-            <div className="card" key={co}>
+            <div className="card" key={co} style={{overflowX:'auto'}}>
               <h3><span className="material-icons" style={{fontSize:17, color:'var(--brand)'}}>business</span> {co} <span className="badge">{employees.filter(e=>(e.company||'(未分類)')===co).length} 人</span></h3>
-              <table style={{tableLayout:'fixed'}}>
+              <table style={{tableLayout:'fixed', minWidth:900}}>
                 <colgroup>
                   <col style={{width:'10%'}} /><col style={{width:'12%'}} /><col style={{width:'12%'}} />
                   <col style={{width:'9%'}} /><col style={{width:'10%'}} /><col style={{width:'9%'}} />
@@ -1559,13 +1559,13 @@ function TransferTab({rows, month}){
       {companyEntries.length===0 && <div className="empty card">本期尚無需匯款資料</div>}
 
       {companyEntries.map(({company, active, total})=>(
-        <div className="card" key={company}>
+        <div className="card" key={company} style={{overflowX:'auto'}}>
           <div className="toolbar" style={{marginBottom:8}}>
             <h3 style={{margin:0}}>{company} — {period}日 薪資轉帳明細表（{monthLabel(month)}）</h3>
             <span className="grow"></span>
             <button className="ghost sm no-print" onClick={()=>exportGroup(company, active)}>匯出 CSV</button>
           </div>
-          <table style={{tableLayout:'fixed', width:'100%'}}>
+          <table style={{tableLayout:'fixed', width:'100%', minWidth:640}}>
             <colgroup>
               <col style={{width:'8%'}} /><col style={{width:'16%'}} /><col style={{width:'16%'}} />
               <col style={{width:'20%'}} /><col style={{width:'16%'}} /><col style={{width:'24%'}} />
@@ -1748,7 +1748,8 @@ function InsuranceTab(){
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder="輸入級距數字" style={{width:140}} />
         <span className="hint">共 {INSURANCE_TABLE.length} 個級距</span>
       </div>
-      <table>
+      <div style={{overflowX:'auto'}}>
+      <table style={{minWidth:700}}>
         <thead>
           <tr>
             <th rowSpan="2">投保級距</th>
@@ -1769,6 +1770,7 @@ function InsuranceTab(){
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -1807,9 +1809,9 @@ function CompanyTab(){
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
-      <div className="card">
+      <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
+          <table style={{minWidth:800}}>
             <thead><tr><th className="left">公司名稱</th><th className="left">統一編號</th><th className="left">地址</th><th className="left">負責人</th><th className="left">電話</th><th>操作</th></tr></thead>
             <tbody>
               {list.map(c=>(
@@ -1887,9 +1889,9 @@ function DepartmentTab({employees}){
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
-      <div className="card">
+      <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
+          <table style={{minWidth:600}}>
             <thead><tr><th className="left">部門名稱</th><th className="left">所屬公司</th><th className="left">部門主管</th><th>操作</th></tr></thead>
             <tbody>
               {list.map(d=>(
@@ -1965,9 +1967,9 @@ function ShiftTab({employees}){
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>目前每位員工固定對應一種班別；每天輪班不同班別的排班表功能之後有需要再開發。</div>
-      <div className="card">
+      <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
+          <table style={{minWidth:600}}>
             <thead><tr><th className="left">班別名稱</th><th>上班時間</th><th>下班時間</th><th>午休扣除(分)</th><th>使用人數</th><th>操作</th></tr></thead>
             <tbody>
               {list.map(s=>(
@@ -2054,9 +2056,9 @@ function HolidaysTab(){
           <button onClick={add}><span className="material-icons" style={{fontSize:16}}>add</span>新增</button>
         </div>
       </div>
-      <div className="card">
+      <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
+          <table style={{minWidth:500}}>
             <thead><tr><th className="left">日期</th><th className="left">名稱</th><th className="left">類型</th><th>操作</th></tr></thead>
             <tbody>
               {holidays.sort((a,b)=>a.date.localeCompare(b.date)).map(h=>(
@@ -2109,9 +2111,9 @@ function AccountsTab({employees}){
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>要新增員工登入帳號，請至「員工資料」頁籤，編輯該位員工後點選「帳號」按鈕建立。</div>
-      <div className="card">
+      <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
+          <table style={{minWidth:700}}>
             <thead><tr><th className="left">帳號</th><th className="left">對應員工</th><th>角色</th><th>狀態</th><th className="left">最後登入</th><th>操作</th></tr></thead>
             <tbody>
               {list.map(a=>(
@@ -2310,9 +2312,9 @@ function AnnualLeaveTab({employees}){
         核定每位員工當年度的特休「時數」（1天＝8小時）。按「試算」可依到職日自動帶入建議天數，仍可手動調整後再儲存。
         <br/>⚠ 系統試算僅供參考，正式天數請以<a href="https://calcr2.mol.gov.tw/RestDays" target="_blank" rel="noopener" style={{color:'var(--brand)'}}>勞動部特別休假日數試算系統</a>或人資顧問確認為準。
       </div>
-      <div className="card">
+      <div className="card" style={{overflowX:'auto'}}>
         {loading || !data ? <div className="hint">載入中...</div> : (
-          <table style={{tableLayout:'fixed'}}>
+          <table style={{tableLayout:'fixed', minWidth:900}}>
             <colgroup>
               <col style={{width:'11%'}} /><col style={{width:'11%'}} /><col style={{width:'19%'}} />
               <col style={{width:'10%'}} /><col style={{width:'12%'}} /><col style={{width:'10%'}} />
