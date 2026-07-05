@@ -86,6 +86,7 @@
   .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px;}
   .toolbar .grow{flex:1;}
   .hint{font-size:11.5px; color:var(--muted); margin-top:4px;}
+  .row-between{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .empty{padding:40px; text-align:center; color:var(--muted);}
   .modal-bg{position:fixed; inset:0; background:rgba(20,26,20,.45); display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto; z-index:50;}
   .modal{background:#fff; border-radius:10px; padding:22px 26px; width:640px; max-width:100%;}
@@ -203,6 +204,12 @@ function exportCSV(filename, headers, rows){
 }
 const n = v => { const x = Number(v); return isNaN(x) ? 0 : x; };
 const money = v => Math.round(n(v)).toLocaleString('zh-TW');
+function stripHtml(html){
+  if(!html) return '';
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim();
+}
 function attachIcon(name){
   const s = String(name||'').toLowerCase();
   if(s.endsWith('.pdf')) return 'picture_as_pdf';
@@ -2793,6 +2800,7 @@ function AnnouncementsTab(){
   const [isNew, setIsNew] = useState(false);
   const [saving, setSaving] = useState(false);
   const [attachUploading, setAttachUploading] = useState(false);
+  const [expanded, setExpanded] = useState(null);
   const attachInputRef = useRef(null);
 
   function load(){
@@ -2845,32 +2853,52 @@ function AnnouncementsTab(){
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
-      {loading ? <div className="hint">載入中...</div> : list.length===0 ? <div className="empty card">尚無公告</div> : list.map(a=>(
-        <div className="card" key={a.id}>
-          <div className="row-between">
-            <h3 style={{display:'flex', alignItems:'center', gap:7, margin:0}}>
-              {a.pinned && <span className="material-icons" style={{fontSize:16, color:'var(--accent)'}}>push_pin</span>}
-              {a.title}
+      {loading ? <div className="hint">載入中...</div> : list.length===0 ? <div className="empty card">尚無公告</div> : list.map(a=>{
+        const isOpen = expanded===a.id;
+        return (
+        <div className="card" key={a.id} style={{borderLeft: a.pinned?'4px solid var(--accent)':undefined, paddingLeft: a.pinned?12:undefined}}>
+          <div className="row-between" style={{alignItems:'flex-start'}}>
+            <h3 style={{display:'flex', alignItems:'center', gap:7, margin:0, flexWrap:'wrap', minWidth:0}}>
+              {a.pinned && <span className="material-icons" style={{fontSize:16, color:'var(--accent)', flexShrink:0}}>push_pin</span>}
+              <span>{a.title}</span>
               {a.status!=='已發布' && <span className="badge warn">草稿</span>}
+              {a.showOnHome && <span className="badge">首頁顯示</span>}
             </h3>
-            <div>
-              <button className="ghost sm" onClick={()=>openEdit(a)}>編輯</button>{' '}
-              <button className="danger sm" onClick={()=>remove(a.id)}>刪除</button>
+            <div style={{display:'flex', gap:4, flexShrink:0}}>
+              <button className="ghost sm" title="編輯" onClick={()=>openEdit(a)}><span className="material-icons" style={{fontSize:16}}>edit</span></button>
+              <button className="danger sm" title="刪除" onClick={()=>remove(a.id)}><span className="material-icons" style={{fontSize:16}}>delete</span></button>
             </div>
           </div>
           <div className="hint" style={{margin:'6px 0'}}>{companyName(a.companyId)}　·　{a.author}　·　{a.createdAt}</div>
-          <div style={{fontSize:13}} dangerouslySetInnerHTML={{__html: a.content}} />
-          {a.attachments && a.attachments.length > 0 && (
-            <div style={{display:'flex', flexWrap:'wrap', gap:6, marginTop:8}}>
-              {a.attachments.map((att,idx)=>(
-                <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" className="hint" style={{display:'flex', alignItems:'center', gap:4, background:'var(--bg-2,#f2f2f2)', padding:'4px 8px', borderRadius:6, fontSize:12}}>
-                  <span className="material-icons" style={{fontSize:15}}>{attachIcon(att.name)}</span>{att.name}
-                </a>
-              ))}
+
+          {isOpen ? (
+            <div>
+              <div style={{fontSize:13}} dangerouslySetInnerHTML={{__html: a.content}} />
+              {a.attachments && a.attachments.length > 0 && (
+                <div style={{display:'flex', flexWrap:'wrap', gap:6, marginTop:8}}>
+                  {a.attachments.map((att,idx)=>(
+                    <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" className="hint" style={{display:'flex', alignItems:'center', gap:4, background:'var(--bg-2,#f2f2f2)', padding:'4px 8px', borderRadius:6, fontSize:12}}>
+                      <span className="material-icons" style={{fontSize:15}}>{attachIcon(att.name)}</span>{att.name}
+                    </a>
+                  ))}
+                </div>
+              )}
+              <button className="ghost sm" style={{marginTop:10}} onClick={()=>setExpanded(null)}><span className="material-icons" style={{fontSize:15}}>expand_less</span>收合</button>
+            </div>
+          ) : (
+            <div className="row-between" style={{cursor:'pointer', gap:8}} onClick={()=>setExpanded(a.id)}>
+              <div className="hint" style={{fontSize:13, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{stripHtml(a.content) || '（無內容）'}</div>
+              <div style={{display:'flex', alignItems:'center', gap:4, flexShrink:0, color:'var(--muted)'}}>
+                {a.attachments && a.attachments.length > 0 && (
+                  <span style={{display:'flex', alignItems:'center', gap:2, fontSize:12}}><span className="material-icons" style={{fontSize:15}}>attach_file</span>{a.attachments.length}</span>
+                )}
+                <span className="material-icons" style={{fontSize:18}}>expand_more</span>
+              </div>
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
 
       {editing && (
         <div className="modal-bg">
