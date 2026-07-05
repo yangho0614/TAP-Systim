@@ -2707,6 +2707,14 @@ function RichTextEditor({value, onChange}){
     document.execCommand(cmd, false, arg || null);
     onChange(editorRef.current.innerHTML);
   }
+  function toggleAccentColor(){
+    editorRef.current.focus();
+    restoreSelection();
+    const current = document.queryCommandValue('foreColor');
+    const isAccent = current === 'rgb(161, 61, 61)' || current === '#a13d3d';
+    document.execCommand('foreColor', false, isAccent ? '#22242C' : '#a13d3d');
+    onChange(editorRef.current.innerHTML);
+  }
   function onLink(){
     const url = prompt('請輸入連結網址（需包含 https://）');
     if(!url) return;
@@ -2757,7 +2765,7 @@ function RichTextEditor({value, onChange}){
         <button type="button" className="ghost sm" style={btnStyle} title="粗體" onMouseDown={e=>e.preventDefault()} onClick={()=>exec('bold')}><span className="material-icons" style={{fontSize:16}}>format_bold</span></button>
         <button type="button" className="ghost sm" style={btnStyle} title="斜體" onMouseDown={e=>e.preventDefault()} onClick={()=>exec('italic')}><span className="material-icons" style={{fontSize:16}}>format_italic</span></button>
         <button type="button" className="ghost sm" style={btnStyle} title="底線" onMouseDown={e=>e.preventDefault()} onClick={()=>exec('underline')}><span className="material-icons" style={{fontSize:16}}>format_underlined</span></button>
-        <button type="button" className="ghost sm" style={btnStyle} title="強調色" onMouseDown={e=>e.preventDefault()} onClick={()=>exec('foreColor', '#a13d3d')}><span className="material-icons" style={{fontSize:16, color:'var(--danger)'}}>format_color_text</span></button>
+        <button type="button" className="ghost sm" style={btnStyle} title="強調色（先選取文字，再點一下套用，選取後再點一次可以復原）" onMouseDown={e=>e.preventDefault()} onClick={toggleAccentColor}><span className="material-icons" style={{fontSize:16, color:'var(--danger)'}}>format_color_text</span></button>
         <button type="button" className="ghost sm" style={btnStyle} title="項目符號" onMouseDown={e=>e.preventDefault()} onClick={()=>exec('insertUnorderedList')}><span className="material-icons" style={{fontSize:16}}>format_list_bulleted</span></button>
         <button type="button" className="ghost sm" style={btnStyle} title="編號清單" onMouseDown={e=>e.preventDefault()} onClick={()=>exec('insertOrderedList')}><span className="material-icons" style={{fontSize:16}}>format_list_numbered</span></button>
         <button type="button" className="ghost sm" style={btnStyle} title="超連結" onMouseDown={e=>e.preventDefault()} onClick={onLink}><span className="material-icons" style={{fontSize:16}}>link</span></button>
@@ -2908,7 +2916,7 @@ function AnnouncementsTab(){
             </label>
             <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color: editing.pinned?'var(--ink)':'var(--muted)', marginTop:6}}>
               <input type="checkbox" checked={!!editing.showOnHome} disabled={!editing.pinned} onChange={e=>setEditing({...editing,showOnHome:e.target.checked})} style={{width:'auto'}} />
-              顯示在首頁{!editing.pinned && <span className="hint" style={{marginLeft:4}}>（需先勾選「置頂」）</span>}
+              顯示在首頁{!editing.pinned && <span className="hint" style={{marginLeft:4, marginTop:0, fontSize:13}}>（需先勾選「置頂」）</span>}
             </label>
             <div className="modal-actions">
               <button className="ghost" onClick={()=>setEditing(null)}>取消</button>
