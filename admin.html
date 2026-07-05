@@ -2657,6 +2657,105 @@ function CompLedgerTab({employees}){
 }
 
 /* ========================= 公告管理 ========================= */
+/* ========================= 簡易格式編輯器（公告內容用） ========================= */
+function RichTextEditor({value, onChange}){
+  const editorRef = useRef(null);
+  const savedRangeRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(()=>{
+    if(editorRef.current) editorRef.current.innerHTML = value || '';
+  }, []); // 只在掛載時同步一次，避免打字中被重置游標位置
+
+  function saveSelection(){
+    const sel = window.getSelection();
+    if(sel && sel.rangeCount > 0 && editorRef.current && editorRef.current.contains(sel.anchorNode)){
+      savedRangeRef.current = sel.getRangeAt(0);
+    }
+  }
+  function restoreSelection(){
+    if(!savedRangeRef.current) return;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedRangeRef.current);
+  }
+  function exec(cmd, arg){
+    editorRef.current.focus();
+    restoreSelection();
+    document.execCommand(cmd, false, arg || null);
+    onChange(editorRef.current.innerHTML);
+  }
+  function onLink(){
+    const url = prompt('請輸入連結網址（需包含 https://）');
+    if(!url) return;
+    exec('createLink', url);
+  }
+  function onPickImage(){
+    saveSelection();
+    fileInputRef.current && fileInputRef.current.click();
+  }
+  function compressImage(file){
+    return new Promise((resolve, reject)=>{
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = ()=>{
+        const MAX = 1000;
+        let w = img.width, h = img.height;
+        if(w > MAX || h > MAX){ const s = MAX/Math.max(w,h); w = Math.round(w*s); h = Math.round(h*s); }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg', 0.82).split(',')[1]);
+      };
+      img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('圖片讀取失敗')); };
+      img.src = url;
+    });
+  }
+  async function onFileChange(e){
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    setUploading(true);
+    try{
+      const base64 = await compressImage(file);
+      const data = await apiPost('uploadAnnouncementImage', {imageBase64: base64, mimeType:'image/jpeg'});
+      editorRef.current.focus();
+      restoreSelection();
+      document.execCommand('insertHTML', false, `<img src="${data.url}" style="max-width:100%;border-radius:8px;margin:6px 0;display:block;" />`);
+      onChange(editorRef.current.innerHTML);
+    }catch(err){ alert(err.message); }
+    finally{ setUploading(false); }
+  }
+
+  const btnStyle = {padding:'4px 8px', minWidth:0};
+  return (
+    <div>
+      <div style={{display:'flex', flexWrap:'wrap', gap:4, marginBottom:6, background:'var(--bg-2, #f2f2f2)', padding:6, borderRadius:8}}>
+        <button type="button" className="ghost sm" style={btnStyle} title="粗體" onMouseDown={e=>e.preventDefault()} onClick={()=>exec('bold')}><span className="material-icons" style={{fontSize:16}}>format_bold</span></button>
+        <button type="button" className="ghost sm" style={btnStyle} title="斜體" onMouseDown={e=>e.preventDefault()} onClick={()=>exec('italic')}><span className="material-icons" style={{fontSize:16}}>format_italic</span></button>
+        <button type="button" className="ghost sm" style={btnStyle} title="底線" onMouseDown={e=>e.preventDefault()} onClick={()=>exec('underline')}><span className="material-icons" style={{fontSize:16}}>format_underlined</span></button>
+        <button type="button" className="ghost sm" style={btnStyle} title="強調色" onMouseDown={e=>e.preventDefault()} onClick={()=>exec('foreColor', '#a13d3d')}><span className="material-icons" style={{fontSize:16, color:'var(--danger)'}}>format_color_text</span></button>
+        <button type="button" className="ghost sm" style={btnStyle} title="項目符號" onMouseDown={e=>e.preventDefault()} onClick={()=>exec('insertUnorderedList')}><span className="material-icons" style={{fontSize:16}}>format_list_bulleted</span></button>
+        <button type="button" className="ghost sm" style={btnStyle} title="編號清單" onMouseDown={e=>e.preventDefault()} onClick={()=>exec('insertOrderedList')}><span className="material-icons" style={{fontSize:16}}>format_list_numbered</span></button>
+        <button type="button" className="ghost sm" style={btnStyle} title="超連結" onMouseDown={e=>e.preventDefault()} onClick={onLink}><span className="material-icons" style={{fontSize:16}}>link</span></button>
+        <button type="button" className="ghost sm" style={btnStyle} title="插入圖片" disabled={uploading} onMouseDown={e=>e.preventDefault()} onClick={onPickImage}><span className="material-icons" style={{fontSize:16}}>{uploading?'hourglass_top':'image'}</span></button>
+        <input ref={fileInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={onFileChange} />
+      </div>
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={()=>onChange(editorRef.current.innerHTML)}
+        onMouseUp={saveSelection}
+        onKeyUp={saveSelection}
+        style={{minHeight:120, maxHeight:320, overflowY:'auto', border:'1px solid var(--line)', borderRadius:6, padding:10, fontSize:13, lineHeight:1.7}}
+      />
+    </div>
+  );
+}
+
 function AnnouncementsTab(){
   const [list, setList] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -2667,7 +2766,7 @@ function AnnouncementsTab(){
 
   function load(){
     setLoading(true);
-    Promise.all([apiGet('getAnnouncements'), apiGet('getCompanies')])
+    Promise.all([apiGet('getAnnouncementsAdmin'), apiGet('getCompanies')])
       .then(([a,c])=>{ setList(a); setCompanies(c); })
       .catch(e=>alert(e.message)).finally(()=>setLoading(false));
   }
@@ -2712,7 +2811,7 @@ function AnnouncementsTab(){
             </div>
           </div>
           <div className="hint" style={{margin:'6px 0'}}>{companyName(a.companyId)}　·　{a.author}　·　{a.createdAt}</div>
-          <div style={{fontSize:13, whiteSpace:'pre-wrap'}}>{a.content}</div>
+          <div style={{fontSize:13}} dangerouslySetInnerHTML={{__html: a.content}} />
         </div>
       ))}
 
@@ -2721,7 +2820,7 @@ function AnnouncementsTab(){
           <div className="modal">
             <h3><span className="material-icons">campaign</span>{isNew?'發布公告':'編輯公告'}</h3>
             <div className="field"><label>標題 *</label><input value={editing.title} onChange={e=>setEditing({...editing,title:e.target.value})} style={{width:'100%'}} /></div>
-            <div className="field"><label>內容</label><textarea rows="5" value={editing.content} onChange={e=>setEditing({...editing,content:e.target.value})} style={{width:'100%', fontFamily:'inherit', fontSize:13, padding:8, borderRadius:6, border:'1px solid var(--line)'}}></textarea></div>
+            <div className="field"><label>內容</label><RichTextEditor value={editing.content} onChange={html=>setEditing(prev=>({...prev, content:html}))} /></div>
             <div className="grid-2">
               <div className="field"><label>發布對象</label>
                 <select value={editing.companyId} onChange={e=>setEditing({...editing,companyId:e.target.value})}>
