@@ -337,6 +337,31 @@ async function apiPost(action, body={}){
   }
   return json.data;
 }
+// 壓縮手機拍照/選圖的檔案，避免上傳失敗或太慢；回傳 {base64, mimeType}
+function compressImageFile(file, maxDim=800, quality=0.75){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('讀取圖片失敗'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('圖片格式無法讀取'));
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > maxDim || h > maxDim){
+          if(w >= h){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 function getLocation(){
   return new Promise((resolve) => {
     if(!navigator.geolocation){ resolve({lat:null,lng:null,error:'此裝置不支援定位'}); return; }
@@ -369,13 +394,21 @@ function formatDateTimeReadable(dtLocalValue){
   const pad2 = n => String(n).padStart(2,'0');
   return `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}（${dow}）${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
+function formatDateReadable(dateValue){
+  if(!dateValue) return '';
+  const d = new Date(dateValue+'T00:00');
+  if(isNaN(d.getTime())) return '';
+  const dow = '日一二三四五六'[d.getDay()];
+  const pad2 = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}（${dow}）`;
+}
 const LEAVE_TYPES = ['特休', '補休', '事假', '病假', '生理假', '婚假', '喪假', '公假', '公傷病假', '產假', '產檢假', '陪產假', '家庭照顧假', '災防假'];
 const STATUS_CLASS = {'待審核':'pending', '已核准':'ok', '已駁回':'no', '已取消':'cancel'};
 
 /* ========================= 登入畫面 ========================= */
 /* ========================= 自訂日期時間選擇器 ========================= */
-function CustomDateTimePicker({value, onConfirm, onClose}){
-  const initial = value ? new Date(value) : new Date();
+function CustomDateTimePicker({value, onConfirm, onClose, dateOnly}){
+  const initial = value ? new Date(dateOnly ? value+'T00:00' : value) : new Date();
   const [viewY, setViewY] = useState(initial.getFullYear());
   const [viewM, setViewM] = useState(initial.getMonth()); // 0-11
   const [selDate, setSelDate] = useState(`${initial.getFullYear()}-${String(initial.getMonth()+1).padStart(2,'0')}-${String(initial.getDate()).padStart(2,'0')}`);
@@ -417,6 +450,7 @@ function CustomDateTimePicker({value, onConfirm, onClose}){
     setSelMin(Math.max(0, Math.min(11, idx)) * 5);
   }
   function confirm(){
+    if(dateOnly){ onConfirm(selDate); return; }
     const hh = String(selHour).padStart(2,'0');
     const mm = String(selMin).padStart(2,'0');
     onConfirm(`${selDate}T${hh}:${mm}`);
@@ -428,7 +462,7 @@ function CustomDateTimePicker({value, onConfirm, onClose}){
     <div className="modal-bg">
       <div className="modal" style={{maxWidth:380}}>
         <div className="row-between" style={{marginBottom:14}}>
-          <div style={{fontSize:15, fontWeight:700}}>{dy}/{String(dm).padStart(2,'0')}/{String(dd).padStart(2,'0')}（{dowText}）{String(selHour).padStart(2,'0')}:{String(selMin).padStart(2,'0')}</div>
+          <div style={{fontSize:15, fontWeight:700}}>{dy}/{String(dm).padStart(2,'0')}/{String(dd).padStart(2,'0')}（{dowText}）{!dateOnly && `${String(selHour).padStart(2,'0')}:${String(selMin).padStart(2,'0')}`}</div>
           <button className="go" style={{padding:'7px 16px', fontSize:13}} onClick={confirm}>確認</button>
         </div>
 
@@ -456,29 +490,33 @@ function CustomDateTimePicker({value, onConfirm, onClose}){
           })}
         </div>
 
-        <div style={{display:'flex', justifyContent:'center', gap:8, position:'relative'}}>
-          <div style={{position:'absolute', top:ROW_H, left:0, right:0, height:ROW_H, background:'var(--panel-2)', borderRadius:8, pointerEvents:'none', zIndex:0}}></div>
-          <div ref={hourRef} onScroll={onHourScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center', position:'relative', zIndex:1}}>
-            <div style={{height:ROW_H}}></div>
-            {Array.from({length:24}, (_,h)=>(
-              <div key={h} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'start', fontSize: h===selHour?18:14, fontWeight: h===selHour?700:400, color: h===selHour?'var(--text)':'var(--muted)'}}>
-                {String(h).padStart(2,'0')}
+        {!dateOnly && (
+          <>
+            <div style={{display:'flex', justifyContent:'center', gap:8, position:'relative'}}>
+              <div style={{position:'absolute', top:ROW_H, left:0, right:0, height:ROW_H, background:'var(--panel-2)', borderRadius:8, pointerEvents:'none', zIndex:0}}></div>
+              <div ref={hourRef} onScroll={onHourScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center', position:'relative', zIndex:1}}>
+                <div style={{height:ROW_H}}></div>
+                {Array.from({length:24}, (_,h)=>(
+                  <div key={h} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'start', fontSize: h===selHour?18:14, fontWeight: h===selHour?700:400, color: h===selHour?'var(--text)':'var(--muted)'}}>
+                    {String(h).padStart(2,'0')}
+                  </div>
+                ))}
+                <div style={{height:ROW_H}}></div>
               </div>
-            ))}
-            <div style={{height:ROW_H}}></div>
-          </div>
-          <div style={{fontSize:18, alignSelf:'center', marginTop:ROW_H, position:'relative', zIndex:1}}>:</div>
-          <div ref={minRef} onScroll={onMinScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center', position:'relative', zIndex:1}}>
-            <div style={{height:ROW_H}}></div>
-            {Array.from({length:12}, (_,i)=>i*5).map(m=>(
-              <div key={m} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'start', fontSize: m===selMin?18:14, fontWeight: m===selMin?700:400, color: m===selMin?'var(--text)':'var(--muted)'}}>
-                {String(m).padStart(2,'0')}
+              <div style={{fontSize:18, alignSelf:'center', marginTop:ROW_H, position:'relative', zIndex:1}}>:</div>
+              <div ref={minRef} onScroll={onMinScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center', position:'relative', zIndex:1}}>
+                <div style={{height:ROW_H}}></div>
+                {Array.from({length:12}, (_,i)=>i*5).map(m=>(
+                  <div key={m} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'start', fontSize: m===selMin?18:14, fontWeight: m===selMin?700:400, color: m===selMin?'var(--text)':'var(--muted)'}}>
+                    {String(m).padStart(2,'0')}
+                  </div>
+                ))}
+                <div style={{height:ROW_H}}></div>
               </div>
-            ))}
-            <div style={{height:ROW_H}}></div>
-          </div>
-        </div>
-        <div className="hint" style={{textAlign:'center', marginTop:10}}>上下滑動選擇時間（每5分鐘一格）</div>
+            </div>
+            <div className="hint" style={{textAlign:'center', marginTop:10}}>上下滑動選擇時間（每5分鐘一格）</div>
+          </>
+        )}
 
         <div className="modal-actions">
           <button className="stay" onClick={onClose}>取消</button>
@@ -597,13 +635,62 @@ function LoginScreen({onLoggedIn}){
   );
 }
 
+function tenureShort(hireDate, breakStart, breakEnd){
+  if(!hireDate) return '';
+  let h = new Date(hireDate);
+  if(isNaN(h.getTime())) return '';
+  let breakNote = '';
+  if(breakStart && breakEnd){
+    const [by,bm] = breakStart.split('-').map(Number);
+    const [ey,em] = breakEnd.split('-').map(Number);
+    if(by && bm && ey && em){
+      const breakMonths = (ey-by)*12 + (em-bm) + 1;
+      if(breakMonths > 0){
+        h = new Date(h); h.setMonth(h.getMonth()+breakMonths);
+        const by2 = Math.floor(breakMonths/12), bm2 = breakMonths%12;
+        breakNote = `不含中斷${by2>0?by2+'年':''}${bm2>0?bm2+'個月':''}`;
+      }
+    }
+  }
+  const now = new Date();
+  let months = (now.getFullYear()-h.getFullYear())*12 + (now.getMonth()-h.getMonth());
+  if(now.getDate() < h.getDate()) months -= 1;
+  if(months < 0) return '';
+  const y = Math.floor(months/12), m = months%12;
+  const tenure = y<=0 ? `${m}個月` : (m<=0 ? `${y}年` : `${y}年${m}個月`);
+  return breakNote ? `${tenure}（${breakNote}）` : tenure;
+}
+
 /* ========================= 首頁 ========================= */
-function HomePage({session, status, pendingCount, goForms, showToast}){
+function HomePage({session, setSession, status, pendingCount, goForms, showToast}){
   const now = useClock();
   const emp = session.employee || {};
   const shift = emp.shift;
   const [payslipOpen, setPayslipOpen] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [balances, setBalances] = useState(null);
+  const fileInputRef = useRef(null);
   const dateStr = `${now.getMonth()+1}月${now.getDate()}日　星期${'日一二三四五六'[now.getDay()]}`;
+
+  useEffect(()=>{ apiGet('getLeaveBalances').then(setBalances).catch(()=>{}); }, []);
+
+  async function onAvatarFileChange(e){
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // 允許重複選同一張照片
+    if(!file) return;
+    setUploadingAvatar(true);
+    try{
+      const {base64, mimeType} = await compressImageFile(file, 500, 0.75);
+      const data = await apiPost('uploadAvatar', {imageBase64: base64, mimeType});
+      setSession(prev=>{
+        const next = {...prev, employee: {...prev.employee, avatarUrl: data.avatarUrl}};
+        try{ localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(next)); }catch(err){}
+        return next;
+      });
+      showToast('大頭照更新成功','ok');
+    }catch(err){ showToast(err.message,'err'); }
+    finally{ setUploadingAvatar(false); }
+  }
 
   return (
     <div className="page">
@@ -611,8 +698,15 @@ function HomePage({session, status, pendingCount, goForms, showToast}){
         <div>
           <div className="name">{emp.name}</div>
           <div className="dept">{emp.department}{emp.company ? ' · ' + emp.company : ''}</div>
+          {emp.hireDate && <div className="dept" style={{marginTop:2}}>到職日：{emp.hireDate}{tenureShort(emp.hireDate, emp.tenureBreakStart, emp.tenureBreakEnd) && `　年資：${tenureShort(emp.hireDate, emp.tenureBreakStart, emp.tenureBreakEnd)}`}</div>}
         </div>
-        <div className="avatar">{(emp.name||'?').slice(0,1)}</div>
+        <div className="avatar" style={{position:'relative', cursor:'pointer', backgroundImage: emp.avatarUrl ? `url(${emp.avatarUrl})` : 'none', backgroundSize:'cover', backgroundPosition:'center'}} onClick={()=>fileInputRef.current && fileInputRef.current.click()}>
+          {!emp.avatarUrl && (emp.name||'?').slice(0,1)}
+          <div style={{position:'absolute', bottom:-2, right:-2, width:20, height:20, borderRadius:'50%', background:'var(--brand,#1B2027)', border:'2px solid var(--bg-1,#fff)', display:'flex', alignItems:'center', justifyContent:'center'}}>
+            <span className="material-icons" style={{fontSize:12, color:'#fff'}}>{uploadingAvatar?'hourglass_top':'photo_camera'}</span>
+          </div>
+          <input ref={fileInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={onAvatarFileChange} disabled={uploadingAvatar} />
+        </div>
       </div>
 
       <div className="card">
@@ -621,6 +715,18 @@ function HomePage({session, status, pendingCount, goForms, showToast}){
           {pad(now.getHours())}:{pad(now.getMinutes())}
         </div>
       </div>
+
+      {balances && (balances.compExpiredHours > 0 || balances.compExpiringHours > 0) && (
+        <div className="card" style={{borderColor:'var(--gold)', background:'rgba(212,175,55,0.08)'}}>
+          <div style={{display:'flex', alignItems:'center', gap:10}}>
+            <span className="material-icons" style={{color:'var(--gold)'}}>schedule</span>
+            <div style={{fontSize:13.5}}>
+              {balances.compExpiredHours > 0 && <div>你有 <b>{balances.compExpiredHours}</b> 小時補休已經過期</div>}
+              {balances.compExpiringHours > 0 && <div>你有 <b>{balances.compExpiringHours}</b> 小時補休即將到期（{balances.compNearestExpire}前要用完）</div>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {pendingCount > 0 && (
         <div className="card pending-card row-between" onClick={goForms}>
@@ -867,6 +973,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   const [colleagues, setColleagues] = useState([]);
   const [pickerFor, setPickerFor] = useState(null); // 'start' | 'end' | null
   const [menstrualStatus, setMenstrualStatus] = useState(null);
+  const [myOvertime, setMyOvertime] = useState(null);
 
   const unit = Number(settings?.leaveUnit) || 1;
   const shift = session.employee?.shift;
@@ -913,6 +1020,13 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   useEffect(load, []);
   useEffect(()=>{ apiGet('getColleagueList').then(setColleagues).catch(()=>{}); }, []);
   useEffect(()=>{ if(leaveBox) apiGet('getMyMenstrualLeaveStatus').then(setMenstrualStatus).catch(()=>{}); }, [!!leaveBox]);
+  useEffect(()=>{
+    if(compBox){
+      const d = new Date();
+      const month = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      apiGet('getMyOvertimeSummary', {month}).then(setMyOvertime).catch(()=>{});
+    }
+  }, [!!compBox]);
 
   async function submitLeave(){
     if(!leaveBox.leaveType){ showToast('請選擇假別','err'); return; }
@@ -927,11 +1041,18 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
     if(!(Number(leaveBox.hours) > 0)){ showToast('請填寫時數','err'); return; }
     setBusy(true);
     try{
+      let attachmentUrl = '';
+      if(leaveBox.attachmentFile){
+        const {base64, mimeType} = await compressImageFile(leaveBox.attachmentFile, 1000, 0.75);
+        const uploaded = await apiPost('uploadLeaveAttachment', {imageBase64: base64, mimeType, leaveType: leaveBox.leaveType, date: leaveBox.startDT.slice(0,10)});
+        attachmentUrl = uploaded.url;
+      }
       await apiPost('submitRequest', {
         type:'請假', leaveType: leaveBox.leaveType,
         startTime: leaveBox.startDT.replace('T',' '),
         endTime: leaveBox.endDT.replace('T',' '),
-        hours: Number(leaveBox.hours), reason: leaveBox.reason || '', delegateId: leaveBox.delegateId || ''
+        hours: Number(leaveBox.hours), reason: leaveBox.reason || '', delegateId: leaveBox.delegateId || '',
+        attachmentUrl
       });
       showToast('請假申請已送出','ok');
       setLeaveBox(null); load();
@@ -977,6 +1098,11 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
           <div className="balance-cell"><div className="num">{balances.compRemain}</div><div className="lbl">補休剩餘（小時）</div></div>
         </div>
       )}
+      {balances && (balances.compExpiredHours > 0 || balances.compExpiringHours > 0) && (
+        <div className="hint" style={{color:'var(--gold)', marginTop:-6, marginBottom:10}}>
+          {balances.compExpiredHours > 0 ? `已過期 ${balances.compExpiredHours} 小時` : `即將到期 ${balances.compExpiringHours} 小時（${balances.compNearestExpire}前）`}
+        </div>
+      )}
 
       <div className="form-actions">
         <button className="leave" onClick={()=>{
@@ -1000,7 +1126,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 <div className="type">{r.name}　<span style={{color:'var(--gold)'}}>{r.type==='請假'?r.leaveType:'加班換補休'}</span></div>
                 <span className="status-badge pending">待審核</span>
               </div>
-              <div className="meta">{reqSummary(r)}{r.reason && <><br/>事由：{r.reason}</>}<br/>申請於 {r.createdAt}</div>
+              <div className="meta">{reqSummary(r)}{r.reason && <><br/>事由：{r.reason}</>}{r.attachmentUrl && <><br/><a href={r.attachmentUrl} target="_blank" rel="noopener" style={{color:'var(--gold)'}}>查看附件</a></>}<br/>申請於 {r.createdAt}</div>
               <div className="req-actions">
                 <button className="btn-approve" onClick={()=>setReviewBox({req:r, mode:'approve', comment:''})}>核准</button>
                 <button className="btn-reject" onClick={()=>setReviewBox({req:r, mode:'reject', comment:''})}>駁回</button>
@@ -1022,6 +1148,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
           <div className="meta">
             {reqSummary(r)}
             {r.reason && <><br/>事由：{r.reason}</>}
+            {r.attachmentUrl && <><br/><a href={r.attachmentUrl} target="_blank" rel="noopener" style={{color:'var(--gold)'}}>查看附件</a></>}
             {r.reviewer && <><br/>審核：{r.reviewer}{r.reviewComment ? '（' + r.reviewComment + '）' : ''}</>}
           </div>
           {r.status==='待審核' && (
@@ -1037,7 +1164,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
           <div className="modal">
             <h3><span className="material-icons">event_available</span>請假申請</h3>
             <div className="field"><label>假別</label>
-              <select value={leaveBox.leaveType} onChange={e=>setLeaveBox({...leaveBox, leaveType:e.target.value})}>
+              <select value={leaveBox.leaveType} onChange={e=>setLeaveBox({...leaveBox, leaveType:e.target.value})} style={{textAlign:'center'}}>
                 <option value="">請選擇</option>
                 {LEAVE_TYPES.filter(t=> t!=='生理假' || session.employee?.gender !== '男').map(t=>{
                   let extra = '';
@@ -1068,9 +1195,9 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 <span className="material-icons" style={{fontSize:18}}>event</span>
               </button>
             </div>
-            <div className="field"><label>請假時數（依起訖時間自動計算，最小單位 {unit} 小時，可手動調整）</label><input type="number" step={unit} min={unit} value={leaveBox.hours} onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} /></div>
+            <div className="field"><label>請假時數（依起訖時間自動計算，最小單位 {unit} 小時，可手動調整）</label><input type="number" step={unit} min={unit} value={leaveBox.hours} onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} style={{textAlign:'center'}} /></div>
             <div className="field"><label>代理人（選填）</label>
-              <select value={leaveBox.delegateId} onChange={e=>setLeaveBox({...leaveBox, delegateId:e.target.value})}>
+              <select value={leaveBox.delegateId} onChange={e=>setLeaveBox({...leaveBox, delegateId:e.target.value})} style={{textAlign:'center'}}>
                 <option value="">不指定</option>
                 {colleagues.filter(c=>c.id!==session.employeeId).map(c=>(
                   <option key={c.id} value={c.id}>{c.name}{c.department?'（'+c.department+'）':''}</option>
@@ -1078,6 +1205,14 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
               </select>
             </div>
             <div className="field"><label>事由</label><textarea rows="2" value={leaveBox.reason} onChange={e=>setLeaveBox({...leaveBox, reason:e.target.value})}></textarea></div>
+            <div className="field">
+              <label>附件（選填，例如診斷證明）</label>
+              <label className="ghost-btn" style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8, cursor:'pointer'}}>
+                <span className="material-icons" style={{fontSize:18}}>attach_file</span>
+                <span>{leaveBox.attachmentFile ? leaveBox.attachmentFile.name : '選擇照片或拍照'}</span>
+                <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{ const f=e.target.files&&e.target.files[0]; if(f) setLeaveBox({...leaveBox, attachmentFile:f}); }} />
+              </label>
+            </div>
             <div className="modal-actions">
               <button className="stay" onClick={()=>setLeaveBox(null)}>取消</button>
               <button className="go" onClick={submitLeave} disabled={busy}>{busy?'送出中...':'送出申請'}</button>
@@ -1088,10 +1223,12 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
 
       {pickerFor && (
         <CustomDateTimePicker
-          value={pickerFor==='start' ? leaveBox.startDT : leaveBox.endDT}
+          dateOnly={pickerFor==='comp'}
+          value={pickerFor==='start' ? leaveBox.startDT : pickerFor==='end' ? leaveBox.endDT : compBox.date}
           onConfirm={(v)=>{
             if(pickerFor==='start') updateLeaveField({startDT:v, endDT: leaveBox.endDT || v});
-            else updateLeaveField({endDT:v});
+            else if(pickerFor==='end') updateLeaveField({endDT:v});
+            else setCompBox({...compBox, date:v});
             setPickerFor(null);
           }}
           onClose={()=>setPickerFor(null)}
@@ -1103,8 +1240,19 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
           <div className="modal">
             <h3><span className="material-icons">swap_horiz</span>加班換補休</h3>
             <div className="hint" style={{marginBottom:12}}>將已加班的時數轉換為補休額度，經主管核准後即可於請假時選擇「補休」使用。</div>
-            <div className="field"><label>加班日期</label><input type="date" value={compBox.date} onChange={e=>setCompBox({...compBox, date:e.target.value})} /></div>
-            <div className="field"><label>換補休時數（最小單位 {unit} 小時）</label><input type="number" step={unit} min={unit} value={compBox.hours} onChange={e=>setCompBox({...compBox, hours:e.target.value})} /></div>
+            {myOvertime && (
+              <div className="hint" style={{marginBottom:12, padding:10, background:'var(--panel-2)', borderRadius:8}}>
+                本月累計加班參考：平日 {myOvertime.otWeekday134+myOvertime.otWeekday167} 小時、休息日 {myOvertime.otRestDayHours} 小時、國定假日 {myOvertime.otHolidayHours} 小時
+              </div>
+            )}
+            <div className="field">
+              <label>加班日期</label>
+              <button type="button" className="ghost-btn" style={{textAlign:'center', display:'flex', justifyContent:'center', alignItems:'center', gap:8, background:'#1B2027', color:'var(--text)', border:'1px solid var(--line)'}} onClick={()=>setPickerFor('comp')}>
+                <span>{compBox.date ? formatDateReadable(compBox.date) : '請選擇'}</span>
+                <span className="material-icons" style={{fontSize:18}}>event</span>
+              </button>
+            </div>
+            <div className="field"><label>換補休時數（最小單位 {unit} 小時）</label><input type="number" step={unit} min={unit} value={compBox.hours} onChange={e=>setCompBox({...compBox, hours:e.target.value})} style={{textAlign:'center'}} /></div>
             <div className="field"><label>說明</label><textarea rows="2" value={compBox.reason} onChange={e=>setCompBox({...compBox, reason:e.target.value})}></textarea></div>
             <div className="modal-actions">
               <button className="stay" onClick={()=>setCompBox(null)}>取消</button>
@@ -1120,7 +1268,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
             <h3><span className="material-icons">{reviewBox.mode==='approve'?'check_circle':'cancel'}</span>{reviewBox.mode==='approve'?'核准':'駁回'}申請</h3>
             <div className="card req-item" style={{marginBottom:12}}>
               <div className="type">{reviewBox.req.name}　{reviewBox.req.type==='請假'?reviewBox.req.leaveType:'加班換補休'}</div>
-              <div className="meta">{reqSummary(reviewBox.req)}{reviewBox.req.reason && <><br/>事由：{reviewBox.req.reason}</>}</div>
+              <div className="meta">{reqSummary(reviewBox.req)}{reviewBox.req.reason && <><br/>事由：{reviewBox.req.reason}</>}{reviewBox.req.attachmentUrl && <><br/><a href={reviewBox.req.attachmentUrl} target="_blank" rel="noopener" style={{color:'var(--gold)'}}>查看附件</a></>}</div>
             </div>
             <div className="field"><label>審核意見（選填）</label><textarea rows="2" value={reviewBox.comment} onChange={e=>setReviewBox({...reviewBox, comment:e.target.value})}></textarea></div>
             <div className="modal-actions">
@@ -1328,11 +1476,11 @@ function PayslipModal({onClose, showToast}){
   const calc = data ? data.calc : {};
 
   const allowanceItems = data ? [
-    {label:'伙食津貼', value:n(emp.mealAllowance)},
-    {label:'交通津貼', value:n(emp.transportAllowance)},
-    {label:'職務加給', value:n(emp.positionAllowance)},
-    {label:'全勤獎金', value:n(emp.fullAttendanceBonus)}
-  ].filter(it=>it.value>0) : [];
+    {label:'伙食津貼', value:n(calc.effMealAllowance)},
+    {label:'交通津貼', value:n(calc.effTransportAllowance)},
+    {label:'職務加給', value:n(calc.effPositionAllowance)},
+    {label:`全勤獎金${calc.fullAttendanceDeductRatio>0?`（依比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%）`:(calc.fullAttendanceRatio<1?`（依在職比例${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')}`, value:n(calc.fullAttendanceAdjusted), showAnyway:n(calc.effFullAttendanceBonus)>0 && calc.fullAttendanceDeductRatio>0}
+  ].filter(it=>it.value>0 || it.showAnyway) : [];
 
   const overtimeItems = data ? [
     {label:`平日加班（${n(entry.otWeekday134)}/${n(entry.otWeekday167)}hr）`, value:n(calc.weekdayOtPay)},
@@ -1395,7 +1543,7 @@ function PayslipModal({onClose, showToast}){
               <div className="balance-cell"><div className="num">{money(data.calc.pay26)}</div><div className="lbl">{data.payDate26 ? data.payDate26.slice(5).replace('-','/') : '26日'}應付</div></div>
             </div>
             <div className="card" style={{padding:14}}>
-              <SectionHeader label="本薪" amount={money(emp.baseSalary)} sectionKey="base" hasDetail={allowanceItems.length>0} />
+              <SectionHeader label="本薪" amount={money(calc.effBaseSalary)} sectionKey="base" hasDetail={allowanceItems.length>0} />
               {expanded.base && allowanceItems.length>0 && (
                 <div style={{padding:'0 0 6px'}}>
                   <div className="pl-note">已含在本薪內，僅供對照</div>
@@ -1590,7 +1738,7 @@ function App(){
             </div>
           </div>
 
-          {tab==='home' && <HomePage session={session} status={status} pendingCount={pending.length} goForms={()=>setTab('forms')} showToast={showToast} />}
+          {tab==='home' && <HomePage session={session} setSession={setSession} status={status} pendingCount={pending.length} goForms={()=>setTab('forms')} showToast={showToast} />}
           {tab==='punch' && <PunchPage session={session} status={status} refreshStatus={refreshStatus} showToast={showToast} settings={settings} />}
           {tab==='forms' && <FormsPage session={session} isManager={!!session.isManager} pending={pending} refreshPending={refreshPending} showToast={showToast} settings={settings} />}
           {tab==='schedule' && <CalendarPage session={session} showToast={showToast} />}

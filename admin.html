@@ -216,13 +216,27 @@ function rocDate(dateStr){
   if(!y) return dateStr;
   return `(民國${y-1911}年) ${dateStr}`;
 }
-function tenureText(hireDate){
+function tenureText(hireDate, breakStart, breakEnd){
   if(!hireDate) return '未設定到職日';
-  const h = new Date(hireDate);
+  let h = new Date(hireDate);
   if(isNaN(h.getTime())) return '到職日格式錯誤';
+  let breakNote = '';
+  if(breakStart && breakEnd){
+    const [by,bm] = breakStart.split('-').map(Number);
+    const [ey,em] = breakEnd.split('-').map(Number);
+    if(by && bm && ey && em){
+      const breakMonths = (ey-by)*12 + (em-bm) + 1;
+      if(breakMonths > 0){
+        h = new Date(h); h.setMonth(h.getMonth()+breakMonths);
+        const by2 = Math.floor(breakMonths/12), bm2 = breakMonths%12;
+        breakNote = `（已扣除中斷${by2>0?by2+'年':''}${bm2>0?bm2+'個月':''}）`;
+      }
+    }
+  }
   const now = new Date();
   let months = (now.getFullYear()-h.getFullYear())*12 + (now.getMonth()-h.getMonth());
   if(now.getDate() < h.getDate()) months -= 1;
+  months = Math.max(0, months);
   const y = Math.floor(months/12), m = months%12;
   let leave = 0;
   const years = months/12;
@@ -232,7 +246,7 @@ function tenureText(hireDate){
   else if(years >= 2) leave = 10;
   else if(years >= 1) leave = 7;
   else if(months >= 6) leave = 3;
-  return `到職年資約 ${y} 年 ${m} 個月，依勞基法第 38 條參考特休天數：約 ${leave} 天（僅供參考，請以實際規定核算）`;
+  return `到職年資約 ${y} 年 ${m} 個月${breakNote}，依勞基法第 38 條參考特休天數：約 ${leave} 天（僅供參考，請以實際規定核算）`;
 }
 
 /* ========================= 勞健保投保級距對照表與薪資計算引擎 ========================= */
@@ -268,7 +282,7 @@ function emptyEntry(){
     locked:false, lockedAt:'', lockedBaseSalary:0, lockedMealAllowance:0, lockedTransportAllowance:0,
     lockedPositionAllowance:0, lockedFullAttendanceBonus:0, lockedInsuranceGrade:0, lockedDependentCount:0,
     lockedLaborFee:0, lockedHealthFee:0,
-    lateMinutes:0, lateCount:0, earlyMinutes:0, earlyCount:0
+    lateMinutes:0, lateCount:0, earlyMinutes:0, earlyCount:0, presentDays:0
   };
 }
 function calcRestDayPay(hourly, hours){
@@ -321,7 +335,8 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   // 若該月已鎖定，改用鎖定當下凍結的數值，不受員工資料日後異動影響
   const base = isLocked ? n(entry.lockedBaseSalary) : n(emp.baseSalary);
   const effMeal = isLocked ? n(entry.lockedMealAllowance) : n(emp.mealAllowance);
-  const effTransport = isLocked ? n(entry.lockedTransportAllowance) : n(emp.transportAllowance);
+  const effTransport = isLocked ? n(entry.lockedTransportAllowance)
+    : (emp.transportAllowanceMode === 'daily' ? Math.round(n(emp.transportAllowance) * n(entry.presentDays)) : n(emp.transportAllowance));
   const effPosition = isLocked ? n(entry.lockedPositionAllowance) : n(emp.positionAllowance);
   const effFullAttendance = isLocked ? n(entry.lockedFullAttendanceBonus) : n(emp.fullAttendanceBonus);
   const hourly = base>0 ? base/240 : 0;
@@ -550,7 +565,7 @@ function App(){
     setEditingEmployee({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
       mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
       companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false,
-      nationalId:'', householdAddress:'', dependentCount:0, resignDate:'', gender:''});
+      nationalId:'', householdAddress:'', dependentCount:0, resignDate:'', gender:'', transportAllowanceMode:'fixed', tenureBreakStart:'', tenureBreakEnd:''});
     setIsNewEmployee(true);
   }
   function openEditEmployee(emp){ setEditingEmployee({...emp}); setIsNewEmployee(false); }
@@ -642,7 +657,8 @@ function App(){
             personalLeave: s.personalLeave || 0, sickLeave: s.sickLeave || 0, disasterLeave: s.disasterLeave || 0,
             menstrualLeave: s.menstrualLeave || 0,
             lateMinutes: s.lateMinutes || 0, lateCount: s.lateCount || 0,
-            earlyMinutes: s.earlyLeaveMinutes || 0, earlyCount: s.earlyLeaveCount || 0};
+            earlyMinutes: s.earlyLeaveMinutes || 0, earlyCount: s.earlyLeaveCount || 0,
+            presentDays: s.presentDays || 0};
         });
         return next;
       });
@@ -785,6 +801,15 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
             <input type="date" value={editing.resignDate||''} onChange={e=>setEditing({...editing, resignDate:e.target.value, status: e.target.value ? '離職' : editing.status})} />
             <div className="hint" style={{marginTop:4}}>有填離職日時，勞保費當月按在職天數比例計算，健保費則看月底當天是否仍在職（在職才收整月保費）</div>
           </div>
+          <div className="field">
+            <label>年資中斷起（選填）</label>
+            <input type="month" value={editing.tenureBreakStart||''} onChange={e=>setEditing({...editing, tenureBreakStart:e.target.value})} />
+          </div>
+          <div className="field">
+            <label>年資中斷迄（選填）</label>
+            <input type="month" value={editing.tenureBreakEnd||''} onChange={e=>setEditing({...editing, tenureBreakEnd:e.target.value})} />
+            <div className="hint" style={{marginTop:4}}>員工曾離職又復職時填寫，這段期間會從特休年資中扣除，不影響上面的到職日顯示</div>
+          </div>
 
           <div className="field"><label>班別</label>
             <select value={editing.shiftId} onChange={e=>setEditing({...editing, shiftId:e.target.value})}>
@@ -810,7 +835,15 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           <div className="field"><label>本薪</label><input type="number" value={editing.baseSalary} onChange={e=>setEditing({...editing, baseSalary:Number(e.target.value)})} /></div>
 
           <div className="field"><label>伙食津貼</label><input type="number" value={editing.mealAllowance} onChange={e=>setEditing({...editing, mealAllowance:Number(e.target.value)})} /></div>
-          <div className="field"><label>交通津貼</label><input type="number" value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} /></div>
+          <div className="field"><label>交通津貼計算方式</label>
+            <select value={editing.transportAllowanceMode||'fixed'} onChange={e=>setEditing({...editing, transportAllowanceMode:e.target.value})}>
+              <option value="fixed">固定金額（每月）</option>
+              <option value="daily">依出勤天數計算</option>
+            </select>
+          </div>
+          <div className="field"><label>{editing.transportAllowanceMode==='daily' ? '每日補貼金額' : '交通津貼'}</label><input type="number" value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} />
+            {editing.transportAllowanceMode==='daily' && <div className="hint" style={{marginTop:4}}>系統會用「套用出缺勤時數」抓當月實際出勤天數 × 這個金額，自動算出當月交通津貼</div>}
+          </div>
           <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
           <div className="field"><label>全勤獎金（固定）</label><input type="number" value={editing.fullAttendanceBonus} onChange={e=>setEditing({...editing, fullAttendanceBonus:Number(e.target.value)})} /></div>
 
@@ -830,7 +863,7 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           <input type="checkbox" checked={editing.exemptFromAttendance === true} onChange={e=>setEditing({...editing, exemptFromAttendance:e.target.checked})} style={{width:'auto'}} />
           免打卡（不列入出缺勤彙總與薪資自動試算，薪資項目需手動填寫，如業務費用）
         </label>
-        {editing.hireDate && <div className="hint">{tenureText(editing.hireDate)}</div>}
+        {editing.hireDate && <div className="hint">{tenureText(editing.hireDate, editing.tenureBreakStart, editing.tenureBreakEnd)}</div>}
         <div className="modal-actions">
           <button className="ghost" onClick={()=>setEditing(null)}>取消</button>
           <button onClick={onSave} disabled={saving}>{saving?'儲存中...':'儲存'}</button>
@@ -1302,7 +1335,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
               <td className="freeze-2 center">{money(calc.effBaseSalary)}</td>
               <td className="hint">{money(calc.effMealAllowance)}</td>
-              <td className="hint">{money(calc.effTransportAllowance)}</td>
+              <td className="hint" title={emp.transportAllowanceMode==='daily'?`依出勤天數計算：${entry.presentDays||0}天 × ${money(emp.transportAllowance)}`:''}>{money(calc.effTransportAllowance)}</td>
               <td className="hint">{money(calc.effPositionAllowance)}</td>
               <td className="hint" title={calc.fullAttendanceDeductRatio>0?`依請假/遲到早退比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%`:(calc.fullAttendanceRatio<1?`依在職天數比例試算（${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')} style={calc.fullAttendanceDeductRatio>0?{color:'var(--danger)'}:undefined}>{money(calc.fullAttendanceAdjusted)}</td>
               <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} /></td>
@@ -1460,7 +1493,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
           <tr><td className="left col-add" style={{fontWeight:600}}>本薪</td><td className="col-add" style={{fontWeight:600}}>{money(calc.effBaseSalary)}</td></tr>
           {(!hideZero || hasAnyAllowance) && <tr><td className="left col-add" colSpan="2" style={{fontSize:11, color:'var(--muted)', paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>}
           {show(n(calc.effMealAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>伙食津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effMealAllowance)}</td></tr>}
-          {show(n(calc.effTransportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effTransportAllowance)}</td></tr>}
+          {show(n(calc.effTransportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼{emp.transportAllowanceMode==='daily' && <span>（{entry.presentDays||0}天×{money(emp.transportAllowance)}）</span>}</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effTransportAllowance)}</td></tr>}
           {show(n(calc.effPositionAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>職務加給</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effPositionAllowance)}</td></tr>}
           {show(n(calc.effFullAttendanceBonus)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>全勤獎金{calc.fullAttendanceDeductRatio>0 && <span style={{color:'var(--danger)'}}>（依比例扣{(calc.fullAttendanceDeductRatio*100).toFixed(1)}%）</span>}{calc.fullAttendanceRatio<1 && <span>（依在職比例{(calc.fullAttendanceRatio*100).toFixed(0)}%）</span>}</td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.fullAttendanceAdjusted)}</td></tr>}
           {show(n(entry.festivalBonus)) && <tr><td className="left col-add">三節獎金</td><td className="col-add">{money(entry.festivalBonus)}</td></tr>}
@@ -2224,7 +2257,7 @@ function RequestsTab({month}){
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
-            <thead><tr><th className="left">姓名</th><th className="left">類型</th><th className="left">假別</th><th className="left">起訖 / 加班日期</th><th>時數</th><th className="left">代理人</th><th className="left">事由</th><th>狀態</th><th className="left">審核人</th><th>操作</th></tr></thead>
+            <thead><tr><th className="left">姓名</th><th className="left">類型</th><th className="left">假別</th><th className="left">起訖 / 加班日期</th><th>時數</th><th className="left">代理人</th><th className="left">事由</th><th>附件</th><th>狀態</th><th className="left">審核人</th><th>操作</th></tr></thead>
             <tbody>
               {list.map(r=>(
                 <tr key={r.id}>
@@ -2235,6 +2268,7 @@ function RequestsTab({month}){
                   <td>{r.hours}</td>
                   <td className="left">{r.delegateName || '-'}</td>
                   <td className="left">{r.reason}</td>
+                  <td>{r.attachmentUrl ? <a href={r.attachmentUrl} target="_blank" rel="noopener"><span className="material-icons" style={{fontSize:18}}>attachment</span></a> : '-'}</td>
                   <td>{r.status==='待審核' ? <span className="badge warn">待審核</span> : <span className="badge">{r.status}</span>}</td>
                   <td className="left">{r.reviewer}{r.reviewComment ? '（'+r.reviewComment+'）' : ''}</td>
                   <td>
@@ -2247,7 +2281,7 @@ function RequestsTab({month}){
                   </td>
                 </tr>
               ))}
-              {list.length===0 && <tr><td colSpan="10" className="hint" style={{textAlign:'center'}}>本月尚無申請單</td></tr>}
+              {list.length===0 && <tr><td colSpan="11" className="hint" style={{textAlign:'center'}}>本月尚無申請單</td></tr>}
             </tbody>
           </table>
         )}
@@ -2256,6 +2290,7 @@ function RequestsTab({month}){
         <div className="modal-bg">
           <div className="modal" style={{width:420}}>
             <h3><span className="material-icons">{reviewBox.mode==='approve'?'check_circle':'cancel'}</span>{reviewBox.mode==='approve'?'核准':'駁回'}：{reviewBox.req.name} 的{reviewBox.req.type==='請假'?reviewBox.req.leaveType:'加班換補休'}</h3>
+            {reviewBox.req.attachmentUrl && <div className="hint" style={{marginBottom:8}}><a href={reviewBox.req.attachmentUrl} target="_blank" rel="noopener">查看附件</a></div>}
             <div className="field"><label>審核意見（選填）</label><input value={reviewBox.comment} onChange={e=>setReviewBox({...reviewBox, comment:e.target.value})} style={{width:'100%'}} /></div>
             <div className="modal-actions">
               <button className="ghost" onClick={()=>setReviewBox(null)}>取消</button>
@@ -2478,12 +2513,23 @@ function CompLedgerTab({employees}){
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [empFilter, setEmpFilter] = useState('');
+  const [reminderDays, setReminderDays] = useState(30);
 
   function load(){
     setLoading(true);
     apiGet('getCompLedger', empFilter ? {employeeId:empFilter} : {}).then(setList).catch(e=>alert(e.message)).finally(()=>setLoading(false));
   }
   useEffect(load, [empFilter]);
+  useEffect(()=>{ apiGet('getSettings').then(s=>setReminderDays(Number(s.compExpireReminderDays)||30)).catch(()=>{}); }, []);
+
+  function expireStatus(expireDate){
+    if(!expireDate) return '';
+    const today = new Date().toISOString().slice(0,10);
+    const deadline = new Date(Date.now() + reminderDays*86400000).toISOString().slice(0,10);
+    if(expireDate < today) return 'expired';
+    if(expireDate <= deadline) return 'soon';
+    return '';
+  }
 
   function doExport(){
     const headers = ['姓名','類型','時數','異動後餘額','說明','到期日','建立時間'];
@@ -2503,23 +2549,26 @@ function CompLedgerTab({employees}){
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
         <button className="ghost sm" onClick={doExport}><span className="material-icons" style={{fontSize:16}}>download</span>匯出 CSV</button>
       </div>
-      <div className="hint" style={{marginBottom:12}}>每筆加班換補休核准後會自動「轉入」，員工請補休假核准後會自動「使用」扣抵，餘額為累計結果。到期日到了仍未使用完的補休，依規定應折算工資發給。</div>
+      <div className="hint" style={{marginBottom:12}}>每筆加班換補休核准後會自動「轉入」，員工請補休假核准後會自動「使用」扣抵，餘額為累計結果。到期日到了仍未使用完的補休，依規定應折算工資發給。到期日欄位：<span style={{color:'var(--danger)'}}>紅字</span>＝已過期，<span style={{color:'#B8860B'}}>橘字</span>＝即將到期（設定頁可調整提醒天數）。</div>
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
             <thead><tr><th className="left">姓名</th><th className="left">類型</th><th>時數</th><th>異動後餘額</th><th className="left">說明</th><th className="left">到期日</th><th className="left">時間</th></tr></thead>
             <tbody>
-              {list.map(r=>(
-                <tr key={r.id}>
-                  <td className="left"><b>{r.name}</b></td>
-                  <td className="left">{r.type==='加班轉入' ? <span className="badge">加班轉入</span> : <span className="badge warn">請假使用</span>}</td>
-                  <td className={r.hours>=0?'num-pos':'num-neg'}>{r.hours>=0?'+':''}{r.hours}</td>
-                  <td>{r.balanceAfter}</td>
-                  <td className="left">{r.note}</td>
-                  <td className="left">{r.expireDate}</td>
-                  <td className="left">{r.createdAt}</td>
-                </tr>
-              ))}
+              {list.map(r=>{
+                const st = expireStatus(r.expireDate);
+                return (
+                  <tr key={r.id}>
+                    <td className="left"><b>{r.name}</b></td>
+                    <td className="left">{r.type==='加班轉入' ? <span className="badge">加班轉入</span> : <span className="badge warn">請假使用</span>}</td>
+                    <td className={r.hours>=0?'num-pos':'num-neg'}>{r.hours>=0?'+':''}{r.hours}</td>
+                    <td>{r.balanceAfter}</td>
+                    <td className="left">{r.note}</td>
+                    <td className="left" style={st==='expired'?{color:'var(--danger)', fontWeight:700}:st==='soon'?{color:'#B8860B', fontWeight:700}:undefined}>{r.expireDate}</td>
+                    <td className="left">{r.createdAt}</td>
+                  </tr>
+                );
+              })}
               {list.length===0 && <tr><td colSpan="7" className="hint" style={{textAlign:'center'}}>尚無補休紀錄</td></tr>}
             </tbody>
           </table>
@@ -2701,6 +2750,7 @@ function SettingsTab({onSaved}){
           </select>
         </div>
         <div className="field"><label>補休使用期限（月）</label><input type="number" min="1" value={s.compTimeExpireMonths} onChange={e=>setS({...s,compTimeExpireMonths:e.target.value})} /></div>
+        <div className="field"><label>補休到期提醒（到期前幾天）</label><input type="number" min="1" value={s.compExpireReminderDays} onChange={e=>setS({...s,compExpireReminderDays:e.target.value})} /></div>
       </div>
       <div className="hint">補休期限自核准日起算，依勞基法第32條之1，補休期限屆滿或契約終止仍未休完的時數，應依原加班費標準折算工資。</div>
 
