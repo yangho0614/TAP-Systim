@@ -62,8 +62,8 @@
   /* 首頁 */
   .profile{ display:flex; align-items:center; gap:14px; padding:8px 4px 16px 4px; }
   .avatar{
-    width:60px; height:60px; border-radius:50%; background:var(--gold); color:#1c1305;
-    display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:800; flex-shrink:0;
+    width:80px; height:80px; border-radius:50%; background:var(--gold); color:#1c1305;
+    display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:800; flex-shrink:0;
   }
   .profile .name{ font-size:24px; font-weight:500; letter-spacing:2px; }
   .profile .dept{ font-size:14px; font-weight:400; letter-spacing:0.5px; color:var(--muted); margin-top:2px; }
@@ -173,6 +173,9 @@
   input[type=date],input[type=time],input[type=datetime-local],input[type=month]{
     padding-left:12px; padding-right:12px; color-scheme:dark; min-width:0; max-width:100%; width:100%;
     font-size:13px; box-sizing:border-box;
+  }
+  input[type=range]{
+    width:auto; padding:0; border:none; background:transparent; height:20px;
   }
   input[type=date]::-webkit-calendar-picker-indicator,
   input[type=time]::-webkit-calendar-picker-indicator,
@@ -661,6 +664,133 @@ function tenureShort(hireDate, breakStart, breakEnd){
   return breakNote ? `${tenure}（${breakNote}）` : tenure;
 }
 
+/* ========================= 大頭照裁切/縮放 ========================= */
+function AvatarCropModal({file, onConfirm, onCancel}){
+  const BOX = 280; // 顯示用圓形範圍大小(px)
+  const [imgSrc, setImgSrc] = useState(null);
+  const [imgSize, setImgSize] = useState(null); // {w, h} 原始圖片尺寸
+  const [scale, setScale] = useState(1);
+  const [minScale, setMinScale] = useState(1);
+  const [offset, setOffset] = useState({x:0, y:0});
+  const dragRef = useRef({dragging:false, startX:0, startY:0, startOffset:{x:0,y:0}});
+  const pinchRef = useRef({active:false, startDist:0, startScale:1});
+
+  useEffect(()=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.max(BOX/img.width, BOX/img.height);
+      setMinScale(s); setScale(s); setOffset({x:0, y:0});
+      setImgSize({w:img.width, h:img.height});
+      setImgSrc(url);
+    };
+    img.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  function clampOffset(o, s){
+    if(!imgSize) return o;
+    const w = imgSize.w*s, h = imgSize.h*s;
+    const maxX = Math.max(0, (w-BOX)/2), maxY = Math.max(0, (h-BOX)/2);
+    return { x: Math.min(maxX, Math.max(-maxX, o.x)), y: Math.min(maxY, Math.max(-maxY, o.y)) };
+  }
+  function touchDist(touches){
+    const dx=touches[0].clientX-touches[1].clientX, dy=touches[0].clientY-touches[1].clientY;
+    return Math.sqrt(dx*dx+dy*dy);
+  }
+
+  function onPointerDown(e){ dragRef.current = {dragging:true, startX:e.clientX, startY:e.clientY, startOffset:{...offset}}; }
+  function onPointerMove(e){
+    if(!dragRef.current.dragging) return;
+    const dx = e.clientX - dragRef.current.startX, dy = e.clientY - dragRef.current.startY;
+    setOffset(clampOffset({x:dragRef.current.startOffset.x+dx, y:dragRef.current.startOffset.y+dy}, scale));
+  }
+  function onPointerUp(){ dragRef.current.dragging = false; }
+
+  function onTouchStart(e){
+    if(e.touches.length===2){ pinchRef.current = {active:true, startDist:touchDist(e.touches), startScale:scale}; }
+    else if(e.touches.length===1){ dragRef.current = {dragging:true, startX:e.touches[0].clientX, startY:e.touches[0].clientY, startOffset:{...offset}}; }
+  }
+  function onTouchMove(e){
+    if(pinchRef.current.active && e.touches.length===2){
+      e.preventDefault();
+      const newScale = Math.max(minScale, Math.min(minScale*4, pinchRef.current.startScale * (touchDist(e.touches)/pinchRef.current.startDist)));
+      setScale(newScale);
+      setOffset(o=>clampOffset(o, newScale));
+    } else if(dragRef.current.dragging && e.touches.length===1){
+      const dx = e.touches[0].clientX - dragRef.current.startX, dy = e.touches[0].clientY - dragRef.current.startY;
+      setOffset(clampOffset({x:dragRef.current.startOffset.x+dx, y:dragRef.current.startOffset.y+dy}, scale));
+    }
+  }
+  function onTouchEnd(e){
+    if(e.touches.length<2) pinchRef.current.active = false;
+    if(e.touches.length===0) dragRef.current.dragging = false;
+  }
+  function onSliderChange(e){
+    const s = Number(e.target.value);
+    setScale(s);
+    setOffset(o=>clampOffset(o, s));
+  }
+
+  function confirm(){
+    if(!imgSize || !imgSrc) return;
+    const OUT = 480;
+    const canvas = document.createElement('canvas');
+    canvas.width = OUT; canvas.height = OUT;
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(OUT/2, OUT/2, OUT/2, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.clip();
+    const ratio = OUT/BOX;
+    const drawW = imgSize.w*scale*ratio, drawH = imgSize.h*scale*ratio;
+    const drawX = OUT/2 - drawW/2 + offset.x*ratio;
+    const drawY = OUT/2 - drawH/2 + offset.y*ratio;
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      ctx.restore();
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      onConfirm(dataUrl.split(',')[1], 'image/jpeg');
+    };
+    img.src = imgSrc;
+  }
+
+  return (
+    <div className="modal-bg">
+      <div className="modal" style={{maxWidth:380}}>
+        <h3><span className="material-icons">crop</span>調整大頭照</h3>
+        <div className="hint" style={{marginBottom:12}}>拖曳照片調整位置，用下方拉桿或兩指縮放調整大小</div>
+        <div
+          style={{position:'relative', width:BOX, height:BOX, margin:'0 auto', borderRadius:'50%', overflow:'hidden', background:'#000', touchAction:'none', cursor:'grab'}}
+          onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
+          onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        >
+          {imgSrc && imgSize && (
+            <img src={imgSrc} draggable={false} style={{
+              position:'absolute', left:'50%', top:'50%',
+              width:imgSize.w*scale, height:imgSize.h*scale,
+              transform:`translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
+              pointerEvents:'none'
+            }} />
+          )}
+          <div style={{position:'absolute', inset:0, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.6)', pointerEvents:'none'}}></div>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:10, marginTop:16}}>
+          <span className="material-icons" style={{fontSize:18, color:'var(--muted)'}}>photo_size_select_small</span>
+          <input type="range" min={minScale} max={minScale*4} step={0.01} value={scale} onChange={onSliderChange} style={{flex:1}} />
+          <span className="material-icons" style={{fontSize:22, color:'var(--muted)'}}>photo_size_select_large</span>
+        </div>
+        <div className="modal-actions">
+          <button className="stay" onClick={onCancel}>取消</button>
+          <button className="go" onClick={confirm} disabled={!imgSrc}>完成</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ========================= 首頁 ========================= */
 function HomePage({session, setSession, status, pendingCount, goForms, showToast}){
   const now = useClock();
@@ -669,18 +799,23 @@ function HomePage({session, setSession, status, pendingCount, goForms, showToast
   const [payslipOpen, setPayslipOpen] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [balances, setBalances] = useState(null);
+  const [cropFile, setCropFile] = useState(null);
   const fileInputRef = useRef(null);
   const dateStr = `${now.getMonth()+1}月${now.getDate()}日　星期${'日一二三四五六'[now.getDay()]}`;
 
   useEffect(()=>{ apiGet('getLeaveBalances').then(setBalances).catch(()=>{}); }, []);
 
-  async function onAvatarFileChange(e){
+  function onAvatarFileChange(e){
     const file = e.target.files && e.target.files[0];
     e.target.value = ''; // 允許重複選同一張照片
     if(!file) return;
+    setCropFile(file);
+  }
+
+  async function onCropConfirm(base64, mimeType){
+    setCropFile(null);
     setUploadingAvatar(true);
     try{
-      const {base64, mimeType} = await compressImageFile(file, 500, 0.75);
       const data = await apiPost('uploadAvatar', {imageBase64: base64, mimeType});
       setSession(prev=>{
         const next = {...prev, employee: {...prev.employee, avatarUrl: data.avatarUrl}};
@@ -697,17 +832,21 @@ function HomePage({session, setSession, status, pendingCount, goForms, showToast
       <div className="profile" style={{justifyContent:'space-between'}}>
         <div>
           <div className="name">{emp.name}</div>
-          <div className="dept">{emp.department}{emp.company ? ' · ' + emp.company : ''}</div>
+          <div className="dept">{emp.company}{emp.department ? ' · ' + emp.department : ''}</div>
           {emp.hireDate && <div className="dept" style={{marginTop:2}}>到職日：{emp.hireDate}{tenureShort(emp.hireDate, emp.tenureBreakStart, emp.tenureBreakEnd) && `　年資：${tenureShort(emp.hireDate, emp.tenureBreakStart, emp.tenureBreakEnd)}`}</div>}
         </div>
         <div className="avatar" style={{position:'relative', cursor:'pointer', backgroundImage: emp.avatarUrl ? `url(${emp.avatarUrl})` : 'none', backgroundSize:'cover', backgroundPosition:'center'}} onClick={()=>fileInputRef.current && fileInputRef.current.click()}>
           {!emp.avatarUrl && (emp.name||'?').slice(0,1)}
-          <div style={{position:'absolute', bottom:-2, right:-2, width:20, height:20, borderRadius:'50%', background:'var(--brand,#1B2027)', border:'2px solid var(--bg-1,#fff)', display:'flex', alignItems:'center', justifyContent:'center'}}>
-            <span className="material-icons" style={{fontSize:12, color:'#fff'}}>{uploadingAvatar?'hourglass_top':'photo_camera'}</span>
+          <div style={{position:'absolute', bottom:-2, right:-2, width:24, height:24, borderRadius:'50%', background:'var(--brand,#1B2027)', border:'2px solid var(--bg-1,#fff)', display:'flex', alignItems:'center', justifyContent:'center'}}>
+            <span className="material-icons" style={{fontSize:14, color:'#fff'}}>{uploadingAvatar?'hourglass_top':'photo_camera'}</span>
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={onAvatarFileChange} disabled={uploadingAvatar} />
         </div>
       </div>
+
+      {cropFile && (
+        <AvatarCropModal file={cropFile} onConfirm={onCropConfirm} onCancel={()=>setCropFile(null)} />
+      )}
 
       <div className="card">
         <div className="hint" style={{fontSize:13.5}}>{dateStr}</div>
