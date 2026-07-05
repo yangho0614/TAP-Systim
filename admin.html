@@ -57,7 +57,7 @@
   th,td{border:1px solid var(--line); padding:6px 8px; text-align:right; white-space:nowrap;}
   th{background:#EDEDED; color:var(--brand-dark); text-align:center;}
   td.left,th.left{text-align:left;}
-  td.center{text-align:center;}
+  td.center,th.center{text-align:center;}
   td input[type=number]{width:64px; text-align:right; padding:4px 5px;}
   tr.total-row td{background:#EDEDED; font-weight:700;}
   .num-pos{color:var(--income);}
@@ -208,12 +208,12 @@ function trimNum(v, decimals){
   const fixed = num.toFixed(decimals);
   return fixed.replace(/\.?0+$/, '') || '0';
 }
-// 西元日期字串轉民國年份標示，例如 2023-09-25 → 2023-09-25 (民國112年)
+// 西元日期字串轉民國年份標示，例如 2023-09-25 → (民國112年) 2023-09-25
 function rocDate(dateStr){
   if(!dateStr) return '';
   const y = Number(String(dateStr).slice(0,4));
   if(!y) return dateStr;
-  return `${dateStr} (民國${y-1911}年)`;
+  return `(民國${y-1911}年) ${dateStr}`;
 }
 function tenureText(hireDate){
   if(!hireDate) return '未設定到職日';
@@ -2312,8 +2312,13 @@ function AnnualLeaveTab({employees}){
       </div>
       <div className="card">
         {loading || !data ? <div className="hint">載入中...</div> : (
-          <table>
-            <thead><tr><th className="left">姓名</th><th className="left">部門</th><th>到職日</th><th>核定天數</th><th>核定時數</th><th>已用(hr)</th><th>剩餘(hr)</th><th>操作</th></tr></thead>
+          <table style={{tableLayout:'fixed'}}>
+            <colgroup>
+              <col style={{width:'11%'}} /><col style={{width:'11%'}} /><col style={{width:'19%'}} />
+              <col style={{width:'10%'}} /><col style={{width:'12%'}} /><col style={{width:'10%'}} />
+              <col style={{width:'10%'}} /><col style={{width:'17%'}} />
+            </colgroup>
+            <thead><tr><th className="center">姓名</th><th className="center">部門</th><th className="left">到職日</th><th className="center">核定天數</th><th className="center">核定時數</th><th className="center">已用(hr)</th><th className="center">剩餘(hr)</th><th className="center">操作</th></tr></thead>
             <tbody>
               {employees.map(emp=>{
                 const granted = data.granted[emp.id] ? data.granted[emp.id].hours : 0;
@@ -2322,14 +2327,14 @@ function AnnualLeaveTab({employees}){
                 const editDays = Number(editVal)>0 ? trimNum(Number(editVal)/8, 1) : '0';
                 return (
                   <tr key={emp.id}>
-                    <td className="left"><b>{emp.name}</b></td>
-                    <td className="left">{emp.department}</td>
-                    <td>{emp.hireDate ? rocDate(emp.hireDate) : '-'}</td>
-                    <td className="hint">{editDays} 天</td>
-                    <td><input type="number" min="0" step="0.01" value={editVal} onChange={e=>setEdits({...edits, [emp.id]: e.target.value})} style={{width:80}} /></td>
-                    <td>{trimNum(used, 2)}</td>
-                    <td className={granted-used < 8 ? 'flag' : ''}>{trimNum(Math.max(0, granted-used), 2)}</td>
-                    <td>
+                    <td className="center"><b>{emp.name}</b></td>
+                    <td className="center">{emp.department}</td>
+                    <td className="left">{emp.hireDate ? rocDate(emp.hireDate) : '-'}</td>
+                    <td className="center hint">{editDays} 天</td>
+                    <td className="center"><input type="number" min="0" step="0.01" value={editVal} onChange={e=>setEdits({...edits, [emp.id]: e.target.value})} style={{width:80, textAlign:'center'}} /></td>
+                    <td className="center">{trimNum(used, 2)}</td>
+                    <td className={'center' + (granted-used < 8 ? ' flag' : '')}>{trimNum(Math.max(0, granted-used), 2)}</td>
+                    <td className="center">
                       <button className="ghost sm" onClick={()=>estimate(emp.id)} disabled={estimatingId===emp.id || !emp.hireDate} title={!emp.hireDate?'請先設定到職日':''}>{estimatingId===emp.id?'試算中':'試算'}</button>{' '}
                       <button className="ghost sm" onClick={()=>save(emp.id)} disabled={savingId===emp.id}>{savingId===emp.id?'儲存中':'儲存'}</button>
                     </td>
@@ -2343,19 +2348,23 @@ function AnnualLeaveTab({employees}){
       </div>
       {batchBox && (
         <div className="modal-bg">
-          <div className="modal" style={{maxWidth:520}}>
+          <div className="modal" style={{maxWidth:640}}>
             <h3><span className="material-icons">calculate</span>批次試算預覽（{year}年・{system==='calendar'?'歷年制':'週年制'}）</h3>
             <div className="hint" style={{marginBottom:10}}>以下為系統依到職日試算的建議天數，確認無誤後按「套用全部」，會覆蓋這些員工目前的核定時數。個別員工仍可在下方表格單獨微調。</div>
             <table>
-              <thead><tr><th className="left">姓名</th><th>到職日</th><th>建議天數</th><th>建議時數</th><th className="left">備註</th></tr></thead>
+              <colgroup>
+                <col style={{width:'14%'}} /><col style={{width:'26%'}} /><col style={{width:'14%'}} />
+                <col style={{width:'14%'}} /><col style={{width:'32%'}} />
+              </colgroup>
+              <thead><tr><th className="center">姓名</th><th className="left">到職日</th><th className="center">建議天數</th><th className="center">建議時數</th><th className="center">備註</th></tr></thead>
               <tbody>
                 {batchBox.items.map(it=>(
                   <tr key={it.employeeId}>
-                    <td className="left">{it.name}</td>
-                    <td>{(employees.find(e=>e.id===it.employeeId)||{}).hireDate ? rocDate((employees.find(e=>e.id===it.employeeId)||{}).hireDate) : '-'}</td>
-                    <td>{it.days===null?'-':trimNum(it.days,1)}</td>
-                    <td>{it.hours===null?'-':trimNum(it.hours,2)}</td>
-                    <td className="left" style={{color:'var(--danger)'}}>{it.error}</td>
+                    <td className="center">{it.name}</td>
+                    <td className="left">{(employees.find(e=>e.id===it.employeeId)||{}).hireDate ? rocDate((employees.find(e=>e.id===it.employeeId)||{}).hireDate) : '-'}</td>
+                    <td className="center">{it.days===null?'-':trimNum(it.days,1)}</td>
+                    <td className="center">{it.hours===null?'-':trimNum(it.hours,2)}</td>
+                    <td className="center" style={{color:'var(--danger)'}}>{it.error}</td>
                   </tr>
                 ))}
               </tbody>
