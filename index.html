@@ -875,7 +875,7 @@ function HomePage({session, setSession, status, pendingCount, goForms, goNews, s
   const dateStr = `${now.getMonth()+1}月${now.getDate()}日　星期${'日一二三四五六'[now.getDay()]}`;
 
   useEffect(()=>{ apiGet('getLeaveBalances').then(setBalances).catch(()=>{}); }, []);
-  useEffect(()=>{ apiGet('getAnnouncements').then(list=>setPinnedAnnounces((list||[]).filter(a=>a.showOnHome))).catch(()=>{}); }, []);
+  useEffect(()=>{ apiGet('getMyAnnouncements').then(data=>setPinnedAnnounces((data.items||[]).filter(a=>a.showOnHome))).catch(()=>{}); }, []);
   useEffect(()=>{ apiGet('getWeather').then(setWeather).catch(()=>{}); }, []);
 
   function onAvatarFileChange(e){
@@ -990,12 +990,18 @@ function HomePage({session, setSession, status, pendingCount, goForms, goNews, s
       {pinnedAnnounces.length > 0 && (
         <div className="card" style={{borderColor:'var(--gold)', background:'rgba(212,175,55,0.08)', cursor:'pointer'}} onClick={goNews}>
           {pinnedAnnounces.map((a,idx)=>(
-            <div key={a.id} style={idx>0?{marginTop:8, paddingTop:8, borderTop:'1px solid rgba(212,175,55,0.3)'}:undefined}>
-              <div style={{display:'flex', alignItems:'center', gap:6}}>
-                <span className="material-icons" style={{fontSize:16, color:'var(--gold)'}}>push_pin</span>
-                <div style={{fontWeight:700, fontSize:13.5}}>{a.title}</div>
+            <div key={a.id} style={idx>0?{marginTop:10, paddingTop:10, borderTop:'1px solid rgba(212,175,55,0.3)'}:undefined}>
+              <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:8}}>
+                <div style={{display:'flex', alignItems:'center', gap:6, minWidth:0}}>
+                  <span className="material-icons" style={{fontSize:16, color:'var(--gold)', flexShrink:0}}>push_pin</span>
+                  <div style={{fontWeight:700, fontSize:13.5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{a.title}</div>
+                </div>
+                <div style={{display:'flex', alignItems:'center', gap:5, flexShrink:0}}>
+                  {a.category && <span className="ann-pin" style={{color:'#fff', background:a.categoryColor||'var(--gold)'}}>{a.category}</span>}
+                  <span className={a.unread?'ann-unread':'ann-read'}>{a.unread?'未讀':'已讀'}</span>
+                </div>
               </div>
-              <div className="hint" style={{marginTop:3, fontSize:12}}>{announcePreview(a.content, 36)}</div>
+              <div className="hint" style={{marginTop:5, fontSize:12}}>{announcePreview(a.content, 36)}</div>
             </div>
           ))}
         </div>
