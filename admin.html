@@ -245,6 +245,25 @@ function rocDate(dateStr){
   if(!y) return dateStr;
   return `(民國${y-1911}年) ${dateStr}`;
 }
+function tenureShortText(hireDate, breakStart, breakEnd){
+  if(!hireDate) return '-';
+  let h = new Date(hireDate);
+  if(isNaN(h.getTime())) return '-';
+  if(breakStart && breakEnd){
+    const [by,bm] = breakStart.split('-').map(Number);
+    const [ey,em] = breakEnd.split('-').map(Number);
+    if(by && bm && ey && em){
+      const breakMonths = (ey-by)*12 + (em-bm) + 1;
+      if(breakMonths > 0) h = new Date(h.setMonth(h.getMonth()+breakMonths));
+    }
+  }
+  const now = new Date();
+  let months = (now.getFullYear()-h.getFullYear())*12 + (now.getMonth()-h.getMonth());
+  if(now.getDate() < h.getDate()) months -= 1;
+  months = Math.max(0, months);
+  const y = Math.floor(months/12), m = months%12;
+  return y>0 ? `${y}年${m}個月` : `${m}個月`;
+}
 function tenureText(hireDate, breakStart, breakEnd){
   if(!hireDate) return '未設定到職日';
   let h = new Date(hireDate);
@@ -946,16 +965,17 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
           {companiesByCo.concat(employees.some(e=>!e.company)?['(未分類)']:[]).map(co => (
             <div className="card" key={co} style={{overflowX:'auto'}}>
               <h3><span className="material-icons" style={{fontSize:17, color:'var(--brand)'}}>business</span> {co} <span className="badge">{employees.filter(e=>(e.company||'(未分類)')===co).length} 人</span></h3>
-              <table style={{tableLayout:'fixed', minWidth:900}}>
+              <table style={{tableLayout:'fixed', minWidth:1100}}>
                 <colgroup>
-                  <col style={{width:'10%'}} /><col style={{width:'12%'}} /><col style={{width:'12%'}} />
-                  <col style={{width:'9%'}} /><col style={{width:'10%'}} /><col style={{width:'9%'}} />
-                  <col style={{width:'10%'}} /><col style={{width:'13%'}} /><col style={{width:'15%'}} />
+                  <col style={{width:'9%'}} /><col style={{width:'11%'}} /><col style={{width:'11%'}} />
+                  <col style={{width:'8%'}} /><col style={{width:'9%'}} /><col style={{width:'9%'}} />
+                  <col style={{width:'8%'}} /><col style={{width:'9%'}} /><col style={{width:'9%'}} />
+                  <col style={{width:'12%'}} /><col style={{width:'15%'}} />
                 </colgroup>
                 <thead>
                   <tr>
                     <th className="left">部門</th><th className="left">姓名</th><th className="left">手機</th><th>班別</th><th>到職日</th>
-                    <th>投保級距</th><th>本薪</th><th className="left">銀行帳號</th><th style={{whiteSpace:'normal'}}>操作</th>
+                    <th>年資</th><th>投保級距</th><th>投保眷屬人數</th><th>本薪</th><th className="left">銀行帳號</th><th style={{whiteSpace:'normal'}}>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -966,7 +986,9 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
                       <td className="left mono">{emp.phone}</td>
                       <td>{emp.shift ? emp.shift.name : <span className="hint">預設</span>}</td>
                       <td>{emp.hireDate || '-'}</td>
+                      <td>{tenureShortText(emp.hireDate, emp.tenureBreakStart, emp.tenureBreakEnd)}</td>
                       <td>{emp.insuranceGrade || 0}</td>
+                      <td>{emp.dependentCount || 0}</td>
                       <td>{money(emp.baseSalary)}</td>
                       <td className="left mono">{emp.bankAccount}</td>
                       <td style={{whiteSpace:'normal'}}>
