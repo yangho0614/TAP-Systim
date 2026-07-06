@@ -1671,14 +1671,28 @@ function NewsPage({showToast, onMarkedRead}){
 
   const categories = ['全部', ...Array.from(new Set(list.filter(a=>a.category).map(a=>a.category)))];
   const shown = activeCategory==='全部' ? list : list.filter(a=>a.category===activeCategory);
+  const categoryColorMap = {};
+  list.forEach(a=>{ if(a.category && a.categoryColor) categoryColorMap[a.category] = a.categoryColor; });
 
   return (
     <div className="page">
       {!loading && categories.length > 1 && (
         <div className="ann-filter-row">
-          {categories.map(c=>(
-            <div key={c} className={'ann-filter-pill'+(activeCategory===c?' active':'')} onClick={()=>setActiveCategory(c)}>{c}</div>
-          ))}
+          {categories.map(c=>{
+            const isActive = activeCategory===c;
+            const color = categoryColorMap[c]; // '全部' 沒有顏色
+            return (
+              <div key={c} className={'ann-filter-pill'+(isActive?' active':'')} onClick={()=>setActiveCategory(c)}
+                style={color ? {
+                  background: isActive ? color : 'var(--panel-2)',
+                  color: isActive ? '#fff' : 'var(--muted)',
+                  borderLeft: isActive ? undefined : '3px solid '+color,
+                  paddingLeft: isActive ? undefined : 10
+                } : undefined}>
+                {c}
+              </div>
+            );
+          })}
         </div>
       )}
       {loading ? <div className="hint" style={{textAlign:'center', marginTop:30}}>載入中...</div> : shown.length===0 ? (

@@ -2796,21 +2796,38 @@ function RichTextEditor({value, onChange}){
 function AnnouncementsTab(){
   const [list, setList] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [isNew, setIsNew] = useState(false);
   const [saving, setSaving] = useState(false);
   const [attachUploading, setAttachUploading] = useState(false);
   const [expanded, setExpanded] = useState(null);
+  const [categoryBox, setCategoryBox] = useState(null); // {newName, newColor, saving}
   const attachInputRef = useRef(null);
 
   function load(){
     setLoading(true);
-    Promise.all([apiGet('getAnnouncementsAdmin'), apiGet('getCompanies')])
-      .then(([a,c])=>{ setList(a); setCompanies(c); })
+    Promise.all([apiGet('getAnnouncementsAdmin'), apiGet('getCompanies'), apiGet('getAnnounceCategories')])
+      .then(([a,c,cat])=>{ setList(a); setCompanies(c); setCategories(cat); })
       .catch(e=>alert(e.message)).finally(()=>setLoading(false));
   }
   useEffect(load, []);
+
+  function openCategoryManager(){ setCategoryBox({newName:'', newColor:CATEGORY_COLORS[0], saving:false}); }
+  async function addCategoryItem(){
+    if(!categoryBox.newName.trim()){ alert('請輸入分類名稱'); return; }
+    setCategoryBox({...categoryBox, saving:true});
+    try{
+      await apiPost('addAnnounceCategory', {name:categoryBox.newName.trim(), color:categoryBox.newColor});
+      const cat = await apiGet('getAnnounceCategories'); setCategories(cat);
+      setCategoryBox({newName:'', newColor:CATEGORY_COLORS[0], saving:false});
+    }catch(e){ alert(e.message); setCategoryBox({...categoryBox, saving:false}); }
+  }
+  async function removeCategoryItem(id){
+    if(!confirm('刪除這個分類？（已經套用過這個分類的公告不會受影響）')) return;
+    try{ await apiPost('deleteAnnounceCategory', {id}); const cat = await apiGet('getAnnounceCategories'); setCategories(cat); }catch(e){ alert(e.message); }
+  }
 
   function openNew(){ setEditing({id:null, title:'', content:'', companyId:'', pinned:false, status:'已發布', attachments:[], showOnHome:false, category:'', categoryColor:''}); setIsNew(true); }
   function openEdit(a){ setEditing({...a, attachments: a.attachments||[]}); setIsNew(false); }
@@ -2851,6 +2868,7 @@ function AnnouncementsTab(){
     <div>
       <div className="toolbar">
         <button onClick={openNew}><span className="material-icons">campaign</span>發布公告</button>
+        <button className="ghost sm" onClick={openCategoryManager}><span className="material-icons" style={{fontSize:15}}>sell</span>管理分類</button>
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
@@ -2949,21 +2967,63 @@ function AnnouncementsTab(){
               顯示在首頁{!editing.pinned && <span className="hint" style={{marginLeft:4, marginTop:0, fontSize:13}}>（需先勾選「置頂」）</span>}
             </label>
             <div className="field" style={{marginTop:14}}>
-              <label>分類（選填，自己輸入名稱＋選一個顏色）</label>
-              <div style={{display:'flex', gap:8, marginBottom:8}}>
-                {CATEGORY_COLORS.map(c=>(
-                  <div key={c} onClick={()=>setEditing({...editing, categoryColor:c})}
-                    style={{width:26, height:26, borderRadius:'50%', background:c, cursor:'pointer', border: editing.categoryColor===c ? '2px solid var(--ink)' : '2px solid transparent', boxShadow: editing.categoryColor===c ? '0 0 0 1px '+c : 'none'}} />
-                ))}
-                {editing.categoryColor && (
-                  <button type="button" className="ghost sm" onClick={()=>setEditing({...editing, category:'', categoryColor:''})}>清除分類</button>
-                )}
-              </div>
-              <input value={editing.category||''} onChange={e=>setEditing({...editing,category:e.target.value})} placeholder="例如：緊急通知、活動、系統維護..." style={{width:'100%'}} />
+              <label>分類（選填）</label>
+              <select value={editing.category||''} onChange={e=>{
+                const name = e.target.value;
+                const cat = categories.find(c=>c.name===name);
+                setEditing({...editing, category:name, categoryColor: cat?cat.color:''});
+              }}>
+                <option value="">無分類</option>
+                {categories.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
+              {editing.category && (
+                <div style={{display:'flex', alignItems:'center', gap:6, marginTop:6}}>
+                  <span style={{width:14, height:14, borderRadius:'50%', background:editing.categoryColor, display:'inline-block'}}></span>
+                  <span className="hint">預覽顏色</span>
+                </div>
+              )}
+              {categories.length===0 && <div className="hint" style={{marginTop:4}}>還沒有建立任何分類，按上方「管理分類」新增。</div>}
             </div>
             <div className="modal-actions">
               <button className="ghost" onClick={()=>setEditing(null)}>取消</button>
               <button onClick={save} disabled={saving}>{saving?'儲存中...':'儲存'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {categoryBox && (
+        <div className="modal-bg">
+          <div className="modal" style={{maxWidth:420}}>
+            <h3><span className="material-icons">sell</span>管理分類</h3>
+            {categories.length===0 ? <div className="hint" style={{marginBottom:10}}>還沒有任何分類。</div> : (
+              <div style={{display:'flex', flexDirection:'column', gap:8, marginBottom:14}}>
+                {categories.map(c=>(
+                  <div className="row-between" key={c.id} style={{background:'var(--bg-2,#f2f2f2)', padding:'8px 10px', borderRadius:6}}>
+                    <div style={{display:'flex', alignItems:'center', gap:8}}>
+                      <span style={{width:16, height:16, borderRadius:'50%', background:c.color, display:'inline-block'}}></span>
+                      <span>{c.name}</span>
+                    </div>
+                    <button type="button" className="ghost sm" onClick={()=>removeCategoryItem(c.id)}><span className="material-icons" style={{fontSize:14}}>close</span></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="field">
+              <label>新增分類</label>
+              <div style={{display:'flex', gap:8, marginBottom:8}}>
+                {CATEGORY_COLORS.map(c=>(
+                  <div key={c} onClick={()=>setCategoryBox({...categoryBox, newColor:c})}
+                    style={{width:26, height:26, borderRadius:'50%', background:c, cursor:'pointer', border: categoryBox.newColor===c ? '2px solid var(--ink)' : '2px solid transparent'}} />
+                ))}
+              </div>
+              <div style={{display:'flex', gap:8}}>
+                <input value={categoryBox.newName} onChange={e=>setCategoryBox({...categoryBox, newName:e.target.value})} placeholder="例如：緊急通知" style={{flex:1}} />
+                <button onClick={addCategoryItem} disabled={categoryBox.saving}>{categoryBox.saving?'新增中...':'新增'}</button>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="ghost" onClick={()=>setCategoryBox(null)}>關閉</button>
             </div>
           </div>
         </div>
