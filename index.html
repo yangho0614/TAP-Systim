@@ -10,7 +10,7 @@
 <style>
   :root{
     --bg-1:#222831; --bg-2:#282E38; --panel:#393E46; --panel-2:#454B55;
-    --line:#4F5761; --gold:#00ADB5; --green:#4f9b6f; --red:#c05a4f; --blue:#5b8db8;
+    --line:#4F5761; --gold:#00ADB5; --green:#4f9b6f; --red:#c05a4f; --blue:#5b8db8; --purple:#8b6fa8; --amber:#c98a4b;
     --text:#EEEEEE; --muted:#9CA3AC;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -158,6 +158,10 @@
   .ann-meta{ font-size:12.5px; color:var(--muted); margin-top:6px; }
   .ann-preview{ font-size:13px; color:var(--muted); margin-top:8px; display:flex; align-items:center; gap:6px; }
   .ann-content{ margin-top:12px; font-size:14px; line-height:1.75; color:var(--text); }
+  .ann-filter-row{ display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:2px; -webkit-overflow-scrolling:touch; }
+  .ann-filter-row::-webkit-scrollbar{ display:none; }
+  .ann-filter-pill{ flex-shrink:0; font-size:12.5px; font-weight:700; padding:6px 13px; border-radius:20px; background:var(--panel-2); color:var(--muted); white-space:nowrap; cursor:pointer; }
+  .ann-filter-pill.active{ background:var(--gold); color:#1c1305; }
   .coming .material-icons{ font-size:44px; color:var(--line); margin-bottom:10px; }
 
   /* 底部分頁列 */
@@ -1652,6 +1656,7 @@ function NewsPage({showToast, onMarkedRead}){
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
+  const [activeCategory, setActiveCategory] = useState('全部');
 
   function load(){
     setLoading(true);
@@ -1664,29 +1669,45 @@ function NewsPage({showToast, onMarkedRead}){
     apiPost('markAnnouncementsRead', {}).then(()=>{ if(onMarkedRead) onMarkedRead(); }).catch(()=>{});
   }, []);
 
+  const categories = ['全部', ...Array.from(new Set(list.filter(a=>a.category).map(a=>a.category)))];
+  const shown = activeCategory==='全部' ? list : list.filter(a=>a.category===activeCategory);
+
   return (
     <div className="page">
-      {loading ? <div className="hint" style={{textAlign:'center', marginTop:30}}>載入中...</div> : list.length===0 ? (
+      {!loading && categories.length > 1 && (
+        <div className="ann-filter-row">
+          {categories.map(c=>(
+            <div key={c} className={'ann-filter-pill'+(activeCategory===c?' active':'')} onClick={()=>setActiveCategory(c)}>{c}</div>
+          ))}
+        </div>
+      )}
+      {loading ? <div className="hint" style={{textAlign:'center', marginTop:30}}>載入中...</div> : shown.length===0 ? (
         <div className="coming">
           <div><span className="material-icons">campaign</span></div>
           <div style={{fontSize:15, fontWeight:700, color:'var(--text)'}}>目前尚無公告</div>
         </div>
-      ) : list.map(a=>{
+      ) : shown.map(a=>{
         const isOpen = expanded===a.id;
         return (
           <div className="card" key={a.id} onClick={()=>setExpanded(isOpen?null:a.id)}
             style={{cursor:'pointer', borderLeft: a.pinned?'4px solid var(--gold)':undefined, paddingLeft: a.pinned?12:undefined}}>
             <div className="ann-head">
-              <div className="ann-title">{a.title}</div>
+              <div className="ann-meta" style={{marginTop:0, display:'flex', alignItems:'center', gap:6}}>
+                {announceDateShort(a.createdAt)}　· {a.author}
+                {a.attachments && a.attachments.length > 0 && (
+                  <span style={{display:'flex', alignItems:'center', gap:1}}><span className="material-icons" style={{fontSize:13}}>attach_file</span>{a.attachments.length}</span>
+                )}
+              </div>
               <div className="ann-badges">
                 {a.pinned && (
                   <span className="ann-pin"><span className="material-icons" style={{fontSize:13}}>push_pin</span>置頂</span>
                 )}
+                {a.category && <span className="ann-pin" style={{color:'#fff', background:a.categoryColor||'var(--gold)'}}>{a.category}</span>}
                 <span className={a.unread?'ann-unread':'ann-read'}>{a.unread?'未讀':'已讀'}</span>
               </div>
             </div>
-            <div className="ann-meta">{announceDateShort(a.createdAt)}　· {a.author}</div>
-            {isOpen ? (
+            <div className="ann-title" style={{marginTop:6}}>{a.title}</div>
+            {isOpen && (
               <div>
                 <div className="ann-content" dangerouslySetInnerHTML={{__html: a.content}} />
                 {a.attachments && a.attachments.length > 0 && (
@@ -1703,15 +1724,6 @@ function NewsPage({showToast, onMarkedRead}){
                       </a>
                     ))}
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="ann-preview">
-                <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{announcePreview(a.content, 42)}</span>
-                {a.attachments && a.attachments.length > 0 && (
-                  <span style={{display:'flex', alignItems:'center', gap:2, flexShrink:0}}>
-                    <span className="material-icons" style={{fontSize:14}}>attach_file</span>{a.attachments.length}
-                  </span>
                 )}
               </div>
             )}

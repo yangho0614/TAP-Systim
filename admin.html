@@ -210,6 +210,7 @@ function stripHtml(html){
   div.innerHTML = html;
   return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim();
 }
+const CATEGORY_COLORS = ['#00ADB5', '#4f9b6f', '#c05a4f', '#5b8db8', '#8b6fa8', '#c98a4b'];
 function attachIcon(name){
   const s = String(name||'').toLowerCase();
   if(s.endsWith('.pdf')) return 'picture_as_pdf';
@@ -2811,7 +2812,7 @@ function AnnouncementsTab(){
   }
   useEffect(load, []);
 
-  function openNew(){ setEditing({id:null, title:'', content:'', companyId:'', pinned:false, status:'已發布', attachments:[], showOnHome:false}); setIsNew(true); }
+  function openNew(){ setEditing({id:null, title:'', content:'', companyId:'', pinned:false, status:'已發布', attachments:[], showOnHome:false, category:'', categoryColor:''}); setIsNew(true); }
   function openEdit(a){ setEditing({...a, attachments: a.attachments||[]}); setIsNew(false); }
   async function save(){
     if(!editing.title.trim()){ alert('請輸入標題'); return; }
@@ -2862,6 +2863,7 @@ function AnnouncementsTab(){
               {a.pinned && <span className="material-icons" style={{fontSize:16, color:'var(--accent)', flexShrink:0}}>push_pin</span>}
               <span>{a.title}</span>
               {a.status!=='已發布' && <span className="badge warn">草稿</span>}
+              {a.category && <span className="badge" style={{background:a.categoryColor||'var(--accent)', color:'#fff'}}>{a.category}</span>}
               {a.showOnHome && <span className="badge">首頁顯示</span>}
             </h3>
             <div style={{display:'flex', gap:4, flexShrink:0}}>
@@ -2946,6 +2948,19 @@ function AnnouncementsTab(){
               <input type="checkbox" checked={!!editing.showOnHome} disabled={!editing.pinned} onChange={e=>setEditing({...editing,showOnHome:e.target.checked})} style={{width:'auto'}} />
               顯示在首頁{!editing.pinned && <span className="hint" style={{marginLeft:4, marginTop:0, fontSize:13}}>（需先勾選「置頂」）</span>}
             </label>
+            <div className="field" style={{marginTop:14}}>
+              <label>分類（選填，自己輸入名稱＋選一個顏色）</label>
+              <div style={{display:'flex', gap:8, marginBottom:8}}>
+                {CATEGORY_COLORS.map(c=>(
+                  <div key={c} onClick={()=>setEditing({...editing, categoryColor:c})}
+                    style={{width:26, height:26, borderRadius:'50%', background:c, cursor:'pointer', border: editing.categoryColor===c ? '2px solid var(--ink)' : '2px solid transparent', boxShadow: editing.categoryColor===c ? '0 0 0 1px '+c : 'none'}} />
+                ))}
+                {editing.categoryColor && (
+                  <button type="button" className="ghost sm" onClick={()=>setEditing({...editing, category:'', categoryColor:''})}>清除分類</button>
+                )}
+              </div>
+              <input value={editing.category||''} onChange={e=>setEditing({...editing,category:e.target.value})} placeholder="例如：緊急通知、活動、系統維護..." style={{width:'100%'}} />
+            </div>
             <div className="modal-actions">
               <button className="ghost" onClick={()=>setEditing(null)}>取消</button>
               <button onClick={save} disabled={saving}>{saving?'儲存中...':'儲存'}</button>
