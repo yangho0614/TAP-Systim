@@ -250,8 +250,8 @@ function tenureShortText(hireDate, breakStart, breakEnd){
   let h = new Date(hireDate);
   if(isNaN(h.getTime())) return '-';
   if(breakStart && breakEnd){
-    const [by,bm] = breakStart.split('-').map(Number);
-    const [ey,em] = breakEnd.split('-').map(Number);
+    const [by,bm] = String(breakStart).split('-').map(Number);
+    const [ey,em] = String(breakEnd).split('-').map(Number);
     if(by && bm && ey && em){
       const breakMonths = (ey-by)*12 + (em-bm) + 1;
       if(breakMonths > 0) h = new Date(h.setMonth(h.getMonth()+breakMonths));
@@ -270,8 +270,8 @@ function tenureText(hireDate, breakStart, breakEnd){
   if(isNaN(h.getTime())) return '到職日格式錯誤';
   let breakNote = '';
   if(breakStart && breakEnd){
-    const [by,bm] = breakStart.split('-').map(Number);
-    const [ey,em] = breakEnd.split('-').map(Number);
+    const [by,bm] = String(breakStart).split('-').map(Number);
+    const [ey,em] = String(breakEnd).split('-').map(Number);
     if(by && bm && ey && em){
       const breakMonths = (ey-by)*12 + (em-bm) + 1;
       if(breakMonths > 0){
