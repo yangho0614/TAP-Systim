@@ -210,6 +210,11 @@ function stripHtml(html){
   div.innerHTML = html;
   return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim();
 }
+// 公告內容裡用「插入連結」做出來的<a>標籤，預設沒有target屬性；顯示前統一補上，確保一律開新視窗
+function linkifyBlank(html){
+  if(!html) return html;
+  return html.replace(/<a\s+(?![^>]*target=)/gi, '<a target="_blank" rel="noopener noreferrer" ');
+}
 const CATEGORY_COLORS = ['#00ADB5', '#4f9b6f', '#c05a4f', '#5b8db8', '#8b6fa8', '#c98a4b'];
 function attachIcon(name){
   const s = String(name||'').toLowerCase();
@@ -2231,12 +2236,13 @@ function HolidaysTab(){
     <div>
       <div className="card">
         <h3><span className="material-icons">event_available</span> 匯入台灣行政機關行事曆</h3>
-        <div className="hint">依行政院人事行政總處公告的辦公日曆表一鍵匯入國定假日（含小年夜、除夕、春節、和平紀念日等法定補假），資料來源：<a href="https://www.dgpa.gov.tw/information?uid=41&amp;pid=12573" target="_blank" rel="noopener" style={{color:'var(--brand)'}}>行政院人事行政總處</a></div>
+        <div className="hint">依行政院人事行政總處公告的辦公日曆表一鍵匯入國定假日（含小年夜、除夕、春節、和平紀念日等法定補假），資料來源：<a href="https://www.dgpa.gov.tw/information?uid=41&amp;pid=12572" target="_blank" rel="noopener noreferrer" style={{color:'var(--brand)'}}>行政院人事行政總處</a></div>
         <div className="toolbar" style={{marginTop:10}}>
+          <button onClick={()=>importOfficial('2025')} disabled={importing}>{importing?'匯入中...':'匯入 2025 年（114年）行事曆'}</button>
           <button onClick={()=>importOfficial('2026')} disabled={importing}>{importing?'匯入中...':'匯入 2026 年（115年）行事曆'}</button>
           <button onClick={()=>importOfficial('2027')} disabled={importing}>{importing?'匯入中...':'匯入 2027 年（116年）行事曆'}</button>
         </div>
-        <div className="hint">目前系統內建 2026、2027 年資料；未來年度公告後（每年約6月底）請再請開發者更新，或於下方手動新增。</div>
+        <div className="hint">目前系統內建 2025、2026、2027 年資料；未來年度公告後（每年約6月底）請再請開發者更新，或於下方手動新增。</div>
       </div>
       <div className="card">
         <h3><span className="material-icons">event_busy</span> 新增假日</h3>
@@ -2915,7 +2921,7 @@ function AnnouncementsTab(){
 
           {isOpen ? (
             <div>
-              <div style={{fontSize:13}} dangerouslySetInnerHTML={{__html: a.content}} />
+              <div style={{fontSize:13}} dangerouslySetInnerHTML={{__html: linkifyBlank(a.content)}} />
               {a.attachments && a.attachments.length > 0 && (
                 <div style={{display:'flex', flexWrap:'wrap', gap:6, marginTop:8}}>
                   {a.attachments.map((att,idx)=>(

@@ -423,6 +423,11 @@ function stripHtml(html){
   div.innerHTML = html;
   return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim();
 }
+// 公告內容裡用「插入連結」做出來的<a>標籤，預設沒有target屬性；顯示前統一補上，確保一律開新視窗
+function linkifyBlank(html){
+  if(!html) return html;
+  return html.replace(/<a\s+(?![^>]*target=)/gi, '<a target="_blank" rel="noopener noreferrer" ');
+}
 function attachIcon(name){
   const s = String(name||'').toLowerCase();
   if(s.endsWith('.pdf')) return 'picture_as_pdf';
@@ -1727,7 +1732,7 @@ function NewsPage({showToast, onMarkedRead}){
             <div className="ann-title" style={{marginTop:6}}>{a.title}</div>
             {isOpen && (
               <div>
-                <div className="ann-content" dangerouslySetInnerHTML={{__html: a.content}} />
+                <div className="ann-content" dangerouslySetInnerHTML={{__html: linkifyBlank(a.content)}} />
                 {a.attachments && a.attachments.length > 0 && (
                   <div style={{display:'flex', flexDirection:'column', gap:6, marginTop:10}}>
                     {a.attachments.map((att,idx)=>(
