@@ -3192,6 +3192,7 @@ function SettingsTab({onSaved}){
   const [s, setS] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
+  const [category, setCategory] = useState('basic');
   const DOW = ['日','一','二','三','四','五','六'];
 
   function load(){ setLoading(true); apiGet('getSettings').then(setS).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
@@ -3212,20 +3213,16 @@ function SettingsTab({onSaved}){
   if(loading || !s) return <div className="hint">載入中...</div>;
   return (
     <div>
+    <div className="toolbar" style={{marginBottom:14}}>
+      <button className={category==='basic'?'':'ghost'} onClick={()=>setCategory('basic')}>基本資訊</button>
+      <button className={category==='attendance'?'':'ghost'} onClick={()=>setCategory('attendance')}>出勤打卡規則</button>
+      <button className={category==='leave'?'':'ghost'} onClick={()=>setCategory('leave')}>請假與獎金規則</button>
+    </div>
     <div className="card" style={{maxWidth:560}}>
+      {category==='basic' && (<>
       <h3><span className="material-icons">storefront</span> 店家 / 公司資訊</h3>
       <div className="field"><label>顯示名稱</label><input value={s.storeName} onChange={e=>setS({...s,storeName:e.target.value})} style={{width:'100%'}} /></div>
       <div className="hint" style={{marginTop:-8, marginBottom:10}}>這個名稱會同時用在前台首頁抬頭，以及瀏覽器分頁標題（前台/後台都會套用）。</div>
-
-      <h3 style={{marginTop:18}}><span className="material-icons">my_location</span> 地理圍籬（GPS 打卡範圍）</h3>
-      <AddressGeocodeField lat={s.lat} lng={s.lng} onFound={(lat,lng)=>setS({...s, lat, lng})} />
-      <div className="grid-2">
-        <div className="field"><label>緯度</label><input value={s.lat} onChange={e=>setS({...s,lat:e.target.value})} /></div>
-        <div className="field"><label>經度</label><input value={s.lng} onChange={e=>setS({...s,lng:e.target.value})} /></div>
-      </div>
-      <button className="ghost sm" onClick={useCurrentLocation} disabled={locating}>{locating?'定位中...':'使用目前裝置位置（建議在店內打開此頁操作一次）'}</button>
-      <div className="field" style={{marginTop:10}}><label>允許誤差半徑（公尺）</label><input type="number" value={s.radius} onChange={e=>setS({...s,radius:e.target.value})} /></div>
-      <div className="hint">超出範圍不會擋下打卡，但紀錄會標示「超出範圍」讓後台核對，避免員工在店外因訊號誤差被卡住。</div>
 
       <h3 style={{marginTop:18}}><span className="material-icons">wb_sunny</span> 首頁天氣顯示</h3>
       <div className="field">
@@ -3251,6 +3248,18 @@ function SettingsTab({onSaved}){
         </div>
       )}
       <div className="hint">Open-Meteo 顯示即時單一溫度；中央氣象署顯示的是預報溫度區間（例如 24°～28°C）。</div>
+      </>)}
+
+      {category==='attendance' && (<>
+      <h3><span className="material-icons">my_location</span> 地理圍籬（GPS 打卡範圍）</h3>
+      <AddressGeocodeField lat={s.lat} lng={s.lng} onFound={(lat,lng)=>setS({...s, lat, lng})} />
+      <div className="grid-2">
+        <div className="field"><label>緯度</label><input value={s.lat} onChange={e=>setS({...s,lat:e.target.value})} /></div>
+        <div className="field"><label>經度</label><input value={s.lng} onChange={e=>setS({...s,lng:e.target.value})} /></div>
+      </div>
+      <button className="ghost sm" onClick={useCurrentLocation} disabled={locating}>{locating?'定位中...':'使用目前裝置位置（建議在店內打開此頁操作一次）'}</button>
+      <div className="field" style={{marginTop:10}}><label>允許誤差半徑（公尺）</label><input type="number" value={s.radius} onChange={e=>setS({...s,radius:e.target.value})} /></div>
+      <div className="hint">超出範圍不會擋下打卡，但紀錄會標示「超出範圍」讓後台核對，避免員工在店外因訊號誤差被卡住。</div>
 
       <h3 style={{marginTop:18}}><span className="material-icons">schedule</span> 預設班表</h3>
       <div className="hint" style={{marginTop:-4, marginBottom:8}}>員工若在「員工資料」未指定班別，會套用這裡的預設班表。</div>
@@ -3281,8 +3290,10 @@ function SettingsTab({onSaved}){
         </div>
       </div>
       <div className="hint">依勞基法第32條，平日延長工時原則每月不得超過46小時（經工會或無工會則經勞資會議同意可延長至54小時，但每3個月不得逾138小時）；此上限不含國定假日與例假日出勤。</div>
+      </>)}
 
-      <h3 style={{marginTop:18}}><span className="material-icons">event_available</span> 請假與補休規則</h3>
+      {category==='leave' && (<>
+      <h3><span className="material-icons">event_available</span> 請假與補休規則</h3>
       <div className="grid-2">
         <div className="field"><label>請假最小單位</label>
           <select value={s.leaveUnit} onChange={e=>setS({...s,leaveUnit:Number(e.target.value)})}>
@@ -3312,6 +3323,7 @@ function SettingsTab({onSaved}){
           <div className="field"><label>超過後每次扣全勤獎金（%）</label><input type="number" min="0" max="100" value={s.fullAttendanceLateEarlyPercentPerCount} onChange={e=>setS({...s,fullAttendanceLateEarlyPercentPerCount:e.target.value})} /></div>
         </div>
       )}
+      </>)}
 
       <div style={{marginTop:16}}><button onClick={save}><span className="material-icons" style={{fontSize:16}}>save</span>儲存設定</button></div>
     </div>
