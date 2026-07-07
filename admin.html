@@ -1296,22 +1296,22 @@ function AttendanceTab({month, onApply}){
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
-            <thead><tr><th className="left">姓名</th><th>出勤天數</th><th>遲到次數</th><th>遲到分鐘</th><th>早退次數</th><th>早退分鐘</th><th>平日1.34倍(hr)</th><th>平日1.67倍(hr)</th><th>單日超時</th><th>休息日(hr)</th><th>國定假日(hr)</th><th>例假日(hr)</th><th>總工時(hr)</th><th>定位異常</th></tr></thead>
+            <thead><tr><th className="center">姓名</th><th className="center">出勤天數</th><th className="center">遲到次數</th><th className="center">遲到分鐘</th><th className="center">早退次數</th><th className="center">早退分鐘</th><th className="center">平日1.34倍(hr)</th><th className="center">平日1.67倍(hr)</th><th className="center">單日超時</th><th className="center">休息日(hr)</th><th className="center">國定假日(hr)</th><th className="center">例假日(hr)</th><th className="center">總工時(hr)</th><th className="center">定位異常</th></tr></thead>
             <tbody>
               {summary.map(e=>(
                 <tr key={e.employeeId}>
-                  <td className="left"><b>{e.name}</b></td>
-                  <td>{e.presentDays}</td><td>{e.lateCount}</td><td>{e.lateMinutes}</td>
-                  <td>{e.earlyLeaveCount}</td><td>{e.earlyLeaveMinutes}</td>
-                  <td className={e.otCapExceeded?'flag':''}>{e.otWeekday134}</td>
-                  <td className={e.otCapExceeded?'flag':''}>{e.otWeekday167}</td>
-                  <td className={e.dailyOtWarning?'flag':''} title={e.dailyOtExceedDays.join('、')}>
+                  <td className="center"><b>{e.name}</b></td>
+                  <td className="center">{e.presentDays}</td><td className="center">{e.lateCount}</td><td className="center">{e.lateMinutes}</td>
+                  <td className="center">{e.earlyLeaveCount}</td><td className="center">{e.earlyLeaveMinutes}</td>
+                  <td className={'center ' + (e.otCapExceeded?'flag':'')}>{e.otWeekday134}</td>
+                  <td className={'center ' + (e.otCapExceeded?'flag':'')}>{e.otWeekday167}</td>
+                  <td className={'center ' + (e.dailyOtWarning?'flag':'')} title={e.dailyOtExceedDays.join('、')}>
                     {e.dailyOtWarning ? <span className="material-icons" style={{fontSize:15, verticalAlign:'middle'}}>warning</span> : '-'}
                     {e.dailyOtWarning ? ` ${e.dailyOtExceedDays.length}天` : ''}
                   </td>
-                  <td className={e.otRestDayHours>0 ? (e.otCapExceeded?'flag':'') : ''}>{e.otRestDayHours}</td>
-                  <td>{e.otHolidayHours}</td>
-                  <td className={e.otMandatoryRestHours>0?'flag':''}>
+                  <td className={'center ' + (e.otRestDayHours>0 ? (e.otCapExceeded?'flag':'') : '')}>{e.otRestDayHours}</td>
+                  <td className="center">{e.otHolidayHours}</td>
+                  <td className={'center ' + (e.otMandatoryRestHours>0?'flag':'')}>
                     {e.otMandatoryRestHours}
                     {e.mandatoryRestDates.length>0 && (
                       <button className="ghost sm" style={{marginLeft:6, padding:'2px 6px', fontSize:11}} onClick={()=>setMakeupBox({employeeId:e.employeeId, name:e.name, dates:e.mandatoryRestDates, unresolvedDates:e.mandatoryRestUnresolvedDates})}>
@@ -1319,8 +1319,8 @@ function AttendanceTab({month, onApply}){
                       </button>
                     )}
                   </td>
-                  <td>{e.workedHoursTotal}</td>
-                  <td className={e.flaggedDays>0?'flag':''}>{e.flaggedDays}</td>
+                  <td className="center">{e.workedHoursTotal}</td>
+                  <td className={'center ' + (e.flaggedDays>0?'flag':'')}>{e.flaggedDays}</td>
                 </tr>
               ))}
               {summary.length===0 && <tr><td colSpan="14" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
@@ -2544,21 +2544,21 @@ function RequestsTab({month}){
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
-            <thead><tr><th className="left">姓名</th><th className="left">類型</th><th className="left">假別</th><th className="left">起訖 / 加班日期</th><th>時數</th><th className="left">代理人</th><th className="left">事由</th><th>附件</th><th>狀態</th><th className="left">審核人</th><th>操作</th></tr></thead>
+            <thead><tr><th className="center">姓名</th><th className="center">類型</th><th className="center">假別</th><th className="center">起訖 / 加班日期</th><th className="center">時數</th><th className="center">代理人</th><th className="center">事由</th><th className="center">附件</th><th className="center">狀態</th><th className="center">審核人</th><th className="center">操作</th></tr></thead>
             <tbody>
               {list.map(r=>(
                 <tr key={r.id}>
-                  <td className="left"><b>{r.name}</b></td>
-                  <td className="left">{r.type}</td>
-                  <td className="left">{r.leaveType || '-'}</td>
-                  <td className="left">{r.type==='請假' ? (withWeekday(r.startTime) + ' ~ ' + withWeekday(r.endTime)) : withWeekday(String(r.startTime).split(' ')[0])}</td>
-                  <td>{r.hours}</td>
-                  <td className="left">{r.delegateName || '-'}</td>
-                  <td className="left">{r.reason}</td>
-                  <td>{r.attachmentUrl ? <a href={r.attachmentUrl} target="_blank" rel="noopener"><span className="material-icons" style={{fontSize:18}}>attachment</span></a> : '-'}</td>
-                  <td>{r.status==='待審核' ? <span className="badge warn">待審核</span> : <span className="badge">{r.status}</span>}</td>
-                  <td className="left">{r.reviewer}{r.reviewComment ? '（'+r.reviewComment+'）' : ''}</td>
-                  <td>
+                  <td className="center"><b>{r.name}</b></td>
+                  <td className="center">{r.type}</td>
+                  <td className="center">{r.leaveType || '-'}</td>
+                  <td className="center">{r.type==='請假' ? (withWeekday(r.startTime) + ' ~ ' + withWeekday(r.endTime)) : withWeekday(String(r.startTime).split(' ')[0])}</td>
+                  <td className="center">{r.hours}</td>
+                  <td className="center">{r.delegateName || '-'}</td>
+                  <td className="center">{r.reason}</td>
+                  <td className="center">{r.attachmentUrl ? <a href={r.attachmentUrl} target="_blank" rel="noopener"><span className="material-icons" style={{fontSize:18}}>attachment</span></a> : '-'}</td>
+                  <td className="center">{r.status==='待審核' ? <span className="badge warn">待審核</span> : <span className="badge">{r.status}</span>}</td>
+                  <td className="center">{r.reviewer}{r.reviewComment ? '（'+r.reviewComment+'）' : ''}</td>
+                  <td className="center">
                     {r.status==='待審核' && (
                       <>
                         <button className="ghost sm" onClick={()=>setReviewBox({req:r, mode:'approve', comment:''})}>核准</button>{' '}
