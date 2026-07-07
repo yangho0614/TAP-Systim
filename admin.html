@@ -227,6 +227,7 @@ function linkifyBlank(html){
   return html.replace(/<a\s+(?![^>]*target=)/gi, '<a target="_blank" rel="noopener noreferrer" ');
 }
 const CATEGORY_COLORS = ['#00ADB5', '#4f9b6f', '#c05a4f', '#5b8db8', '#8b6fa8', '#c98a4b'];
+const NOTE_PRESETS = ['員工忘記打卡，已口頭確認時間', '設備／網路異常，事後補登', '主管同意調整'];
 /* ⚠️ 地址轉座標（地理編碼）需要 Google Cloud 專案裡另外啟用「Geocoding API」，跟地圖顯示是不同服務 */
 const GOOGLE_MAPS_API_KEY = 'AIzaSyCTj0NrEzqJPLXWG8ct7FQfJ1Q0CeAcKoA';
 async function geocodeAddress(address){
@@ -1194,6 +1195,11 @@ function RecordsTab({employees, month}){
             </div>
             <div className="field">
               <label>備註</label>
+              <div style={{display:'flex', flexWrap:'wrap', gap:6, marginBottom:6}}>
+                {NOTE_PRESETS.map(p=>(
+                  <button key={p} type="button" className="ghost sm" onClick={()=>setManual({...manual, note: manual.note ? manual.note+'；'+p : p})}>{p}</button>
+                ))}
+              </div>
               <textarea value={manual.note} onChange={e=>setManual({...manual,note:e.target.value})} rows="3" placeholder="例如：員工反映忘記打卡，經口頭確認補登" style={{width:'100%', fontFamily:'inherit', fontSize:13, padding:8, borderRadius:6, border:'1px solid var(--line)'}}></textarea>
             </div>
             <AddressGeocodeField lat={manual.lat} lng={manual.lng} onFound={(lat,lng)=>setManual({...manual, lat, lng})} />
@@ -1212,6 +1218,11 @@ function RecordsTab({employees, month}){
             </div>
             <div className="field">
               <label>備註</label>
+              <div style={{display:'flex', flexWrap:'wrap', gap:6, marginBottom:6}}>
+                {NOTE_PRESETS.map(p=>(
+                  <button key={p} type="button" className="ghost sm" onClick={()=>setEditing({...editing, note: editing.note ? editing.note+'；'+p : p})}>{p}</button>
+                ))}
+              </div>
               <textarea value={editing.note} onChange={e=>setEditing({...editing,note:e.target.value})} rows="3" placeholder="例如：定位偏移是因為店內訊號問題，已跟員工確認實際有在店內" style={{width:'100%', fontFamily:'inherit', fontSize:13, padding:8, borderRadius:6, border:'1px solid var(--line)'}}></textarea>
             </div>
             <AddressGeocodeField lat={editing.lat} lng={editing.lng} onFound={(lat,lng)=>setEditing({...editing, lat, lng})} />
