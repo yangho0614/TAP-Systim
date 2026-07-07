@@ -204,6 +204,10 @@ function exportCSV(filename, headers, rows){
 }
 const n = v => { const x = Number(v); return isNaN(x) ? 0 : x; };
 const money = v => Math.round(n(v)).toLocaleString('zh-TW');
+function isAbnormalStatus(status){
+  const s = String(status||'');
+  return s.indexOf('超出')===0 || s.indexOf('遲到')===0 || s.indexOf('早退')===0 || s.indexOf('未取得定位')===0 || s.indexOf('未設定地理圍籬')===0;
+}
 function stripHtml(html){
   if(!html) return '';
   const div = document.createElement('div');
@@ -1033,6 +1037,9 @@ function RecordsTab({employees, month}){
   const [loading, setLoading] = useState(true);
   const [manual, setManual] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [filterCompany, setFilterCompany] = useState('全部');
+  const [filterName, setFilterName] = useState('全部');
+  const [onlyAbnormal, setOnlyAbnormal] = useState(false);
 
   function load(){ setLoading(true); apiGet('getRecords', {month}).then(setRecords).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
   useEffect(load, [month]);
@@ -1048,9 +1055,32 @@ function RecordsTab({employees, month}){
     try{ await apiPost('deleteRecord', {id}); load(); }catch(e){ alert(e.message); }
   }
 
+  const empMap = {}; employees.forEach(e=>{ empMap[e.id] = e; });
+  const companies = ['全部', ...Array.from(new Set(employees.map(e=>e.company||'(未分類)')))];
+  const namesInCompany = filterCompany==='全部' ? employees : employees.filter(e=>(e.company||'(未分類)')===filterCompany);
+  const names = ['全部', ...Array.from(new Set(namesInCompany.map(e=>e.name)))];
+
+  const filtered = records.filter(r=>{
+    const emp = empMap[r.employeeId];
+    const empCompany = emp ? (emp.company||'(未分類)') : '(未分類)';
+    if(filterCompany!=='全部' && empCompany!==filterCompany) return false;
+    if(filterName!=='全部' && r.name!==filterName) return false;
+    if(onlyAbnormal && !isAbnormalStatus(r.checkInStatus) && !isAbnormalStatus(r.checkOutStatus)) return false;
+    return true;
+  });
+
   return (
     <div>
-      <div className="toolbar">
+      <div className="toolbar" style={{flexWrap:'wrap', gap:8}}>
+        <select value={filterCompany} onChange={e=>{ setFilterCompany(e.target.value); setFilterName('全部'); }} style={{width:'auto'}}>
+          {companies.map(c=><option key={c} value={c}>{c==='全部'?'全部公司':c}</option>)}
+        </select>
+        <select value={filterName} onChange={e=>setFilterName(e.target.value)} style={{width:'auto'}}>
+          {names.map(n=><option key={n} value={n}>{n==='全部'?'全部姓名':n}</option>)}
+        </select>
+        <label style={{display:'flex', alignItems:'center', gap:5, fontSize:13, color:'var(--ink)'}}>
+          <input type="checkbox" checked={onlyAbnormal} onChange={e=>setOnlyAbnormal(e.target.checked)} style={{width:'auto'}} />只顯示異常記錄
+        </label>
         <span className="grow"></span>
         <button className="ghost sm" onClick={()=>setManual({employeeId:'', name:'', date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
         <button className="ghost sm" onClick={load}>重新整理</button>
@@ -1060,21 +1090,21 @@ function RecordsTab({employees, month}){
           <table>
             <thead><tr><th className="left">姓名</th><th className="left">日期</th><th>上班</th><th className="left">上班狀態</th><th>下班</th><th className="left">下班狀態</th><th className="left">來源</th><th className="left">備註</th><th>操作</th></tr></thead>
             <tbody>
-              {records.map(r=>(
+              {filtered.map(r=>(
                 <tr key={r.id}>
                   <td className="left"><b>{r.name}</b></td>
                   <td className="left">{r.date}</td>
                   <td className="mono">{(r.checkIn||'').split(' ')[1]||'-'}</td>
-                  <td className={'left ' + (String(r.checkInStatus).indexOf('超出')===0?'flag':'')}>{r.checkInStatus}</td>
+                  <td className={'left ' + (isAbnormalStatus(r.checkInStatus)?'flag':'')}>{r.checkInStatus}</td>
                   <td className="mono">{(r.checkOut||'').split(' ')[1]||'-'}</td>
-                  <td className={'left ' + (String(r.checkOutStatus).indexOf('超出')===0?'flag':'')}>{r.checkOutStatus}</td>
+                  <td className={'left ' + (isAbnormalStatus(r.checkOutStatus)?'flag':'')}>{r.checkOutStatus}</td>
                   <td className="left">{r.source}</td>
                   <td className="left">{r.note}</td>
                   <td><button className="ghost sm" onClick={()=>setEditing({id:r.id, checkIn:r.checkIn, checkOut:r.checkOut, note:r.note})}>修改</button>{' '}
                       <button className="danger sm" onClick={()=>removeRecord(r.id)}>刪除</button></td>
                 </tr>
               ))}
-              {records.length===0 && <tr><td colSpan="9" className="hint" style={{textAlign:'center'}}>本月尚無打卡紀錄</td></tr>}
+              {filtered.length===0 && <tr><td colSpan="9" className="hint" style={{textAlign:'center'}}>{records.length===0?'本月尚無打卡紀錄':'沒有符合篩選條件的紀錄'}</td></tr>}
             </tbody>
           </table>
         )}
