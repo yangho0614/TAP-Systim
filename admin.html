@@ -1058,16 +1058,28 @@ function RecordsTab({employees, month}){
   const empMap = {}; employees.forEach(e=>{ empMap[e.id] = e; });
   const companies = ['全部', ...Array.from(new Set(employees.map(e=>e.company||'(未分類)')))];
   const namesInCompany = filterCompany==='全部' ? employees : employees.filter(e=>(e.company||'(未分類)')===filterCompany);
-  const names = ['全部', ...Array.from(new Set(namesInCompany.map(e=>e.name)))];
+  const namesWithRecords = new Set(records.map(r=>r.name)); // 免打卡員工若本月確實有紀錄（例如手動補登），還是要能被篩選到
+  const eligibleForFilter = namesInCompany.filter(e=>!e.exemptFromAttendance || namesWithRecords.has(e.name));
+  const names = ['全部', ...Array.from(new Set(eligibleForFilter.map(e=>e.name)))];
 
   const filtered = records.filter(r=>{
     const emp = empMap[r.employeeId];
     const empCompany = emp ? (emp.company||'(未分類)') : '(未分類)';
     if(filterCompany!=='全部' && empCompany!==filterCompany) return false;
     if(filterName!=='全部' && r.name!==filterName) return false;
-    if(onlyAbnormal && !isAbnormalStatus(r.checkInStatus) && !isAbnormalStatus(r.checkOutStatus)) return false;
+    if(onlyAbnormal && !isAbnormalStatus(r.checkInStatus) && !isAbnormalStatus(r.checkOutStatus) && !isAbnormalStatus(r.outgoStatus) && !isAbnormalStatus(r.returnStatus)) return false;
     return true;
   });
+
+  function punchCell(time, status){
+    const t = (time||'').split(' ')[1] || '-';
+    return (
+      <td>
+        <div className="mono">{t}</div>
+        {isAbnormalStatus(status) && <div className="flag" style={{fontSize:11, marginTop:2}}>{status}</div>}
+      </td>
+    );
+  }
 
   return (
     <div>
@@ -1087,24 +1099,33 @@ function RecordsTab({employees, month}){
       </div>
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
-            <thead><tr><th className="left">姓名</th><th className="left">日期</th><th>上班</th><th className="left">上班狀態</th><th>下班</th><th className="left">下班狀態</th><th className="left">來源</th><th className="left">備註</th><th>操作</th></tr></thead>
+          <table style={{tableLayout:'fixed', minWidth:1080, textAlign:'center'}}>
+            <colgroup>
+              <col style={{width:'9%'}} /><col style={{width:'11%'}} /><col style={{width:'9%'}} />
+              <col style={{width:'9%'}} /><col style={{width:'9%'}} /><col style={{width:'9%'}} /><col style={{width:'9%'}} />
+              <col style={{width:'8%'}} /><col style={{width:'13%'}} /><col style={{width:'14%'}} />
+            </colgroup>
+            <thead><tr><th>姓名</th><th>公司</th><th>日期</th><th>上班</th><th>下班</th><th>外出</th><th>返回</th><th>來源</th><th>備註</th><th>操作</th></tr></thead>
             <tbody>
-              {filtered.map(r=>(
+              {filtered.map(r=>{
+                const emp = empMap[r.employeeId];
+                return (
                 <tr key={r.id}>
-                  <td className="left"><b>{r.name}</b></td>
-                  <td className="left">{r.date}</td>
-                  <td className="mono">{(r.checkIn||'').split(' ')[1]||'-'}</td>
-                  <td className={'left ' + (isAbnormalStatus(r.checkInStatus)?'flag':'')}>{r.checkInStatus}</td>
-                  <td className="mono">{(r.checkOut||'').split(' ')[1]||'-'}</td>
-                  <td className={'left ' + (isAbnormalStatus(r.checkOutStatus)?'flag':'')}>{r.checkOutStatus}</td>
-                  <td className="left">{r.source}</td>
-                  <td className="left">{r.note}</td>
+                  <td><b>{r.name}</b></td>
+                  <td>{emp ? (emp.company||'(未分類)') : '-'}</td>
+                  <td>{r.date}</td>
+                  {punchCell(r.checkIn, r.checkInStatus)}
+                  {punchCell(r.checkOut, r.checkOutStatus)}
+                  {punchCell(r.outgo, r.outgoStatus)}
+                  {punchCell(r.returnTime, r.returnStatus)}
+                  <td>{r.source}</td>
+                  <td>{r.note}</td>
                   <td><button className="ghost sm" onClick={()=>setEditing({id:r.id, checkIn:r.checkIn, checkOut:r.checkOut, note:r.note})}>修改</button>{' '}
                       <button className="danger sm" onClick={()=>removeRecord(r.id)}>刪除</button></td>
                 </tr>
-              ))}
-              {filtered.length===0 && <tr><td colSpan="9" className="hint" style={{textAlign:'center'}}>{records.length===0?'本月尚無打卡紀錄':'沒有符合篩選條件的紀錄'}</td></tr>}
+                );
+              })}
+              {filtered.length===0 && <tr><td colSpan="10" className="hint" style={{textAlign:'center'}}>{records.length===0?'本月尚無打卡紀錄':'沒有符合篩選條件的紀錄'}</td></tr>}
             </tbody>
           </table>
         )}
