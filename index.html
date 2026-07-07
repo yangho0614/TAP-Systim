@@ -1965,6 +1965,7 @@ function App(){
   const [checkingSession, setCheckingSession] = useState(true);
   const [tab, setTab] = useState('home');
   const [settings, setSettings] = useState(null);
+  useEffect(()=>{ if(settings?.storeName) document.title = settings.storeName; }, [settings]);
   const [status, setStatus] = useState(null);
   const [pending, setPending] = useState([]);
   const [unreadAnnounceCount, setUnreadAnnounceCount] = useState(0);

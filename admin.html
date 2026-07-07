@@ -648,6 +648,7 @@ function App(){
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState(null);
+  useEffect(()=>{ if(settings?.storeName) document.title = settings.storeName + ' · 後台管理'; }, [settings]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // 共用的員工編輯狀態（員工資料頁籤、薪資明細頁籤都會用到，確保資料連動）
@@ -3214,6 +3215,7 @@ function SettingsTab({onSaved}){
     <div className="card" style={{maxWidth:560}}>
       <h3><span className="material-icons">storefront</span> 店家 / 公司資訊</h3>
       <div className="field"><label>顯示名稱</label><input value={s.storeName} onChange={e=>setS({...s,storeName:e.target.value})} style={{width:'100%'}} /></div>
+      <div className="hint" style={{marginTop:-8, marginBottom:10}}>這個名稱會同時用在前台首頁抬頭，以及瀏覽器分頁標題（前台/後台都會套用）。</div>
 
       <h3 style={{marginTop:18}}><span className="material-icons">my_location</span> 地理圍籬（GPS 打卡範圍）</h3>
       <AddressGeocodeField lat={s.lat} lng={s.lng} onFound={(lat,lng)=>setS({...s, lat, lng})} />
