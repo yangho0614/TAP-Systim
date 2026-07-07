@@ -1140,7 +1140,7 @@ function RecordsTab({employees, month}){
           <input type="checkbox" checked={onlyAbnormal} onChange={e=>setOnlyAbnormal(e.target.checked)} style={{width:'auto'}} />只顯示異常記錄
         </label>
         <span className="grow"></span>
-        <button className="ghost sm" onClick={()=>setManual({employeeId:'', name:'', date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
+        <button className="ghost sm" onClick={()=>setManual({employeeId:'', name:'', companyFilter:'全部', date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
         <button className="ghost sm" onClick={load}>重新整理</button>
       </div>
       <div className="card" style={{overflowX:'auto'}}>
@@ -1181,10 +1181,15 @@ function RecordsTab({employees, month}){
         <div className="modal-bg">
           <div className="modal">
             <h3>補登打卡紀錄</h3>
+            <div className="field"><label>公司</label>
+              <select value={manual.companyFilter||'全部'} onChange={e=>setManual({...manual, companyFilter:e.target.value, employeeId:'', name:''})}>
+                {companies.map(c=><option key={c} value={c}>{c==='全部'?'全部公司':c}</option>)}
+              </select>
+            </div>
             <div className="field"><label>員工</label>
               <select value={manual.employeeId} onChange={e=>{ const emp=employees.find(x=>x.id===e.target.value); setManual({...manual, employeeId:e.target.value, name: emp?emp.name:''}); }}>
                 <option value="">請選擇</option>
-                {employees.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+                {employees.filter(e=>(manual.companyFilter||'全部')==='全部' || (e.company||'(未分類)')===manual.companyFilter).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             </div>
             <div className="grid-2">
