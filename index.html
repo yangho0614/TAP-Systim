@@ -350,9 +350,16 @@ function forceReLogin(){
   try{ location.reload(); }catch(e){}
 }
 
+// 連線失敗自動重試1次，避免手機瀏覽器偶發的網路中斷（例如冷啟動、切背景）就直接跳錯誤訊息
+async function fetchWithRetry(url, options, retries=1, delayMs=1000){
+  for(let i=0; i<=retries; i++){
+    try{ return await fetch(url, options); }
+    catch(e){ if(i===retries) throw e; await new Promise(r=>setTimeout(r, delayMs)); }
+  }
+}
 async function apiGet(action, params={}){
   const qs = new URLSearchParams({action, token: CURRENT_TOKEN||'', ...params}).toString();
-  const res = await fetch(`${GAS_URL}?${qs}`);
+  const res = await fetchWithRetry(`${GAS_URL}?${qs}`);
   const json = await res.json();
   if(json.status !== 'success'){
     if(isSessionError(json.message)) forceReLogin();
@@ -361,7 +368,7 @@ async function apiGet(action, params={}){
   return json.data;
 }
 async function apiPost(action, body={}){
-  const res = await fetch(GAS_URL, {method:'POST', body: JSON.stringify({action, token: CURRENT_TOKEN, ...body})});
+  const res = await fetchWithRetry(GAS_URL, {method:'POST', body: JSON.stringify({action, token: CURRENT_TOKEN, ...body})});
   const json = await res.json();
   if(json.status !== 'success'){
     if(isSessionError(json.message)) forceReLogin();
