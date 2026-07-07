@@ -1987,7 +1987,7 @@ function CompanyTab(){
   function load(){ setLoading(true); apiGet('getCompanies').then(setList).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
   useEffect(load, []);
 
-  function openNew(){ setEditing({id:null, name:'', taxId:'', address:'', owner:'', phone:''}); setIsNew(true); }
+  function openNew(){ setEditing({id:null, name:'', taxId:'', address:'', owner:'', phone:'', excludeFromStats:false}); setIsNew(true); }
   function openEdit(c){ setEditing({...c}); setIsNew(false); }
   async function save(){
     if(!editing.name.trim()){ alert('請輸入公司名稱'); return; }
@@ -2016,7 +2016,7 @@ function CompanyTab(){
             <tbody>
               {list.map(c=>(
                 <tr key={c.id}>
-                  <td className="left"><b>{c.name}</b></td>
+                  <td className="left"><b>{c.name}</b>{c.excludeFromStats && <span className="badge warn" style={{marginLeft:6}}>不列入統計</span>}</td>
                   <td className="left mono">{c.taxId}</td>
                   <td className="left">{c.address}</td>
                   <td className="left">{c.owner}</td>
@@ -2040,6 +2040,10 @@ function CompanyTab(){
               <div className="field"><label>電話</label><input value={editing.phone} onChange={e=>setEditing({...editing,phone:e.target.value})} /></div>
             </div>
             <div className="field"><label>地址</label><input value={editing.address} onChange={e=>setEditing({...editing,address:e.target.value})} style={{width:'100%'}} /></div>
+            <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:10}}>
+              <input type="checkbox" checked={!!editing.excludeFromStats} onChange={e=>setEditing({...editing, excludeFromStats:e.target.checked})} style={{width:'auto'}} />不列入儀表板統計
+            </label>
+            <div className="hint" style={{marginTop:4}}>勾選後，這間公司底下的員工不會算進總覽頁的在職員工數、打卡狀況、部門數等任何數字（適合用於測試/停用中的公司）。</div>
             <div className="modal-actions"><button className="ghost" onClick={()=>setEditing(null)}>取消</button><button onClick={save}>儲存</button></div>
           </div>
         </div>
@@ -2594,7 +2598,7 @@ function DashboardTab({setTab}){
 
   const CARDS = stats ? [
     {label:'在職員工', value:stats.employeeCount, icon:'people', color:'var(--brand)', onClick:()=>setTab('employees')},
-    {label:'今日已打卡', value:`${stats.presentToday} / ${stats.employeeCount}`, icon:'fact_check', color:'var(--brand)', onClick:()=>setTab('records')},
+    {label:'今日已打卡', value:`${stats.presentToday} / ${stats.attendanceRequiredCount}`, icon:'fact_check', color:'var(--brand)', onClick:()=>setTab('records')},
     {label:'待審核申請', value:stats.pendingRequests, icon:'approval', color: stats.pendingRequests>0 ? 'var(--danger)' : 'var(--brand)', onClick:()=>setTab('requests')},
     {label:'本月平日加班時數', value:stats.monthlyOtHoursTotal, icon:'schedule', color:'var(--brand)', onClick:()=>setTab('attendance')},
   ] : [];
