@@ -211,6 +211,16 @@ function exportCSV(filename, headers, rows){
 }
 const n = v => { const x = Number(v); return isNaN(x) ? 0 : x; };
 const money = v => Math.round(n(v)).toLocaleString('zh-TW');
+const DOW_SHORT = ['日','一','二','三','四','五','六'];
+// 把 "2026-07-13 08:30" 這種字串轉成 "2026-07-13(一) 08:30"，抓不到日期就照原樣顯示
+function withWeekday(dateTimeStr){
+  const s = String(dateTimeStr||'');
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+  if(!m) return s;
+  const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+  if(isNaN(d.getTime())) return s;
+  return `${m[1]}-${m[2]}-${m[3]}(${DOW_SHORT[d.getDay()]})${m[4]}`;
+}
 function isAbnormalStatus(status){
   const s = String(status||'');
   return s.indexOf('超出')===0 || s.indexOf('遲到')===0 || s.indexOf('早退')===0 || s.indexOf('未取得定位')===0 || s.indexOf('未設定地理圍籬')===0;
@@ -2541,7 +2551,7 @@ function RequestsTab({month}){
                   <td className="left"><b>{r.name}</b></td>
                   <td className="left">{r.type}</td>
                   <td className="left">{r.leaveType || '-'}</td>
-                  <td className="left">{r.type==='請假' ? (r.startTime + ' ~ ' + r.endTime) : String(r.startTime).split(' ')[0]}</td>
+                  <td className="left">{r.type==='請假' ? (withWeekday(r.startTime) + ' ~ ' + withWeekday(r.endTime)) : withWeekday(String(r.startTime).split(' ')[0])}</td>
                   <td>{r.hours}</td>
                   <td className="left">{r.delegateName || '-'}</td>
                   <td className="left">{r.reason}</td>
