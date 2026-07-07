@@ -1959,9 +1959,25 @@ function ComingSoon({icon, label}){
 }
 
 /* ========================= App ========================= */
+const THEME_PALETTES = [
+  { id:'default', name:'原本配色', bg1:'#222831', bg2:'#282E38', accent:'#00ADB5' },
+  { id:'blue', name:'藍色系', bg1:'#112D4E', bg2:'#1a3a5c', accent:'#DBE2EF' },
+  { id:'slate', name:'灰藍夜間', bg1:'#27374D', bg2:'#32455f', accent:'#9DB2BF' },
+  { id:'earth', name:'大地棕色', bg1:'#4a3826', bg2:'#5a4632', accent:'#E3CAA5' },
+  { id:'warm', name:'暖橘粉', bg1:'#7a3b3a', bg2:'#8a4544', accent:'#FFD1D1' }
+];
+function applyTheme(themeId){
+  const t = THEME_PALETTES.find(p=>p.id===themeId) || THEME_PALETTES[0];
+  const root = document.documentElement.style;
+  root.setProperty('--bg-1', t.bg1);
+  root.setProperty('--bg-2', t.bg2);
+  root.setProperty('--gold', t.accent);
+}
 function App(){
   const [configError] = useState(GAS_URL.indexOf('請填入') !== -1);
   const [session, setSession] = useState(null);
+  useEffect(()=>{ applyTheme(session?.employee?.themeColor || 'default'); }, [session?.employee?.themeColor]);
+  const [themeOpen, setThemeOpen] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [tab, setTab] = useState('home');
   const [settings, setSettings] = useState(null);
@@ -2028,6 +2044,13 @@ function App(){
   }
 
   function onLoggedIn(data){ setSession(data); setTab('home'); }
+  async function changeTheme(themeId){
+    try{
+      await apiPost('updateMyTheme', {themeColor: themeId});
+      setSession(prev=>({...prev, employee:{...prev.employee, themeColor: themeId}}));
+      setThemeOpen(false);
+    }catch(e){ alert(e.message); }
+  }
   function logout(){
     setToken(null);
     setSession(null); setStatus(null); setPending([]); setUnreadAnnounceCount(0); setTab('home');
@@ -2057,10 +2080,32 @@ function App(){
           <div className="topbar">
             <div className="store">{settings?.storeName || '員工專區'}</div>
             <div className="right">
+              <button className="icon-btn" title="切換介面配色" onClick={()=>setThemeOpen(true)}><span className="material-icons">palette</span></button>
               <button className="icon-btn" title="修改密碼" onClick={()=>setPwOpen(true)}><span className="material-icons">lock</span></button>
               <button className="icon-btn" title="登出" onClick={()=>{ if(confirm('確定要登出嗎？')) logout(); }}><span className="material-icons">logout</span></button>
             </div>
           </div>
+
+          {themeOpen && (
+            <div className="modal-bg" onClick={()=>setThemeOpen(false)}>
+              <div className="modal" onClick={e=>e.stopPropagation()}>
+                <h3><span className="material-icons">palette</span>切換我的介面配色</h3>
+                <div className="hint" style={{marginBottom:12}}>只會改變你自己看到的畫面，其他同事跟後台管理不會受影響。</div>
+                <div style={{display:'flex', flexDirection:'column', gap:8}}>
+                  {THEME_PALETTES.map(t=>(
+                    <div key={t.id} onClick={()=>changeTheme(t.id)}
+                      style={{display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:10, cursor:'pointer',
+                        border: (session?.employee?.themeColor||'default')===t.id ? '2px solid '+t.accent : '1px solid var(--line)'}}>
+                      <span style={{width:22, height:22, borderRadius:'50%', background:t.bg1, border:'2px solid '+t.accent, flexShrink:0}}></span>
+                      <span style={{fontSize:14}}>{t.name}</span>
+                      {(session?.employee?.themeColor||'default')===t.id && <span className="material-icons" style={{marginLeft:'auto', color:t.accent, fontSize:18}}>check_circle</span>}
+                    </div>
+                  ))}
+                </div>
+                <div className="modal-actions"><button className="ghost" onClick={()=>setThemeOpen(false)}>關閉</button></div>
+              </div>
+            </div>
+          )}
 
           {tab==='home' && <HomePage session={session} setSession={setSession} status={status} pendingCount={pending.length} goForms={()=>setTab('forms')} goNews={()=>setTab('news')} showToast={showToast} />}
           {tab==='punch' && <PunchPage session={session} status={status} refreshStatus={refreshStatus} showToast={showToast} settings={settings} />}

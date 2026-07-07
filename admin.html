@@ -634,6 +634,20 @@ function YearMonthPicker({value, onChange}){
     </div>
   );
 }
+const ADMIN_THEME_PALETTES = [
+  { id:'default', name:'原本配色', dark:'#222831', accent:'#00ADB5' },
+  { id:'blue', name:'藍色系', dark:'#112D4E', accent:'#3F72AF' },
+  { id:'slate', name:'灰藍夜間', dark:'#27374D', accent:'#526D82' },
+  { id:'earth', name:'大地棕色', dark:'#6b5540', accent:'#AD8B73' },
+  { id:'warm', name:'暖橘粉', dark:'#b5504f', accent:'#FF9494' }
+];
+function applyAdminTheme(themeId){
+  const t = ADMIN_THEME_PALETTES.find(p=>p.id===themeId) || ADMIN_THEME_PALETTES[0];
+  const root = document.documentElement.style;
+  root.setProperty('--brand-dark', t.dark);
+  root.setProperty('--brand', t.accent);
+  root.setProperty('--accent', t.accent);
+}
 function App(){
   const [configError] = useState(GAS_URL.indexOf('請填入') !== -1);
   const [session, setSession] = useState(null);
@@ -649,6 +663,7 @@ function App(){
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState(null);
   useEffect(()=>{ if(settings?.storeName) document.title = settings.storeName + ' · 後台管理'; }, [settings]);
+  useEffect(()=>{ applyAdminTheme(settings?.themeColor || 'default'); }, [settings?.themeColor]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // 共用的員工編輯狀態（員工資料頁籤、薪資明細頁籤都會用到，確保資料連動）
@@ -3223,6 +3238,19 @@ function SettingsTab({onSaved}){
       <h3><span className="material-icons">storefront</span> 店家 / 公司資訊</h3>
       <div className="field"><label>顯示名稱</label><input value={s.storeName} onChange={e=>setS({...s,storeName:e.target.value})} style={{width:'100%'}} /></div>
       <div className="hint" style={{marginTop:-8, marginBottom:10}}>這個名稱會同時用在前台首頁抬頭，以及瀏覽器分頁標題（前台/後台都會套用）。</div>
+
+      <h3 style={{marginTop:18}}><span className="material-icons">palette</span> 後台介面配色</h3>
+      <div className="hint" style={{marginTop:-4, marginBottom:8}}>這裡選的配色，所有登入後台的人看到的都一樣。員工前台有自己獨立的配色選項（在前台右上角自己切換），不會互相影響。</div>
+      <div style={{display:'flex', gap:10, flexWrap:'wrap'}}>
+        {ADMIN_THEME_PALETTES.map(t=>(
+          <div key={t.id} onClick={()=>setS({...s, themeColor:t.id})}
+            style={{display:'flex', flexDirection:'column', alignItems:'center', gap:6, cursor:'pointer', padding:8, borderRadius:10,
+              border: (s.themeColor||'default')===t.id ? '2px solid '+t.accent : '1px solid var(--line)'}}>
+            <span style={{width:32, height:32, borderRadius:'50%', background:t.dark, border:'3px solid '+t.accent}}></span>
+            <span style={{fontSize:12}}>{t.name}</span>
+          </div>
+        ))}
+      </div>
 
       <h3 style={{marginTop:18}}><span className="material-icons">wb_sunny</span> 首頁天氣顯示</h3>
       <div className="field">
