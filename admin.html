@@ -220,6 +220,44 @@ function linkifyBlank(html){
   return html.replace(/<a\s+(?![^>]*target=)/gi, '<a target="_blank" rel="noopener noreferrer" ');
 }
 const CATEGORY_COLORS = ['#00ADB5', '#4f9b6f', '#c05a4f', '#5b8db8', '#8b6fa8', '#c98a4b'];
+/* ⚠️ 地址轉座標（地理編碼）需要 Google Cloud 專案裡另外啟用「Geocoding API」，跟地圖顯示是不同服務 */
+const GOOGLE_MAPS_API_KEY = 'AIzaSyCTj0NrEzqJPLXWG8ct7FQfJ1Q0CeAcKoA';
+async function geocodeAddress(address){
+  if(!address || !address.trim()) throw new Error('請輸入地址');
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address.trim())}&key=${GOOGLE_MAPS_API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if(data.status !== 'OK' || !data.results || !data.results[0]){
+    if(data.status === 'REQUEST_DENIED') throw new Error('地址查詢失敗：Google的「Geocoding API」可能還沒啟用，請到 Google Cloud Console 開啟後再試');
+    if(data.status === 'ZERO_RESULTS') throw new Error('查無此地址，請確認地址是否正確');
+    throw new Error('地址查詢失敗（' + data.status + '）');
+  }
+  const loc = data.results[0].geometry.location;
+  return { lat: loc.lat, lng: loc.lng, formattedAddress: data.results[0].formatted_address };
+}
+// 共用的「輸入地址→查詢座標」元件，供地理圍籬設定跟打卡補登/修改共用
+function AddressGeocodeField({lat, lng, onFound}){
+  const [address, setAddress] = useState('');
+  const [loading, setLoading] = useState(false);
+  async function doSearch(){
+    setLoading(true);
+    try{
+      const r = await geocodeAddress(address);
+      onFound(r.lat, r.lng, r.formattedAddress);
+    }catch(e){ alert(e.message); }
+    finally{ setLoading(false); }
+  }
+  return (
+    <div className="field">
+      <label>地址（輸入後自動查詢座標，不用手動查GPS）</label>
+      <div style={{display:'flex', gap:8}}>
+        <input value={address} onChange={e=>setAddress(e.target.value)} placeholder="例如：台中市南屯區文心路一段100號" style={{flex:1}} onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); doSearch(); } }} />
+        <button type="button" className="ghost sm" onClick={doSearch} disabled={loading}>{loading?'查詢中...':'查詢座標'}</button>
+      </div>
+      {lat && lng && <div className="hint" style={{marginTop:4}}>目前座標：{Number(lat).toFixed(6)}, {Number(lng).toFixed(6)}</div>}
+    </div>
+  );
+}
 function attachIcon(name){
   const s = String(name||'').toLowerCase();
   if(s.endsWith('.pdf')) return 'picture_as_pdf';
@@ -1074,7 +1112,7 @@ function RecordsTab({employees, month}){
   function punchCell(time, status){
     const t = (time||'').split(' ')[1] || '-';
     return (
-      <td>
+      <td className="center">
         <div className="mono">{t}</div>
         {isAbnormalStatus(status) && <div className="flag" style={{fontSize:11, marginTop:2}}>{status}</div>}
       </td>
@@ -1099,28 +1137,28 @@ function RecordsTab({employees, month}){
       </div>
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table style={{tableLayout:'fixed', minWidth:1080, textAlign:'center'}}>
+          <table style={{tableLayout:'fixed', minWidth:1080}}>
             <colgroup>
               <col style={{width:'9%'}} /><col style={{width:'11%'}} /><col style={{width:'9%'}} />
               <col style={{width:'9%'}} /><col style={{width:'9%'}} /><col style={{width:'9%'}} /><col style={{width:'9%'}} />
               <col style={{width:'8%'}} /><col style={{width:'13%'}} /><col style={{width:'14%'}} />
             </colgroup>
-            <thead><tr><th>姓名</th><th>公司</th><th>日期</th><th>上班</th><th>下班</th><th>外出</th><th>返回</th><th>來源</th><th>備註</th><th>操作</th></tr></thead>
+            <thead><tr><th className="center">姓名</th><th className="center">公司</th><th className="center">日期</th><th>上班</th><th>下班</th><th>外出</th><th>返回</th><th className="center">來源</th><th className="left">備註</th><th className="center">操作</th></tr></thead>
             <tbody>
               {filtered.map(r=>{
                 const emp = empMap[r.employeeId];
                 return (
                 <tr key={r.id}>
-                  <td><b>{r.name}</b></td>
-                  <td>{emp ? (emp.company||'(未分類)') : '-'}</td>
-                  <td>{r.date}</td>
+                  <td className="center"><b>{r.name}</b></td>
+                  <td className="center">{emp ? (emp.company||'(未分類)') : '-'}</td>
+                  <td className="center">{r.date}</td>
                   {punchCell(r.checkIn, r.checkInStatus)}
                   {punchCell(r.checkOut, r.checkOutStatus)}
                   {punchCell(r.outgo, r.outgoStatus)}
                   {punchCell(r.returnTime, r.returnStatus)}
-                  <td>{r.source}</td>
-                  <td>{r.note}</td>
-                  <td><button className="ghost sm" onClick={()=>setEditing({id:r.id, checkIn:r.checkIn, checkOut:r.checkOut, note:r.note})}>修改</button>{' '}
+                  <td className="center">{r.source}</td>
+                  <td className="left">{r.note}</td>
+                  <td><button className="ghost sm" onClick={()=>setEditing({id:r.id, checkIn:r.checkIn, checkOut:r.checkOut, note:r.note, lat:r.checkInLat||r.checkOutLat||'', lng:r.checkInLng||r.checkOutLng||''})}>修改</button>{' '}
                       <button className="danger sm" onClick={()=>removeRecord(r.id)}>刪除</button></td>
                 </tr>
                 );
@@ -1147,7 +1185,12 @@ function RecordsTab({employees, month}){
               <div className="field"><label>上班時間</label><input type="datetime-local" onChange={e=>setManual({...manual, checkIn:e.target.value.replace('T',' ')+':00'})} /></div>
               <div className="field"><label>下班時間</label><input type="datetime-local" onChange={e=>setManual({...manual, checkOut:e.target.value.replace('T',' ')+':00'})} /></div>
             </div>
-            <div className="field"><label>備註</label><input value={manual.note} onChange={e=>setManual({...manual,note:e.target.value})} style={{width:'100%'}} /></div>
+            <div className="field">
+              <label>備註</label>
+              <textarea value={manual.note} onChange={e=>setManual({...manual,note:e.target.value})} rows="3" placeholder="例如：員工反映忘記打卡，經口頭確認補登" style={{width:'100%', fontFamily:'inherit', fontSize:13, padding:8, borderRadius:6, border:'1px solid var(--line)'}}></textarea>
+            </div>
+            <AddressGeocodeField lat={manual.lat} lng={manual.lng} onFound={(lat,lng)=>setManual({...manual, lat, lng})} />
+            <div className="hint" style={{marginTop:-6, marginBottom:10}}>選填，如果知道員工當時實際所在地點，可以輸入地址核對是否在打卡範圍內。</div>
             <div className="modal-actions"><button className="ghost" onClick={()=>setManual(null)}>取消</button><button onClick={saveManual}>儲存</button></div>
           </div>
         </div>
@@ -1160,7 +1203,12 @@ function RecordsTab({employees, month}){
               <div className="field"><label>上班時間</label><input type="datetime-local" defaultValue={(editing.checkIn||'').replace(' ','T').slice(0,16)} onChange={e=>setEditing({...editing, checkIn:e.target.value.replace('T',' ')+':00'})} /></div>
               <div className="field"><label>下班時間</label><input type="datetime-local" defaultValue={(editing.checkOut||'').replace(' ','T').slice(0,16)} onChange={e=>setEditing({...editing, checkOut:e.target.value.replace('T',' ')+':00'})} /></div>
             </div>
-            <div className="field"><label>備註</label><input value={editing.note} onChange={e=>setEditing({...editing,note:e.target.value})} style={{width:'100%'}} /></div>
+            <div className="field">
+              <label>備註</label>
+              <textarea value={editing.note} onChange={e=>setEditing({...editing,note:e.target.value})} rows="3" placeholder="例如：定位偏移是因為店內訊號問題，已跟員工確認實際有在店內" style={{width:'100%', fontFamily:'inherit', fontSize:13, padding:8, borderRadius:6, border:'1px solid var(--line)'}}></textarea>
+            </div>
+            <AddressGeocodeField lat={editing.lat} lng={editing.lng} onFound={(lat,lng)=>setEditing({...editing, lat, lng})} />
+            <div className="hint" style={{marginTop:-6, marginBottom:10}}>選填，如果要修正這筆紀錄的定位，可以輸入正確地址後儲存，狀態欄會依新座標重新比對是否超出範圍。</div>
             <div className="modal-actions"><button className="ghost" onClick={()=>setEditing(null)}>取消</button><button onClick={saveEdit}>儲存</button></div>
           </div>
         </div>
@@ -3145,6 +3193,7 @@ function SettingsTab({onSaved}){
       <div className="field"><label>顯示名稱</label><input value={s.storeName} onChange={e=>setS({...s,storeName:e.target.value})} style={{width:'100%'}} /></div>
 
       <h3 style={{marginTop:18}}><span className="material-icons">my_location</span> 地理圍籬（GPS 打卡範圍）</h3>
+      <AddressGeocodeField lat={s.lat} lng={s.lng} onFound={(lat,lng)=>setS({...s, lat, lng})} />
       <div className="grid-2">
         <div className="field"><label>緯度</label><input value={s.lat} onChange={e=>setS({...s,lat:e.target.value})} /></div>
         <div className="field"><label>經度</label><input value={s.lng} onChange={e=>setS({...s,lng:e.target.value})} /></div>
