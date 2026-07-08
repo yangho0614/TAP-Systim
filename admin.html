@@ -672,7 +672,7 @@ function App(){
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState(null);
-  useEffect(()=>{ if(settings?.storeName) document.title = settings.storeName + ' · 後台管理'; }, [settings]);
+  useEffect(()=>{ if(settings?.adminTitle) document.title = settings.adminTitle; }, [settings?.adminTitle]);
   useEffect(()=>{ applyAdminTheme(settings?.themeColor || 'default'); }, [settings?.themeColor]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -2188,6 +2188,8 @@ function CompanyTab(){
               <div className="field"><label>電話</label><input value={editing.phone} onChange={e=>setEditing({...editing,phone:e.target.value})} /></div>
             </div>
             <div className="field"><label>地址</label><input value={editing.address} onChange={e=>setEditing({...editing,address:e.target.value})} style={{width:'100%'}} /></div>
+            <div className="field"><label>顯示名稱（選填）</label><input value={editing.displayName||''} onChange={e=>setEditing({...editing,displayName:e.target.value})} style={{width:'100%'}} placeholder="例如：mammyshop 媽咪小站" /></div>
+            <div className="hint" style={{marginTop:-8, marginBottom:10}}>這間公司的員工登入前台，首頁上方會顯示這個名稱；沒填的話會顯示系統設定裡的預設名稱。</div>
             <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:10}}>
               <input type="checkbox" checked={!!editing.excludeFromStats} onChange={e=>setEditing({...editing, excludeFromStats:e.target.checked})} style={{width:'auto'}} />不列入儀表板統計
             </label>
@@ -3252,8 +3254,15 @@ function SettingsTab({onSaved}){
     <div className="card" style={{maxWidth:560}}>
       {category==='basic' && (<>
       <h3><span className="material-icons">storefront</span> 店家 / 公司資訊</h3>
-      <div className="field"><label>顯示名稱</label><input value={s.storeName} onChange={e=>setS({...s,storeName:e.target.value})} style={{width:'100%'}} /></div>
-      <div className="hint" style={{marginTop:-8, marginBottom:10}}>這個名稱會同時用在前台首頁抬頭，以及瀏覽器分頁標題（前台/後台都會套用）。</div>
+      <div className="field"><label>預設顯示名稱</label><input value={s.storeName} onChange={e=>setS({...s,storeName:e.target.value})} style={{width:'100%'}} /></div>
+      <div className="hint" style={{marginTop:-8, marginBottom:10}}>前台首頁抬頭預設顯示這個名稱；如果去「公司管理」幫個別公司填了自己的顯示名稱，該公司員工會優先看到自己公司的名稱。</div>
+
+      <h3 style={{marginTop:18}}><span className="material-icons">tab</span> 瀏覽器分頁標題</h3>
+      <div className="grid-2">
+        <div className="field"><label>前台標題</label><input value={s.frontTitle||''} onChange={e=>setS({...s,frontTitle:e.target.value})} /></div>
+        <div className="field"><label>後台標題</label><input value={s.adminTitle||''} onChange={e=>setS({...s,adminTitle:e.target.value})} /></div>
+      </div>
+      <div className="hint" style={{marginTop:-4, marginBottom:10}}>前後台的瀏覽器分頁標題各自獨立，不會互相影響，也跟上面的「顯示名稱」脫鉤。</div>
 
       <h3 style={{marginTop:18}}><span className="material-icons">palette</span> 後台介面配色</h3>
       <div className="hint" style={{marginTop:-4, marginBottom:8}}>這裡選的配色，所有登入後台的人看到的都一樣。員工前台有自己獨立的配色選項（在前台右上角自己切換），不會互相影響。點選色塊會馬上預覽效果，離開這頁若沒按「儲存設定」不會真的套用。</div>

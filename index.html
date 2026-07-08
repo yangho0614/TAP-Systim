@@ -1982,7 +1982,7 @@ function App(){
   const [checkingSession, setCheckingSession] = useState(true);
   const [tab, setTab] = useState('home');
   const [settings, setSettings] = useState(null);
-  useEffect(()=>{ if(settings?.storeName) document.title = settings.storeName; }, [settings]);
+  useEffect(()=>{ if(settings?.frontTitle) document.title = settings.frontTitle; }, [settings?.frontTitle]);
   const [status, setStatus] = useState(null);
   const [pending, setPending] = useState([]);
   const [unreadAnnounceCount, setUnreadAnnounceCount] = useState(0);
@@ -2079,7 +2079,7 @@ function App(){
       ) : (
         <>
           <div className="topbar">
-            <div className="store">{settings?.storeName || '員工專區'}</div>
+            <div className="store">{session?.employee?.companyDisplayName || settings?.storeName || '員工專區'}</div>
             <div className="right">
               <button className="icon-btn" title="切換介面配色" onClick={()=>setThemeOpen(true)}><span className="material-icons">palette</span></button>
               <button className="icon-btn" title="修改密碼" onClick={()=>setPwOpen(true)}><span className="material-icons">lock</span></button>
