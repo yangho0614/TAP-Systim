@@ -645,11 +645,11 @@ function YearMonthPicker({value, onChange}){
   );
 }
 const ADMIN_THEME_PALETTES = [
-  { id:'default', name:'原本配色', dark:'#222831', accent:'#00ADB5' },
-  { id:'blue', name:'藍色系', dark:'#112D4E', accent:'#3F72AF' },
-  { id:'slate', name:'灰藍夜間', dark:'#27374D', accent:'#526D82' },
-  { id:'earth', name:'大地棕色', dark:'#6b5540', accent:'#AD8B73' },
-  { id:'warm', name:'暖橘粉', dark:'#b5504f', accent:'#FF9494' }
+  { id:'default', name:'湖水藍', dark:'#222831', accent:'#00ADB5' },
+  { id:'yellow', name:'莫蘭迪黃', dark:'#3D3527', accent:'#D9C08C' },
+  { id:'red', name:'莫蘭迪紅', dark:'#42302C', accent:'#C08D7F' },
+  { id:'green', name:'莫蘭迪綠', dark:'#333A2E', accent:'#A3AD8C' },
+  { id:'milktea', name:'奶茶色', dark:'#3E332A', accent:'#D6BFA0' }
 ];
 function applyAdminTheme(themeId){
   const t = ADMIN_THEME_PALETTES.find(p=>p.id===themeId) || ADMIN_THEME_PALETTES[0];
