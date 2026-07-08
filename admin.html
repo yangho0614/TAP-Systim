@@ -427,6 +427,31 @@ function calcMandatoryRestPay(hourly, dailyWage, hours, mode){
   }
   return hourly*2*h; // 優於勞基法：時薪×2
 }
+// 以下兩個函式僅供薪資表欄位下方「系統實際」參考金額換算用，不影響實際請假扣款計算（實際計算仍以 calcForEmployee 內以本次輸入時數為準）
+function calcSickLeaveRefMoney(hourly, sickHours, leaveBaseline){
+  const MENSTRUAL_FULL_PAY_HOURS = 24, SICK_LEAVE_ANNUAL_CAP_HOURS = 240;
+  const menstrualUsedBefore = n(leaveBaseline && leaveBaseline.menstrual);
+  const sickUsedBefore = n(leaveBaseline && leaveBaseline.sick);
+  const menstrualOverageBefore = Math.max(0, menstrualUsedBefore - MENSTRUAL_FULL_PAY_HOURS);
+  const capRemaining = Math.max(0, SICK_LEAVE_ANNUAL_CAP_HOURS - sickUsedBefore - menstrualOverageBefore);
+  const h = n(sickHours);
+  const halfPayHours = Math.min(h, capRemaining);
+  const unpaidHours = h - halfPayHours;
+  return hourly*0.5*halfPayHours + hourly*1.0*unpaidHours;
+}
+function calcMenstrualLeaveRefMoney(hourly, menstrualHours, leaveBaseline){
+  const MENSTRUAL_FULL_PAY_HOURS = 24, SICK_LEAVE_ANNUAL_CAP_HOURS = 240;
+  const menstrualUsedBefore = n(leaveBaseline && leaveBaseline.menstrual);
+  const sickUsedBefore = n(leaveBaseline && leaveBaseline.sick);
+  const remainFullPay = Math.max(0, MENSTRUAL_FULL_PAY_HOURS - menstrualUsedBefore);
+  const h = n(menstrualHours);
+  const overageThisMonth = Math.max(0, h - remainFullPay);
+  const menstrualOverageBefore = Math.max(0, menstrualUsedBefore - MENSTRUAL_FULL_PAY_HOURS);
+  const capRemaining = Math.max(0, SICK_LEAVE_ANNUAL_CAP_HOURS - sickUsedBefore - menstrualOverageBefore);
+  const halfPayHours = Math.min(overageThisMonth, capRemaining);
+  const unpaidHours = overageThisMonth - halfPayHours;
+  return hourly*0.5*halfPayHours + hourly*1.0*unpaidHours; // 全薪部分金額為0，不列入
+}
 // 計算勞健保加退保狀態：勞保依「當月在職天數/30」比例計算；健保看「當月最後一天」是否仍在職，是則收整月保費，否則本月不收
 function getInsuranceStatusForMonth(hireDate, resignDate, month){
   const parts = String(month||'').split('-').map(Number);
@@ -882,7 +907,7 @@ function App(){
           {tab==='annual' && <AnnualLeaveTab employees={employees}/>}
           {tab==='comp' && <CompLedgerTab employees={employees}/>}
           {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}/>}
-          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee} onReload={()=>reloadPayroll(month)}/>}
+          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee} onReload={()=>reloadPayroll(month)} menstrualBaseline={menstrualBaseline}/>}
           {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month} settings={settings} menstrualBaseline={menstrualBaseline}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
           {tab==='register' && <PayrollRegisterTab/>}
@@ -1394,7 +1419,7 @@ function NumCell({value, onChange, disabled}){
 }
 
 /* ========================= 薪資計算 / 明細總表 ========================= */
-function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave, dirty, saving, onEditEmployee, onReload}){
+function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave, dirty, saving, onEditEmployee, onReload, menstrualBaseline}){
   const [subTab, setSubTab] = useState('06');
   const [settleBox, setSettleBox] = useState(null); // {year, items, loading, saving}
   const [lockBox, setLockBox] = useState(null); // {items, loading, saving}
@@ -1407,7 +1432,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   const summaryMap = useMemo(()=>{ const m={}; summary.forEach(s=>{ m[s.employeeId]=s; }); return m; }, [summary]);
   function refBelow(v){
     if(v===undefined || v===null) return null;
-    return <div className="hint" style={{fontSize:10, marginTop:2, textAlign:'center'}}>實際 {v}</div>;
+    return <div className="hint" style={{fontSize:10, marginTop:2, textAlign:'center'}}>實際 {money(v)}</div>;
   }
   function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
   function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
@@ -1591,7 +1616,18 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
           </tr>
         </thead>
         <tbody>
-          {rows.map(({emp, entry, calc})=>(
+          {rows.map(({emp, entry, calc})=>{
+            const s = summaryMap[emp.id];
+            const leaveBaseline = menstrualBaseline[emp.id] || {menstrual:0, sick:0};
+            const refOtWeekday134 = s ? calc.hourly*1.34*n(s.otWeekday134) : undefined;
+            const refOtWeekday167 = s ? calc.hourly*1.67*n(s.otWeekday167) : undefined;
+            const refOtRestDay = s ? calcRestDayPay(calc.hourly, s.otRestDayHours).pay : undefined;
+            const refOtHoliday = s ? calcHolidayPay(calc.hourly, calc.dailyWage, s.otHolidayHours).pay : undefined;
+            const refPersonalLeave = s ? calc.hourly*1.0*n(s.personalLeave) : undefined;
+            const refSickLeave = s ? calcSickLeaveRefMoney(calc.hourly, s.sickLeave, leaveBaseline) : undefined;
+            const refMenstrualLeave = s ? calcMenstrualLeaveRefMoney(calc.hourly, s.menstrualLeave, leaveBaseline) : undefined;
+            const refDisasterLeave = s ? calc.hourly*1.0*n(s.disasterLeave) : undefined;
+            return (
             <tr key={emp.id}>
               <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
               <td className="freeze-2 center">{money(calc.effBaseSalary)}</td>
@@ -1599,10 +1635,10 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="hint" title={emp.transportAllowanceMode==='daily'?`依出勤天數計算：${entry.presentDays||0}天 × ${money(emp.transportAllowance)}`:''}>{money(calc.effTransportAllowance)}</td>
               <td className="hint">{money(calc.effPositionAllowance)}</td>
               <td className="hint" title={calc.fullAttendanceDeductRatio>0?`依請假/遲到早退比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%`:(calc.fullAttendanceRatio<1?`依在職天數比例試算（${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')} style={calc.fullAttendanceDeductRatio>0?{color:'var(--danger)'}:undefined}>{money(calc.fullAttendanceAdjusted)}</td>
-              <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.otWeekday134)}</td>
-              <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.otWeekday167)}</td>
-              <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.otRestDayHours)}</td>
-              <td className="col-add"><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.otHolidayHours)}</td>
+              <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} />{refBelow(refOtWeekday134)}</td>
+              <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} disabled={entry.locked} />{refBelow(refOtWeekday167)}</td>
+              <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} disabled={entry.locked} />{refBelow(refOtRestDay)}</td>
+              <td className="col-add"><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} disabled={entry.locked} />{refBelow(refOtHoliday)}</td>
               <td className="col-add num-pos">{money(calc.overtimePay)}</td>
               <td className="col-add"><NumCell value={entry.festivalBonus} onChange={v=>setEntry(emp.id,{festivalBonus:v})} disabled={entry.locked} /></td>
               <td className="col-add"><NumCell value={entry.yearEndBonus} onChange={v=>setEntry(emp.id,{yearEndBonus:v})} disabled={entry.locked} /></td>
@@ -1622,14 +1658,14 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
                 )}
               </td>
               <td className="col-add num-pos"><b>{money(calc.payableTotal)}</b></td>
-              <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.personalLeave)}</td>
-              <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.sickLeave)}</td>
+              <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} disabled={entry.locked} />{refBelow(refPersonalLeave)}</td>
+              <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} disabled={entry.locked} />{refBelow(refSickLeave)}</td>
               <td className="col-deduct">
                 <NumCell value={entry.menstrualLeave} onChange={v=>setEntry(emp.id,{menstrualLeave:v})} disabled={entry.locked} />
                 {n(entry.menstrualLeave)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全薪{calc.menstrualPaidHours}/半薪{calc.menstrualHalfHours}</div>}
-                {refBelow(summaryMap[emp.id]?.menstrualLeave)}
+                {refBelow(refMenstrualLeave)}
               </td>
-              <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.disasterLeave)}</td>
+              <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} />{refBelow(refDisasterLeave)}</td>
               <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays}天比例計算`:''}>{money(calc.laborFee)}</td>
               <td className="col-deduct" title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
               <td className="col-deduct">
@@ -1641,7 +1677,8 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="col-deduct num-neg">{money(calc.deductTotal)}</td>
               <td className="col-result mono"><b>{money(calc.pay06)}</b></td>
             </tr>
-          ))}
+            );
+          })}
           <tr className="total-row">
             <td className="center freeze-1">合計</td>
             <td className="freeze-2 center">{money(totals.base)}</td>
