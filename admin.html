@@ -3222,10 +3222,33 @@ function SettingsTab({onSaved}){
   const [category, setCategory] = useState('basic');
   const DOW = ['日','一','二','三','四','五','六'];
   const savedThemeRef = useRef('default'); // 記住「目前真正已儲存」的配色，離開頁面若沒按儲存要還原成這個
+  const [companies, setCompanies] = useState([]);
+  const [companyPickId, setCompanyPickId] = useState('');
+  const [companyDisplayDraft, setCompanyDisplayDraft] = useState('');
+  const [companySaving, setCompanySaving] = useState(false);
+
+  function loadCompanies(){ apiGet('getCompanies').then(setCompanies).catch(()=>{}); }
+  function pickCompany(id){
+    setCompanyPickId(id);
+    const c = companies.find(x=>x.id===id);
+    setCompanyDisplayDraft(c ? (c.displayName||'') : '');
+  }
+  async function saveCompanyDisplayName(){
+    const c = companies.find(x=>x.id===companyPickId);
+    if(!c) return;
+    setCompanySaving(true);
+    try{
+      await apiPost('updateCompany', {...c, displayName: companyDisplayDraft});
+      loadCompanies();
+      alert('已儲存「'+c.name+'」的顯示名稱');
+    }catch(e){ alert(e.message); }
+    finally{ setCompanySaving(false); }
+  }
 
   function load(){
     setLoading(true);
     apiGet('getSettings').then(data=>{ setS(data); savedThemeRef.current = data.themeColor || 'default'; }).catch(e=>alert(e.message)).finally(()=>setLoading(false));
+    loadCompanies();
   }
   useEffect(load, []);
   // 離開設定頁時，如果配色只是預覽、沒有實際按儲存，還原成真正已儲存的配色
@@ -3256,6 +3279,20 @@ function SettingsTab({onSaved}){
       <h3><span className="material-icons">storefront</span> 店家 / 公司資訊</h3>
       <div className="field"><label>預設顯示名稱</label><input value={s.storeName} onChange={e=>setS({...s,storeName:e.target.value})} style={{width:'100%'}} /></div>
       <div className="hint" style={{marginTop:-8, marginBottom:10}}>前台首頁抬頭預設顯示這個名稱；如果去「公司管理」幫個別公司填了自己的顯示名稱，該公司員工會優先看到自己公司的名稱。</div>
+
+      <div className="field" style={{marginTop:14}}>
+        <label>個別公司顯示名稱</label>
+        <select value={companyPickId} onChange={e=>pickCompany(e.target.value)}>
+          <option value="">請選擇公司</option>
+          {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+      {companyPickId && (
+        <div style={{display:'flex', gap:8, marginBottom:10}}>
+          <input value={companyDisplayDraft} onChange={e=>setCompanyDisplayDraft(e.target.value)} placeholder="例如：mammyshop 媽咪小站" style={{flex:1}} />
+          <button onClick={saveCompanyDisplayName} disabled={companySaving}>{companySaving?'儲存中...':'儲存這間公司'}</button>
+        </div>
+      )}
 
       <h3 style={{marginTop:18}}><span className="material-icons">tab</span> 瀏覽器分頁標題</h3>
       <div className="grid-2">
