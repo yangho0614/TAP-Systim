@@ -1218,7 +1218,7 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
   );
 }
 
-/* ========================= 表單頁（請假／換補休／審核） ========================= */
+/* ========================= 表單頁（請假/換補休/審核） ========================= */
 function FormsPage({session, isManager, pending, refreshPending, showToast, settings}){
   const [myList, setMyList] = useState([]);
   const [balances, setBalances] = useState(null);
@@ -1635,7 +1635,7 @@ function CalendarPage({session, showToast}){
             </div>
             <div style={{display:'flex', gap:12, marginTop:12, fontSize:11, color:'var(--muted)', flexWrap:'wrap'}}>
               <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--blue)',marginRight:4}}></span>上班日</span>
-              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--red)',marginRight:4}}></span>休息日／例假日／國定假日</span>
+              <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'var(--red)',marginRight:4}}></span>休息日/例假日/國定假日</span>
               <span><span style={{display:'inline-block',width:8,height:8,borderRadius:4,background:'#9575cd',marginRight:4}}></span>公司休假日</span>
               <span><span style={{display:'inline-block',width:5,height:5,borderRadius:3,background:'var(--green)',marginRight:4}}></span>已核准請假</span>
             </div>
@@ -1775,14 +1775,20 @@ function PayslipModal({onClose, showToast}){
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [expanded, setExpanded] = useState({base:true, overtime:true, leave:true, sales26:true});
+  const [expanded, setExpanded] = useState({base:true, overtime:true, leave:true, sales26:true, infoLeave:true});
+  const [leaveDetail, setLeaveDetail] = useState(null);
   function toggleSection(key){ setExpanded(prev=>({...prev, [key]: !prev[key]})); }
 
   function load(m){
     setLoading(true);
+    setLeaveDetail(null);
     apiGet('getMyPayslip', {month:m}).then(setData).catch(e=>{ showToast(e.message,'err'); setData(null); }).finally(()=>setLoading(false));
   }
   useEffect(()=>{ load(month); }, [month]);
+  useEffect(()=>{
+    if(!data?.employee?.id) return;
+    apiGet('getLeaveDetailForPayslip', {employeeId: data.employee.id, month}).then(setLeaveDetail).catch(()=>setLeaveDetail(null));
+  }, [data?.employee?.id, month]);
 
   const money = v => Math.round(Number(v)||0).toLocaleString('zh-TW');
   const negMoney = v => { const rv = Math.round(Number(v)||0); return rv===0 ? money(0) : '-'+money(rv); };
@@ -1807,12 +1813,25 @@ function PayslipModal({onClose, showToast}){
     {label:`例假日出勤（${n(entry.otMandatoryRestHours)}hr，需補休）`, value:n(calc.mandatoryRestPay)}
   ].filter(it=>it.value>0) : [];
 
+  function hrsLabel(hours){
+    const h = n(hours);
+    if(h<=0) return '';
+    const days = Math.round((h/8)*10)/10;
+    return `${h}小時（${days}天）`;
+  }
+  const familyCareHours = Math.min(n(leaveDetail?.familyCareHours), n(entry.personalLeave));
+  const personalOnlyHours = Math.max(0, n(entry.personalLeave) - familyCareHours);
+  const infoLeave = leaveDetail?.infoLeave || {};
+  const infoLeaveItems = ['特休','婚假','喪假','公假','公傷病假','產假','產檢假','陪產假']
+    .filter(t=>n(infoLeave[t])>0).map(t=>({label:`${t}　${hrsLabel(infoLeave[t])}`, value:0}));
+
   const leaveItems = data ? [
-    {show:n(entry.personalLeave)>0, label:`事假（${n(entry.personalLeave)}hr）`, value:n(calc.hourly)*n(entry.personalLeave)},
-    {show:n(entry.sickLeave)>0, label:`病假（${n(entry.sickLeave)}hr）${n(calc.sickUnpaidHours)>0?'（部分已達年度上限不給薪）':''}`, value:n(calc.hourly)*0.5*n(calc.sickHalfPayHours)+n(calc.hourly)*n(calc.sickUnpaidHours)},
-    {show:n(entry.menstrualLeave)>0, label:`生理假（半薪${n(calc.menstrualHalfPayHours)}hr／全薪${n(calc.menstrualPaidHours)}hr不扣${n(calc.menstrualUnpaidHours)>0?`／已達上限${n(calc.menstrualUnpaidHours)}hr不給薪`:''}）`, value:n(calc.hourly)*0.5*n(calc.menstrualHalfPayHours)+n(calc.hourly)*n(calc.menstrualUnpaidHours)},
-    {show:n(entry.disasterLeave)>0, label:`災防假（${n(entry.disasterLeave)}hr）`, value:0},
-    {show:n(entry.otherLeave)>0, label:`其他假（${n(entry.otherLeave)}hr）`, value:n(calc.hourly)*n(entry.otherLeave)}
+    {show:personalOnlyHours>0, label:`事假　${hrsLabel(personalOnlyHours)}`, value:n(calc.hourly)*personalOnlyHours},
+    {show:familyCareHours>0, label:`家庭照顧假　${hrsLabel(familyCareHours)}`, value:n(calc.hourly)*familyCareHours},
+    {show:n(entry.sickLeave)>0, label:`病假　${hrsLabel(n(entry.sickLeave))}${n(calc.sickUnpaidHours)>0?'（部分已達年度上限不給薪）':''}`, value:n(calc.hourly)*0.5*n(calc.sickHalfPayHours)+n(calc.hourly)*n(calc.sickUnpaidHours)},
+    {show:n(entry.menstrualLeave)>0, label:`生理假　${hrsLabel(n(entry.menstrualLeave))}${n(calc.menstrualUnpaidHours)>0?'（部分已達上限不給薪）':''}`, value:n(calc.hourly)*0.5*n(calc.menstrualHalfPayHours)+n(calc.hourly)*n(calc.menstrualUnpaidHours)},
+    {show:n(entry.disasterLeave)>0, label:`災防假　${hrsLabel(n(entry.disasterLeave))}`, value:n(calc.hourly)*1.0*n(entry.disasterLeave)},
+    {show:n(entry.otherLeave)>0, label:`其他假　${hrsLabel(n(entry.otherLeave))}`, value:n(calc.hourly)*n(entry.otherLeave)}
   ].filter(it=>it.show) : [];
 
   const sales26Items = data ? [
@@ -1905,6 +1924,7 @@ function PayslipModal({onClose, showToast}){
                       {leaveItems.map(it=>(
                         <div className="pl-sub" key={it.label}><span>{it.label}</span><span>{negMoney(it.value)}</span></div>
                       ))}
+                      {(n(entry.sickLeave)>0 || n(entry.menstrualLeave)>0) && <div className="pl-note">病假、生理假：年度合計前30天半薪，超過不給薪</div>}
                     </div>
                   )}
                 </>
@@ -1914,9 +1934,22 @@ function PayslipModal({onClose, showToast}){
               <SectionHeader label="應扣合計" amount={negMoney(calc.deductTotal)} amountColor="var(--red)" total={true} />
             </div>
 
+            {infoLeaveItems.length>0 && (
+              <div className="card" style={{padding:14, marginTop:10}}>
+                <SectionHeader label="本月請假紀錄（全薪，不影響薪資）" amount="" sectionKey="infoLeave" hasDetail={true} />
+                {expanded.infoLeave && (
+                  <div style={{padding:'0 0 6px'}}>
+                    {infoLeaveItems.map(it=>(
+                      <div className="pl-sub" key={it.label}><span>{it.label}</span><span>0</span></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {sales26Items.length>0 && (
               <div className="card" style={{padding:14, marginTop:10}}>
-                <SectionHeader label="業務／獎金項目（26日）" amount="" sectionKey="sales26" hasDetail={true} />
+                <SectionHeader label="業務/獎金項目（26日）" amount="" sectionKey="sales26" hasDetail={true} />
                 {expanded.sales26 && (
                   <div style={{marginTop:2}}>
                     {sales26Items.map(it=>(
@@ -2184,7 +2217,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
       (0, eval)(compiled);
     })
     .catch(function(err){
-      showError('必要程式庫載入失敗，畫面因此空白。\n原因：' + err.message + '\n\n最常見情況：瀏覽器擴充功能（例如廣告攔截／隱私保護外掛）封鎖了 unpkg.com 或 jsdelivr.net，或目前網路無法連線到這兩個網域。\n\n請嘗試：\n1. 停用廣告攔截類擴充功能後重新整理本頁\n2. 改用無痕視窗開啟同一網址測試\n3. 確認網路能連上 unpkg.com 與 cdn.jsdelivr.net');
+      showError('必要程式庫載入失敗，畫面因此空白。\n原因：' + err.message + '\n\n最常見情況：瀏覽器擴充功能（例如廣告攔截/隱私保護外掛）封鎖了 unpkg.com 或 jsdelivr.net，或目前網路無法連線到這兩個網域。\n\n請嘗試：\n1. 停用廣告攔截類擴充功能後重新整理本頁\n2. 改用無痕視窗開啟同一網址測試\n3. 確認網路能連上 unpkg.com 與 cdn.jsdelivr.net');
     });
 })();
 </script>

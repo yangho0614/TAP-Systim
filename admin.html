@@ -105,6 +105,7 @@
   .payslip .meta{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:10px;}
   .payslip table{font-size:12px;}
   .payslip th{background:#EDEDED;}
+  .payslip td.hrs{color:var(--muted); font-size:11px; text-align:left;}
   .payslip .grand{
     display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:10px;
     background:#EDEDED; padding:10px 14px; margin-top:10px; border-radius:4px;
@@ -238,7 +239,7 @@ function linkifyBlank(html){
   return html.replace(/<a\s+(?![^>]*target=)/gi, '<a target="_blank" rel="noopener noreferrer" ');
 }
 const CATEGORY_COLORS = ['#00ADB5', '#4f9b6f', '#c05a4f', '#5b8db8', '#8b6fa8', '#c98a4b'];
-const NOTE_PRESETS = ['員工忘記打卡，已口頭確認時間', '設備／網路異常，事後補登', '主管同意調整'];
+const NOTE_PRESETS = ['員工忘記打卡，已口頭確認時間', '設備/網路異常，事後補登', '主管同意調整'];
 /* ⚠️ 地址轉座標（地理編碼）需要 Google Cloud 專案裡另外啟用「Geocoding API」，跟地圖顯示是不同服務 */
 const GOOGLE_MAPS_API_KEY = 'AIzaSyCTj0NrEzqJPLXWG8ct7FQfJ1Q0CeAcKoA';
 async function geocodeAddress(address){
@@ -535,7 +536,7 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const leaveDeduct = hourly*1.0*n(entry.personalLeave)
     + hourly*0.5*sickHalfPayHours + hourly*1.0*sickUnpaidHours
     + hourly*0.5*menstrualHalfPayHours + hourly*1.0*menstrualUnpaidHours
-    + hourly*0*n(entry.disasterLeave) + hourly*1.0*n(entry.otherLeave);
+    + hourly*1.0*n(entry.disasterLeave) + hourly*1.0*n(entry.otherLeave);
   const deductTotal = laborFee + healthFee + leaveDeduct + n(entry.otherDeduction);
 
   const pay06 = payableTotal - deductTotal;
@@ -1535,7 +1536,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         <button onClick={onSave} disabled={saving || !dirty || allLocked}>{saving?'儲存中...':'儲存薪資紀錄'}</button>
       </div>
       <div className="toolbar no-print">
-        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍／其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3天全薪、第4天起50%）、災防假0%；病假與生理假(超過3天部分)共用年度30天上限，超過後不給薪</span>
+        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍/其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3天全薪、第4天起50%）、災防假100%（公司採不支薪，惟不影響全勤與考績）；病假與生理假(超過3天部分)共用年度30天上限，超過後不給薪</span>
       </div>
 
       {(otCapAlerts.length>0 || minWageAlerts.length>0 || restDayCapAlerts.length>0 || sickCapAlerts.length>0) && (
@@ -1611,7 +1612,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} disabled={entry.locked} /></td>
               <td className="col-deduct">
                 <NumCell value={entry.menstrualLeave} onChange={v=>setEntry(emp.id,{menstrualLeave:v})} disabled={entry.locked} />
-                {n(entry.menstrualLeave)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全薪{calc.menstrualPaidHours}／半薪{calc.menstrualHalfHours}</div>}
+                {n(entry.menstrualLeave)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全薪{calc.menstrualPaidHours}/半薪{calc.menstrualHalfHours}</div>}
               </td>
               <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} /></td>
               <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays}天比例計算`:''}>{money(calc.laborFee)}</td>
@@ -1703,7 +1704,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         <div className="modal-bg">
           <div className="modal" style={{maxWidth:640}}>
             <h3><span className="material-icons">lock</span>鎖定 {month} 薪資</h3>
-            <div className="hint" style={{marginBottom:10}}>鎖定後，這個月的本薪、津貼、投保級距與勞健保金額會凍結成下面這份數字，之後不管員工資料怎麼調整都不會變動。勞保費／健保費可以手動修改成正確金額（例如匯入歷史紀錄時）。</div>
+            <div className="hint" style={{marginBottom:10}}>鎖定後，這個月的本薪、津貼、投保級距與勞健保金額會凍結成下面這份數字，之後不管員工資料怎麼調整都不會變動。勞保費/健保費可以手動修改成正確金額（例如匯入歷史紀錄時）。</div>
             {lockBox.loading ? <div className="hint">載入中...</div> : (
               <table>
                 <thead><tr><th className="left">姓名</th><th>本薪</th><th>投保級距</th><th>勞保費</th><th>健保費</th></tr></thead>
@@ -1760,9 +1761,23 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   );
 }
 
+function hrsLabel(hours){
+  const h = Number(hours) || 0;
+  if(h <= 0) return '';
+  const days = Math.round((h/8)*10)/10;
+  return `${h}小時（${days}天）`;
+}
 function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
   const show = v => !hideZero || Number(v) !== 0;
   const hasAnyAllowance = n(calc.effMealAllowance) || n(calc.effTransportAllowance) || n(calc.effPositionAllowance) || n(calc.effFullAttendanceBonus);
+  const [leaveDetail, setLeaveDetail] = useState(null);
+  useEffect(()=>{
+    apiGet('getLeaveDetailForPayslip', {employeeId: emp.id, month}).then(setLeaveDetail).catch(()=>setLeaveDetail(null));
+  }, [emp.id, month]);
+  const familyCareHours = Math.min(n(leaveDetail?.familyCareHours), n(entry.personalLeave));
+  const personalOnlyHours = Math.max(0, n(entry.personalLeave) - familyCareHours);
+  const infoLeave = leaveDetail?.infoLeave || {};
+  const infoLeaveRows = ['特休','婚假','喪假','公假','公傷病假','產假','產檢假','陪產假'].filter(t=>n(infoLeave[t])>0);
   return (
     <div className="payslip">
       <h2>{emp.company || '（未設定公司）'} · 薪資條</h2>
@@ -1795,24 +1810,38 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
         </tbody>
       </table>
 
-      <table style={{marginBottom:8}}>
-        <colgroup><col /><col style={{width:100}} /></colgroup>
-        <thead><tr><th className="col-deduct" colSpan="2"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>remove_circle</span> 應扣項目</th></tr></thead>
+      <table style={{marginBottom:4}}>
+        <colgroup><col style={{width:'38%'}} /><col style={{width:'38%'}} /><col style={{width:100}} /></colgroup>
+        <thead><tr><th className="col-deduct" colSpan="3"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>remove_circle</span> 應扣項目</th></tr></thead>
         <tbody>
-          <tr><td className="left col-deduct">勞保費{!calc.insFullMonth && <span style={{fontWeight:400}}>（按{calc.insLaborDays}天計）</span>}</td><td className="col-deduct">{money(calc.laborFee)}</td></tr>
-          <tr><td className="left col-deduct">健保費{!calc.insActiveAtMonthEnd && <span style={{fontWeight:400}}>（月底已離職不收）</span>}{calc.insActiveAtMonthEnd && n(emp.dependentCount)>0 && <span style={{fontWeight:400}}>（含眷屬{Math.min(n(emp.dependentCount),3)}人）</span>}</td><td className="col-deduct">{money(calc.healthFee)}</td></tr>
-          {show(n(entry.personalLeave)) && <tr><td className="left col-deduct">事假({n(entry.personalLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*n(entry.personalLeave))}</td></tr>}
-          {show(n(entry.sickLeave)) && <tr><td className="left col-deduct">病假({n(entry.sickLeave)}hr){calc.sickUnpaidHours>0 && <span style={{fontWeight:400, color:'var(--danger)'}}>（其中{calc.sickUnpaidHours}hr已達年度病假上限不給薪）</span>}</td><td className="col-deduct">{money(calc.hourly*0.5*calc.sickHalfPayHours + calc.hourly*calc.sickUnpaidHours)}</td></tr>}
-          {show(n(entry.menstrualLeave)) && <tr><td className="left col-deduct">生理假（半薪{calc.menstrualHalfPayHours}hr／全薪{calc.menstrualPaidHours}hr不扣{calc.menstrualUnpaidHours>0 ? `／已達病假年度上限${calc.menstrualUnpaidHours}hr不給薪` : ''}）</td><td className="col-deduct">{money(calc.hourly*0.5*calc.menstrualHalfPayHours + calc.hourly*calc.menstrualUnpaidHours)}</td></tr>}
-          {show(n(entry.disasterLeave)) && <tr><td className="left col-deduct">災防假({n(entry.disasterLeave)}hr)</td><td className="col-deduct">{money(calc.hourly*0*n(entry.disasterLeave))}</td></tr>}
-          {show(n(entry.otherDeduction)) && <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct">{money(entry.otherDeduction)}</td></tr>}
-          <tr className="total-row"><td className="left">應扣合計</td><td>{money(calc.deductTotal)}</td></tr>
+          <tr><td className="left col-deduct">勞保費{!calc.insFullMonth && <span style={{fontWeight:400}}>（按{calc.insLaborDays}天計）</span>}</td><td className="col-deduct"></td><td className="col-deduct">{money(calc.laborFee)}</td></tr>
+          <tr><td className="left col-deduct">健保費{!calc.insActiveAtMonthEnd && <span style={{fontWeight:400}}>（月底已離職不收）</span>}{calc.insActiveAtMonthEnd && n(emp.dependentCount)>0 && <span style={{fontWeight:400}}>（含眷屬{Math.min(n(emp.dependentCount),3)}人）</span>}</td><td className="col-deduct"></td><td className="col-deduct">{money(calc.healthFee)}</td></tr>
+          {show(personalOnlyHours) && <tr><td className="left col-deduct">事假</td><td className="col-deduct hrs">{hrsLabel(personalOnlyHours)}</td><td className="col-deduct">{money(calc.hourly*personalOnlyHours)}</td></tr>}
+          {show(familyCareHours) && <tr><td className="left col-deduct">家庭照顧假</td><td className="col-deduct hrs">{hrsLabel(familyCareHours)}</td><td className="col-deduct">{money(calc.hourly*familyCareHours)}</td></tr>}
+          {show(n(entry.sickLeave)) && <tr><td className="left col-deduct">病假{calc.sickUnpaidHours>0 && <div style={{fontWeight:400, color:'var(--danger)', fontSize:10.5}}>其中{calc.sickUnpaidHours}hr已達年度上限不給薪</div>}</td><td className="col-deduct hrs">{hrsLabel(n(entry.sickLeave))}</td><td className="col-deduct">{money(calc.hourly*0.5*calc.sickHalfPayHours + calc.hourly*calc.sickUnpaidHours)}</td></tr>}
+          {show(n(entry.menstrualLeave)) && <tr><td className="left col-deduct">生理假{calc.menstrualUnpaidHours>0 && <div style={{fontWeight:400, color:'var(--danger)', fontSize:10.5}}>其中{calc.menstrualUnpaidHours}hr已達上限不給薪</div>}</td><td className="col-deduct hrs">{hrsLabel(n(entry.menstrualLeave))}</td><td className="col-deduct">{money(calc.hourly*0.5*calc.menstrualHalfPayHours + calc.hourly*calc.menstrualUnpaidHours)}</td></tr>}
+          {show(n(entry.disasterLeave)) && <tr><td className="left col-deduct">災防假</td><td className="col-deduct hrs">{hrsLabel(n(entry.disasterLeave))}</td><td className="col-deduct">{money(calc.hourly*1.0*n(entry.disasterLeave))}</td></tr>}
+          {show(n(entry.otherDeduction)) && <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct"></td><td className="col-deduct">{money(entry.otherDeduction)}</td></tr>}
+          <tr className="total-row"><td className="left">應扣合計</td><td></td><td>{money(calc.deductTotal)}</td></tr>
         </tbody>
       </table>
+      {(n(entry.sickLeave)>0 || n(entry.menstrualLeave)>0) && <div style={{fontSize:10.5, color:'var(--muted)', marginBottom:8}}>病假、生理假：年度合計前30天半薪，超過不給薪</div>}
+
+      {infoLeaveRows.length>0 && (
+        <table style={{marginBottom:8}}>
+          <colgroup><col style={{width:'38%'}} /><col style={{width:'38%'}} /><col style={{width:100}} /></colgroup>
+          <thead><tr><th className="col-add" colSpan="3"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>info</span> 本月請假紀錄（全薪，不影響薪資）</th></tr></thead>
+          <tbody>
+            {infoLeaveRows.map(t=>(
+              <tr key={t}><td className="left col-add">{t}</td><td className="col-add hrs">{hrsLabel(infoLeave[t])}</td><td className="col-add">0</td></tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       <table style={{marginBottom:8}}>
         <colgroup><col /><col style={{width:100}} /></colgroup>
-        <thead><tr><th className="col-add left"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>add_circle</span> 業務／獎金加發項目（26日發放）</th><th className="col-add">金額</th></tr></thead>
+        <thead><tr><th className="col-add left"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>add_circle</span> 業務/獎金加發項目（26日發放）</th><th className="col-add">金額</th></tr></thead>
         <tbody>
           {show(n(entry.businessExpense)) && <tr><td className="left col-add">業務費用</td><td className="col-add">{money(entry.businessExpense)}</td></tr>}
           {show(n(entry.salesPerformance)) && <tr><td className="left col-add">業績獎金</td><td className="col-add">{money(entry.salesPerformance)}</td></tr>}
@@ -2058,7 +2087,7 @@ function PayrollRegisterTab(){
                           return (
                             <tr key="signature">
                               {nameCell}
-                              <td className="left reg-freeze-2">簽名／蓋章</td>
+                              <td className="left reg-freeze-2">簽名/蓋章</td>
                               {Array.from({length:12},(_,i)=><td key={i} style={{height:34}}></td>)}
                               <td></td>
                             </tr>
@@ -2094,7 +2123,7 @@ function InsuranceTab(){
   return (
     <div className="card">
       <div className="hint" style={{color:'var(--danger)', marginBottom:10}}>
-        ⚠ 自2026年1月1日起，基本工資已調整為月薪 {money(MIN_WAGE_MONTHLY)} 元、時薪 {MIN_WAGE_HOURLY} 元，勞保／健保最低投保級距亦隨之調整。以下級距表請自行至勞保局網站核對是否為最新公告版本，避免用舊級距投保。
+        ⚠ 自2026年1月1日起，基本工資已調整為月薪 {money(MIN_WAGE_MONTHLY)} 元、時薪 {MIN_WAGE_HOURLY} 元，勞保/健保最低投保級距亦隨之調整。以下級距表請自行至勞保局網站核對是否為最新公告版本，避免用舊級距投保。
       </div>
       <div className="toolbar no-print">
         <label style={{marginBottom:0}}>搜尋級距</label>
@@ -3439,8 +3468,8 @@ function SettingsTab({onSaved}){
       <div className="hint">補休期限自核准日起算，依勞基法第32條之1，補休期限屆滿或契約終止仍未休完的時數，應依原加班費標準折算工資。</div>
 
       <h3 style={{marginTop:18}}><span className="material-icons">verified</span> 全勤獎金比例扣除</h3>
-      <div className="hint" style={{marginTop:-4, marginBottom:8}}>依2026年新制《勞工請假規則》第9條，全勤獎金扣發不得「全有全無」，一律按比例計算。病假、事假時數會依比例自動扣（時數÷240）；婚喪公傷病假、公假、生理假等法定假別不受影響。⚠ 目前「事假」尚未區分一般事假／家庭照顧事假，所有事假時數都會列入扣除，如需區分請告知。</div>
-      <div className="field"><label>遲到／早退計算方式</label>
+      <div className="hint" style={{marginTop:-4, marginBottom:8}}>依2026年新制《勞工請假規則》第9條，全勤獎金扣發不得「全有全無」，一律按比例計算。病假、事假時數會依比例自動扣（時數÷240）；婚喪公傷病假、公假、生理假等法定假別不受影響。「事假」欄位仍會合併家庭照顧假一起輸入（家庭照顧假依法併入事假計算），薪資條顯示時系統會自動拆開顯示兩者各自時數，方便員工核對。</div>
+      <div className="field"><label>遲到/早退計算方式</label>
         <select value={s.fullAttendanceLateEarlyMode || 'minutes'} onChange={e=>setS({...s,fullAttendanceLateEarlyMode:e.target.value})}>
           <option value="minutes">只算累積分鐘數比例</option>
           <option value="count">只算次數階梯扣除</option>
@@ -3508,7 +3537,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
       (0, eval)(compiled);
     })
     .catch(function(err){
-      showError('必要程式庫載入失敗，畫面因此空白。\n原因：' + err.message + '\n\n最常見情況：瀏覽器擴充功能（例如廣告攔截／隱私保護外掛）封鎖了 unpkg.com 或 jsdelivr.net，或目前網路無法連線到這兩個網域。\n\n請嘗試：\n1. 停用廣告攔截類擴充功能後重新整理本頁\n2. 改用無痕視窗開啟同一網址測試\n3. 確認網路能連上 unpkg.com 與 cdn.jsdelivr.net');
+      showError('必要程式庫載入失敗，畫面因此空白。\n原因：' + err.message + '\n\n最常見情況：瀏覽器擴充功能（例如廣告攔截/隱私保護外掛）封鎖了 unpkg.com 或 jsdelivr.net，或目前網路無法連線到這兩個網域。\n\n請嘗試：\n1. 停用廣告攔截類擴充功能後重新整理本頁\n2. 改用無痕視窗開啟同一網址測試\n3. 確認網路能連上 unpkg.com 與 cdn.jsdelivr.net');
     });
 })();
 </script>
