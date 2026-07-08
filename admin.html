@@ -646,10 +646,10 @@ function YearMonthPicker({value, onChange}){
 }
 const ADMIN_THEME_PALETTES = [
   { id:'default', name:'湖水藍', dark:'#222831', accent:'#00ADB5' },
-  { id:'yellow', name:'莫蘭迪黃', dark:'#3D3527', accent:'#D9C08C' },
-  { id:'red', name:'莫蘭迪紅', dark:'#42302C', accent:'#C08D7F' },
-  { id:'green', name:'莫蘭迪綠', dark:'#333A2E', accent:'#A3AD8C' },
-  { id:'milktea', name:'奶茶色', dark:'#3E332A', accent:'#D6BFA0' }
+  { id:'yellow', name:'焦糖黃', dark:'#3D3527', accent:'#D9C08C' },
+  { id:'red', name:'陶土紅', dark:'#42302C', accent:'#C08D7F' },
+  { id:'green', name:'鼠尾草綠', dark:'#333A2E', accent:'#A3AD8C' },
+  { id:'milktea', name:'奶茶棕', dark:'#3E332A', accent:'#D6BFA0' }
 ];
 function applyAdminTheme(themeId){
   const t = ADMIN_THEME_PALETTES.find(p=>p.id===themeId) || ADMIN_THEME_PALETTES[0];
@@ -3219,12 +3219,18 @@ function SettingsTab({onSaved}){
   const [locating, setLocating] = useState(false);
   const [category, setCategory] = useState('basic');
   const DOW = ['日','一','二','三','四','五','六'];
+  const savedThemeRef = useRef('default'); // 記住「目前真正已儲存」的配色，離開頁面若沒按儲存要還原成這個
 
-  function load(){ setLoading(true); apiGet('getSettings').then(setS).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
+  function load(){
+    setLoading(true);
+    apiGet('getSettings').then(data=>{ setS(data); savedThemeRef.current = data.themeColor || 'default'; }).catch(e=>alert(e.message)).finally(()=>setLoading(false));
+  }
   useEffect(load, []);
+  // 離開設定頁時，如果配色只是預覽、沒有實際按儲存，還原成真正已儲存的配色
+  useEffect(()=>{ return ()=>{ applyAdminTheme(savedThemeRef.current); }; }, []);
 
   async function save(){
-    try{ await apiPost('updateSettings', s); alert('設定已儲存'); if(onSaved) onSaved(); }catch(e){ alert(e.message); }
+    try{ await apiPost('updateSettings', s); savedThemeRef.current = s.themeColor || 'default'; alert('設定已儲存'); if(onSaved) onSaved(); }catch(e){ alert(e.message); }
   }
   function useCurrentLocation(){
     setLocating(true);
@@ -3250,10 +3256,10 @@ function SettingsTab({onSaved}){
       <div className="hint" style={{marginTop:-8, marginBottom:10}}>這個名稱會同時用在前台首頁抬頭，以及瀏覽器分頁標題（前台/後台都會套用）。</div>
 
       <h3 style={{marginTop:18}}><span className="material-icons">palette</span> 後台介面配色</h3>
-      <div className="hint" style={{marginTop:-4, marginBottom:8}}>這裡選的配色，所有登入後台的人看到的都一樣。員工前台有自己獨立的配色選項（在前台右上角自己切換），不會互相影響。</div>
+      <div className="hint" style={{marginTop:-4, marginBottom:8}}>這裡選的配色，所有登入後台的人看到的都一樣。員工前台有自己獨立的配色選項（在前台右上角自己切換），不會互相影響。點選色塊會馬上預覽效果，離開這頁若沒按「儲存設定」不會真的套用。</div>
       <div style={{display:'flex', gap:10, flexWrap:'wrap'}}>
         {ADMIN_THEME_PALETTES.map(t=>(
-          <div key={t.id} onClick={()=>setS({...s, themeColor:t.id})}
+          <div key={t.id} onClick={()=>{ setS({...s, themeColor:t.id}); applyAdminTheme(t.id); }}
             style={{display:'flex', flexDirection:'column', alignItems:'center', gap:6, cursor:'pointer', padding:8, borderRadius:10,
               border: (s.themeColor||'default')===t.id ? '2px solid '+t.accent : '1px solid var(--line)'}}>
             <span style={{width:32, height:32, borderRadius:'50%', background:t.dark, border:'3px solid '+t.accent}}></span>
