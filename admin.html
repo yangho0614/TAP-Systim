@@ -1567,7 +1567,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <button type="button" className="ghost sm no-print" style={{fontWeight:400, marginTop:4}} onClick={openSettleEstimate}>結算試算</button>
             </th>
             <th className="col-add" rowSpan="2">應付小計</th>
-            <th className="col-deduct" colSpan="5">請假時數</th>
+            <th className="col-deduct" colSpan="4">請假時數</th>
             <th className="col-deduct" rowSpan="2">勞保</th>
             <th className="col-deduct" rowSpan="2">健保</th>
             <th className="col-deduct" rowSpan="2">其他扣款</th>
@@ -1577,7 +1577,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
           <tr>
             <th className="col-add">平日1.34</th><th className="col-add">平日1.67</th><th className="col-add">休息日</th><th className="col-add">國定假日</th>
             <th className="col-add">三節</th><th className="col-add">年終</th><th className="col-add">績效</th><th className="col-add">其他</th>
-            <th className="col-deduct">事假</th><th className="col-deduct">病假</th><th className="col-deduct">生理假</th><th className="col-deduct">災防</th><th className="col-deduct">其他</th>
+            <th className="col-deduct">事假</th><th className="col-deduct">病假</th><th className="col-deduct">生理假</th><th className="col-deduct">災防</th>
           </tr>
         </thead>
         <tbody>
@@ -1614,7 +1614,6 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
                 {n(entry.menstrualLeave)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全薪{calc.menstrualPaidHours}／半薪{calc.menstrualHalfHours}</div>}
               </td>
               <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} /></td>
-              <td className="col-deduct"><NumCell value={entry.otherLeave} onChange={v=>setEntry(emp.id,{otherLeave:v})} disabled={entry.locked} /></td>
               <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays}天比例計算`:''}>{money(calc.laborFee)}</td>
               <td className="col-deduct" title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
               <td className="col-deduct"><NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} disabled={entry.locked} /></td>
