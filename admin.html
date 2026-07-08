@@ -1645,9 +1645,11 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="col-add"><NumCell value={entry.performanceBonus} onChange={v=>setEntry(emp.id,{performanceBonus:v})} disabled={entry.locked} /></td>
               <td className="col-add">
                 <NumCell value={entry.otherBonus} onChange={v=>setEntry(emp.id,{otherBonus:v})} disabled={entry.locked} />
-                <button type="button" className="ghost sm" title="輸入備註" style={{marginTop:2, padding:'2px 6px'}} onClick={()=>setNoteBox({employeeId:emp.id, name:emp.name, field:'otherBonusNote', label:'其他獎金備註', value:entry.otherBonusNote||''})}>
-                  <span className="material-icons" style={{fontSize:13}}>{entry.otherBonusNote?'edit_note':'note_add'}</span>
-                </button>
+                <div style={{marginTop:2, textAlign:'center'}}>
+                  <button type="button" className="ghost sm" title="輸入備註" style={{padding:'2px 6px'}} onClick={()=>setNoteBox({employeeId:emp.id, name:emp.name, field:'otherBonusNote', label:'其他獎金備註', value:entry.otherBonusNote||''})}>
+                    <span className="material-icons" style={{fontSize:13}}>{entry.otherBonusNote?'edit_note':'note_add'}</span>
+                  </button>
+                </div>
               </td>
               <td className="col-add">
                 <NumCell value={entry.annualLeaveSettlement} onChange={v=>setEntry(emp.id,{annualLeaveSettlement:v})} disabled={entry.locked} />
@@ -1670,9 +1672,11 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="col-deduct" title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
               <td className="col-deduct">
                 <NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} disabled={entry.locked} />
-                <button type="button" className="ghost sm" title="輸入備註" style={{marginTop:2, padding:'2px 6px'}} onClick={()=>setNoteBox({employeeId:emp.id, name:emp.name, field:'otherDeductionNote', label:'其他扣款備註', value:entry.otherDeductionNote||''})}>
-                  <span className="material-icons" style={{fontSize:13}}>{entry.otherDeductionNote?'edit_note':'note_add'}</span>
-                </button>
+                <div style={{marginTop:2, textAlign:'center'}}>
+                  <button type="button" className="ghost sm" title="輸入備註" style={{padding:'2px 6px'}} onClick={()=>setNoteBox({employeeId:emp.id, name:emp.name, field:'otherDeductionNote', label:'其他扣款備註', value:entry.otherDeductionNote||''})}>
+                    <span className="material-icons" style={{fontSize:13}}>{entry.otherDeductionNote?'edit_note':'note_add'}</span>
+                  </button>
+                </div>
               </td>
               <td className="col-deduct num-neg">{money(calc.deductTotal)}</td>
               <td className="col-result mono"><b>{money(calc.pay06)}</b></td>
