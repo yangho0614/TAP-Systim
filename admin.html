@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>後台管理 · 出缺勤與薪資系統</title>
+<link rel="icon" id="favicon-link" href="" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -675,7 +676,9 @@ function App(){
   useEffect(()=>{
     const brand = settings?.storeName || '';
     if(settings?.adminTitle) document.title = brand ? `${brand} - ${settings.adminTitle}` : settings.adminTitle;
-  }, [settings?.adminTitle, settings?.storeName]);
+    const link = document.getElementById('favicon-link');
+    if(link && settings?.faviconUrl) link.href = settings.faviconUrl;
+  }, [settings?.adminTitle, settings?.storeName, settings?.faviconUrl]);
   useEffect(()=>{ applyAdminTheme(settings?.themeColor || 'default'); }, [settings?.themeColor]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -3229,6 +3232,21 @@ function SettingsTab({onSaved}){
   const [companyPickId, setCompanyPickId] = useState('');
   const [companyDisplayDraft, setCompanyDisplayDraft] = useState('');
   const [companySaving, setCompanySaving] = useState(false);
+  const [faviconUploading, setFaviconUploading] = useState(''); // 'global' 或公司id，標示目前是哪個在上傳中
+  const globalFaviconInputRef = useRef(null);
+  const companyFaviconInputRef = useRef(null);
+
+  async function uploadFavicon(file, companyId){
+    if(!file) return;
+    setFaviconUploading(companyId || 'global');
+    try{
+      const base64 = await fileToBase64(file);
+      const data = await apiPost('uploadFaviconImage', {imageBase64: base64, mimeType: file.type, companyId: companyId || ''});
+      if(companyId){ loadCompanies(); }
+      else { setS(prev=>({...prev, faviconUrl: data.url})); }
+    }catch(e){ alert(e.message); }
+    finally{ setFaviconUploading(''); }
+  }
 
   function loadCompanies(){ apiGet('getCompanies').then(setCompanies).catch(()=>{}); }
   function pickCompany(id){
@@ -3283,18 +3301,39 @@ function SettingsTab({onSaved}){
       <div className="field"><label>預設顯示名稱</label><input value={s.storeName} onChange={e=>setS({...s,storeName:e.target.value})} style={{width:'100%'}} /></div>
       <div className="hint" style={{marginTop:-8, marginBottom:10}}>前台首頁抬頭預設顯示這個名稱；如果去「公司管理」幫個別公司填了自己的顯示名稱，該公司員工會優先看到自己公司的名稱。</div>
 
+      <div className="field">
+        <label>瀏覽器分頁圖示（favicon，全站預設）</label>
+        <div style={{display:'flex', alignItems:'center', gap:10}}>
+          {s.faviconUrl && <img src={s.faviconUrl} style={{width:28, height:28, borderRadius:6, border:'1px solid var(--line)'}} />}
+          <button type="button" className="ghost sm" disabled={faviconUploading==='global'} onClick={()=>globalFaviconInputRef.current && globalFaviconInputRef.current.click()}>
+            {faviconUploading==='global' ? '上傳中...' : (s.faviconUrl ? '更換圖示' : '上傳圖示')}
+          </button>
+          <input ref={globalFaviconInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{ uploadFavicon(e.target.files[0]); e.target.value=''; }} />
+        </div>
+        <div className="hint" style={{marginTop:4}}>後台跟沒有設定自己圖示的公司，員工前台都會用這個。建議用正方形圖片。</div>
+      </div>
+
       <div className="field" style={{marginTop:14}}>
-        <label>個別公司顯示名稱</label>
+        <label>個別公司顯示名稱 / 圖示</label>
         <select value={companyPickId} onChange={e=>pickCompany(e.target.value)}>
           <option value="">請選擇公司</option>
           {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
       {companyPickId && (
+        <>
         <div style={{display:'flex', gap:8, marginBottom:10}}>
           <input value={companyDisplayDraft} onChange={e=>setCompanyDisplayDraft(e.target.value)} placeholder="例如：mammyshop 媽咪小站" style={{flex:1}} />
           <button onClick={saveCompanyDisplayName} disabled={companySaving}>{companySaving?'儲存中...':'儲存這間公司'}</button>
         </div>
+        <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:10}}>
+          {(companies.find(c=>c.id===companyPickId)||{}).faviconUrl && <img src={companies.find(c=>c.id===companyPickId).faviconUrl} style={{width:28, height:28, borderRadius:6, border:'1px solid var(--line)'}} />}
+          <button type="button" className="ghost sm" disabled={faviconUploading===companyPickId} onClick={()=>companyFaviconInputRef.current && companyFaviconInputRef.current.click()}>
+            {faviconUploading===companyPickId ? '上傳中...' : '上傳這間公司的圖示'}
+          </button>
+          <input ref={companyFaviconInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{ uploadFavicon(e.target.files[0], companyPickId); e.target.value=''; }} />
+        </div>
+        </>
       )}
 
       <h3 style={{marginTop:18}}><span className="material-icons">tab</span> 瀏覽器分頁標題</h3>
