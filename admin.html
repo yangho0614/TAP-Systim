@@ -1802,10 +1802,10 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
           {show(n(entry.yearEndBonus)) && <tr><td className="left col-add">年終獎金</td><td className="col-add"></td><td className="col-add">{money(entry.yearEndBonus)}</td></tr>}
           {show(n(entry.performanceBonus)) && <tr><td className="left col-add">績效獎金</td><td className="col-add"></td><td className="col-add">{money(entry.performanceBonus)}</td></tr>}
           {show(n(entry.otherBonus)) && <tr><td className="left col-add">其他獎金</td><td className="col-add"></td><td className="col-add">{money(entry.otherBonus)}</td></tr>}
-          {show(calc.weekdayOtPay) && <tr><td className="left col-add">平日加班</td><td className="col-add hrs">{n(entry.otWeekday134)}/{n(entry.otWeekday167)} hr</td><td className="col-add">{money(calc.weekdayOtPay)}</td></tr>}
-          {show(calc.restDayPay) && <tr><td className="left col-add">休息日出勤</td><td className="col-add hrs">{n(entry.otRestDayHours)}hr，計{calc.restDayCountedHours}hr</td><td className="col-add">{money(calc.restDayPay)}</td></tr>}
-          {show(calc.holidayPay) && <tr><td className="left col-add">國定假日出勤</td><td className="col-add hrs">{n(entry.otHolidayHours)}hr</td><td className="col-add">{money(calc.holidayPay)}</td></tr>}
-          {n(entry.otMandatoryRestHours)>0 && <tr><td className="left col-add" style={{color:'var(--outcome)'}}>例假日出勤（需補休）</td><td className="col-add hrs">{n(entry.otMandatoryRestHours)}hr</td><td className="col-add">{money(calc.mandatoryRestPay)}</td></tr>}
+          {show(calc.weekdayOtPay) && <tr><td className="left col-add">平日加班</td><td className="col-add hrs">{n(entry.otWeekday134)>0 && `1.34倍 ${hrsLabel(entry.otWeekday134)}`}{n(entry.otWeekday134)>0 && n(entry.otWeekday167)>0 && '　'}{n(entry.otWeekday167)>0 && `1.67倍 ${hrsLabel(entry.otWeekday167)}`}</td><td className="col-add">{money(calc.weekdayOtPay)}</td></tr>}
+          {show(calc.restDayPay) && <tr><td className="left col-add">休息日出勤</td><td className="col-add hrs">{hrsLabel(entry.otRestDayHours)}（計{calc.restDayCountedHours}小時）</td><td className="col-add">{money(calc.restDayPay)}</td></tr>}
+          {show(calc.holidayPay) && <tr><td className="left col-add">國定假日出勤</td><td className="col-add hrs">{hrsLabel(entry.otHolidayHours)}</td><td className="col-add">{money(calc.holidayPay)}</td></tr>}
+          {n(entry.otMandatoryRestHours)>0 && <tr><td className="left col-add" style={{color:'var(--outcome)'}}>例假日出勤（需補休）</td><td className="col-add hrs">{hrsLabel(entry.otMandatoryRestHours)}</td><td className="col-add">{money(calc.mandatoryRestPay)}</td></tr>}
           {show(n(entry.annualLeaveSettlement)) && <tr><td className="left col-add">特休未休結算</td><td className="col-add"></td><td className="col-add">{money(entry.annualLeaveSettlement)}</td></tr>}
           <tr className="total-row"><td className="left">應發合計</td><td></td><td>{money(calc.payableTotal)}</td></tr>
         </tbody>
