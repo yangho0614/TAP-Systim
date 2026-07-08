@@ -1982,7 +1982,10 @@ function App(){
   const [checkingSession, setCheckingSession] = useState(true);
   const [tab, setTab] = useState('home');
   const [settings, setSettings] = useState(null);
-  useEffect(()=>{ if(settings?.frontTitle) document.title = settings.frontTitle; }, [settings?.frontTitle]);
+  useEffect(()=>{
+    const brand = session?.employee?.companyDisplayName || settings?.storeName || '';
+    if(settings?.frontTitle) document.title = brand ? `${brand} - ${settings.frontTitle}` : settings.frontTitle;
+  }, [settings?.frontTitle, settings?.storeName, session?.employee?.companyDisplayName]);
   const [status, setStatus] = useState(null);
   const [pending, setPending] = useState([]);
   const [unreadAnnounceCount, setUnreadAnnounceCount] = useState(0);

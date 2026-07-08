@@ -672,7 +672,10 @@ function App(){
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState(null);
-  useEffect(()=>{ if(settings?.adminTitle) document.title = settings.adminTitle; }, [settings?.adminTitle]);
+  useEffect(()=>{
+    const brand = settings?.storeName || '';
+    if(settings?.adminTitle) document.title = brand ? `${brand} - ${settings.adminTitle}` : settings.adminTitle;
+  }, [settings?.adminTitle, settings?.storeName]);
   useEffect(()=>{ applyAdminTheme(settings?.themeColor || 'default'); }, [settings?.themeColor]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
