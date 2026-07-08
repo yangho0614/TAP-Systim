@@ -1400,7 +1400,15 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
   const [lockBox, setLockBox] = useState(null); // {items, loading, saving}
   const [resignRowBox, setResignRowBox] = useState(null); // {employeeId, name, loading, data}
   const [locking, setLocking] = useState(false);
+  const [summary, setSummary] = useState([]);
+  const [noteBox, setNoteBox] = useState(null); // {employeeId, field, value}
   const scrollRef = useRef(null);
+  useEffect(()=>{ apiGet('getMonthlySummary', {month}).then(setSummary).catch(()=>{}); }, [month]);
+  const summaryMap = useMemo(()=>{ const m={}; summary.forEach(s=>{ m[s.employeeId]=s; }); return m; }, [summary]);
+  function refBelow(v){
+    if(v===undefined || v===null) return null;
+    return <div className="hint" style={{fontSize:10, marginTop:2, textAlign:'center'}}>實際 {v}</div>;
+  }
   function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
   function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
   const totals = useMemo(()=>{
@@ -1591,15 +1599,20 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
               <td className="hint" title={emp.transportAllowanceMode==='daily'?`依出勤天數計算：${entry.presentDays||0}天 × ${money(emp.transportAllowance)}`:''}>{money(calc.effTransportAllowance)}</td>
               <td className="hint">{money(calc.effPositionAllowance)}</td>
               <td className="hint" title={calc.fullAttendanceDeductRatio>0?`依請假/遲到早退比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%`:(calc.fullAttendanceRatio<1?`依在職天數比例試算（${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')} style={calc.fullAttendanceDeductRatio>0?{color:'var(--danger)'}:undefined}>{money(calc.fullAttendanceAdjusted)}</td>
-              <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} /></td>
-              <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} disabled={entry.locked} /></td>
-              <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} disabled={entry.locked} /></td>
-              <td className="col-add"><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} disabled={entry.locked} /></td>
+              <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.otWeekday134)}</td>
+              <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.otWeekday167)}</td>
+              <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.otRestDayHours)}</td>
+              <td className="col-add"><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.otHolidayHours)}</td>
               <td className="col-add num-pos">{money(calc.overtimePay)}</td>
               <td className="col-add"><NumCell value={entry.festivalBonus} onChange={v=>setEntry(emp.id,{festivalBonus:v})} disabled={entry.locked} /></td>
               <td className="col-add"><NumCell value={entry.yearEndBonus} onChange={v=>setEntry(emp.id,{yearEndBonus:v})} disabled={entry.locked} /></td>
               <td className="col-add"><NumCell value={entry.performanceBonus} onChange={v=>setEntry(emp.id,{performanceBonus:v})} disabled={entry.locked} /></td>
-              <td className="col-add"><NumCell value={entry.otherBonus} onChange={v=>setEntry(emp.id,{otherBonus:v})} disabled={entry.locked} /></td>
+              <td className="col-add">
+                <NumCell value={entry.otherBonus} onChange={v=>setEntry(emp.id,{otherBonus:v})} disabled={entry.locked} />
+                <button type="button" className="ghost sm" title="輸入備註" style={{marginTop:2, padding:'2px 6px'}} onClick={()=>setNoteBox({employeeId:emp.id, name:emp.name, field:'otherBonusNote', label:'其他獎金備註', value:entry.otherBonusNote||''})}>
+                  <span className="material-icons" style={{fontSize:13}}>{entry.otherBonusNote?'edit_note':'note_add'}</span>
+                </button>
+              </td>
               <td className="col-add">
                 <NumCell value={entry.annualLeaveSettlement} onChange={v=>setEntry(emp.id,{annualLeaveSettlement:v})} disabled={entry.locked} />
                 {emp.resignDate && !entry.locked && (
@@ -1609,16 +1622,22 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
                 )}
               </td>
               <td className="col-add num-pos"><b>{money(calc.payableTotal)}</b></td>
-              <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} disabled={entry.locked} /></td>
-              <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} disabled={entry.locked} /></td>
+              <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.personalLeave)}</td>
+              <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.sickLeave)}</td>
               <td className="col-deduct">
                 <NumCell value={entry.menstrualLeave} onChange={v=>setEntry(emp.id,{menstrualLeave:v})} disabled={entry.locked} />
                 {n(entry.menstrualLeave)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全薪{calc.menstrualPaidHours}/半薪{calc.menstrualHalfHours}</div>}
+                {refBelow(summaryMap[emp.id]?.menstrualLeave)}
               </td>
-              <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} /></td>
+              <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} />{refBelow(summaryMap[emp.id]?.disasterLeave)}</td>
               <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays}天比例計算`:''}>{money(calc.laborFee)}</td>
               <td className="col-deduct" title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
-              <td className="col-deduct"><NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} disabled={entry.locked} /></td>
+              <td className="col-deduct">
+                <NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} disabled={entry.locked} />
+                <button type="button" className="ghost sm" title="輸入備註" style={{marginTop:2, padding:'2px 6px'}} onClick={()=>setNoteBox({employeeId:emp.id, name:emp.name, field:'otherDeductionNote', label:'其他扣款備註', value:entry.otherDeductionNote||''})}>
+                  <span className="material-icons" style={{fontSize:13}}>{entry.otherDeductionNote?'edit_note':'note_add'}</span>
+                </button>
+              </td>
               <td className="col-deduct num-neg">{money(calc.deductTotal)}</td>
               <td className="col-result mono"><b>{money(calc.pay06)}</b></td>
             </tr>
@@ -1758,6 +1777,19 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
           </div>
         </div>
       )}
+
+      {noteBox && (
+        <div className="modal-bg">
+          <div className="modal" style={{maxWidth:420}}>
+            <h3><span className="material-icons">edit_note</span>{noteBox.label}：{noteBox.name}</h3>
+            <textarea value={noteBox.value} onChange={e=>setNoteBox({...noteBox, value:e.target.value})} rows="3" placeholder="說明這筆金額的原因" style={{width:'100%', fontFamily:'inherit', fontSize:13, padding:8, borderRadius:6, border:'1px solid var(--line)'}}></textarea>
+            <div className="modal-actions">
+              <button className="ghost" onClick={()=>setNoteBox(null)}>取消</button>
+              <button onClick={()=>{ setEntry(noteBox.employeeId, {[noteBox.field]: noteBox.value}); setNoteBox(null); }}>確定</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1801,7 +1833,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
           {show(n(entry.festivalBonus)) && <tr><td className="left col-add">三節獎金</td><td className="col-add"></td><td className="col-add">{money(entry.festivalBonus)}</td></tr>}
           {show(n(entry.yearEndBonus)) && <tr><td className="left col-add">年終獎金</td><td className="col-add"></td><td className="col-add">{money(entry.yearEndBonus)}</td></tr>}
           {show(n(entry.performanceBonus)) && <tr><td className="left col-add">績效獎金</td><td className="col-add"></td><td className="col-add">{money(entry.performanceBonus)}</td></tr>}
-          {show(n(entry.otherBonus)) && <tr><td className="left col-add">其他獎金</td><td className="col-add"></td><td className="col-add">{money(entry.otherBonus)}</td></tr>}
+          {show(n(entry.otherBonus)) && <tr><td className="left col-add">其他獎金</td><td className="col-add hrs">{entry.otherBonusNote||''}</td><td className="col-add">{money(entry.otherBonus)}</td></tr>}
           {show(calc.weekdayOtPay) && <tr><td className="left col-add">平日加班</td><td className="col-add hrs">{n(entry.otWeekday134)>0 && `1.34倍 ${hrsLabel(entry.otWeekday134)}`}{n(entry.otWeekday134)>0 && n(entry.otWeekday167)>0 && '　'}{n(entry.otWeekday167)>0 && `1.67倍 ${hrsLabel(entry.otWeekday167)}`}</td><td className="col-add">{money(calc.weekdayOtPay)}</td></tr>}
           {show(calc.restDayPay) && <tr><td className="left col-add">休息日出勤</td><td className="col-add hrs">{hrsLabel(entry.otRestDayHours)}（計{calc.restDayCountedHours}小時）</td><td className="col-add">{money(calc.restDayPay)}</td></tr>}
           {show(calc.holidayPay) && <tr><td className="left col-add">國定假日出勤</td><td className="col-add hrs">{hrsLabel(entry.otHolidayHours)}</td><td className="col-add">{money(calc.holidayPay)}</td></tr>}
@@ -1822,7 +1854,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
           {show(n(entry.sickLeave)) && <tr><td className="left col-deduct">病假{calc.sickUnpaidHours>0 && <div style={{fontWeight:400, color:'var(--danger)', fontSize:10.5}}>其中{calc.sickUnpaidHours}hr已達年度上限不給薪</div>}</td><td className="col-deduct hrs">{hrsLabel(n(entry.sickLeave))}</td><td className="col-deduct">{money(calc.hourly*0.5*calc.sickHalfPayHours + calc.hourly*calc.sickUnpaidHours)}</td></tr>}
           {show(n(entry.menstrualLeave)) && <tr><td className="left col-deduct">生理假{calc.menstrualUnpaidHours>0 && <div style={{fontWeight:400, color:'var(--danger)', fontSize:10.5}}>其中{calc.menstrualUnpaidHours}hr已達上限不給薪</div>}</td><td className="col-deduct hrs">{hrsLabel(n(entry.menstrualLeave))}</td><td className="col-deduct">{money(calc.hourly*0.5*calc.menstrualHalfPayHours + calc.hourly*calc.menstrualUnpaidHours)}</td></tr>}
           {show(n(entry.disasterLeave)) && <tr><td className="left col-deduct">災防假</td><td className="col-deduct hrs">{hrsLabel(n(entry.disasterLeave))}</td><td className="col-deduct">{money(calc.hourly*1.0*n(entry.disasterLeave))}</td></tr>}
-          {show(n(entry.otherDeduction)) && <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct"></td><td className="col-deduct">{money(entry.otherDeduction)}</td></tr>}
+          {show(n(entry.otherDeduction)) && <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct hrs">{entry.otherDeductionNote||''}</td><td className="col-deduct">{money(entry.otherDeduction)}</td></tr>}
           <tr className="total-row"><td className="left">應扣合計</td><td></td><td>{money(calc.deductTotal)}</td></tr>
         </tbody>
       </table>
