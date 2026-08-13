@@ -1057,18 +1057,20 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           </div>
           <div className="field"><label>本薪</label><input type="number" value={editing.baseSalary} onChange={e=>setEditing({...editing, baseSalary:Number(e.target.value)})} /></div>
 
-          {/* 兩欄式排版：交通津貼與其計算方式排在同一列，方便對照 */}
           <div className="field"><label>伙食津貼</label><input type="number" value={editing.mealAllowance} onChange={e=>setEditing({...editing, mealAllowance:Number(e.target.value)})} /></div>
-          <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
-          <div className="field"><label>{editing.transportAllowanceMode==='daily' ? '每日補貼金額' : '交通津貼'}</label><input type="number" value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} />
+          {/* 交通津貼與計算方式併成同一格，金額在左、方式在右，不各佔一格 */}
+          <div className="field">
+            <label>{editing.transportAllowanceMode==='daily' ? '交通津貼（每日補貼金額）' : '交通津貼'}</label>
+            <div style={{display:'flex', gap:6}}>
+              <input type="number" style={{flex:'1 1 90px', minWidth:0}} value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} />
+              <select style={{flex:'0 0 auto', width:'auto'}} value={editing.transportAllowanceMode||'fixed'} onChange={e=>setEditing({...editing, transportAllowanceMode:e.target.value})}>
+                <option value="fixed">固定／月</option>
+                <option value="daily">依出勤天數</option>
+              </select>
+            </div>
             {editing.transportAllowanceMode==='daily' && <div className="hint" style={{marginTop:4}}>系統會用「套用出缺勤時數」抓當月實際出勤天數 × 這個金額，自動算出當月交通津貼</div>}
           </div>
-          <div className="field"><label>交通津貼計算方式</label>
-            <select value={editing.transportAllowanceMode||'fixed'} onChange={e=>setEditing({...editing, transportAllowanceMode:e.target.value})}>
-              <option value="fixed">固定金額（每月）</option>
-              <option value="daily">依出勤天數計算</option>
-            </select>
-          </div>
+          <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
           <div className="field"><label>全勤獎金（固定）</label><input type="number" value={editing.fullAttendanceBonus} onChange={e=>setEditing({...editing, fullAttendanceBonus:Number(e.target.value)})} /></div>
 
           <div className="field"><label>銀行</label><input value={editing.bankName} onChange={e=>setEditing({...editing, bankName:e.target.value})} /></div>
