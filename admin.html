@@ -4090,15 +4090,51 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
     babel: ['https://unpkg.com/@babel/standalone/babel.min.js', 'https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js']
   };
 
-  loadWithFallback(CDN.react)
-    .then(function(){ return loadWithFallback(CDN.reactDom); })
-    .then(function(){ return loadWithFallback(CDN.babel); })
+  /* 啟動加速：Babel standalone 約 2.9MB，且每次開頁都要重新編譯這份 JSX。
+     把編譯結果存進 localStorage，用原始碼雜湊當版本識別；原始碼沒改就直接用快取，
+     連 Babel 都不必下載。改了程式碼雜湊就變，快取自動失效，不需要手動清。 */
+  var APP_SRC = document.getElementById('app-src').textContent;
+  var CACHE_KEY = 'tap_admin_compiled';
+  function hashStr(s){ var h = 5381, i = s.length; while(i) h = (h * 33) ^ s.charCodeAt(--i); return (h >>> 0).toString(36); }
+  var srcHash = hashStr(APP_SRC);
+  function readCompiledCache(){
+    try{
+      var raw = localStorage.getItem(CACHE_KEY);
+      if(!raw) return null;
+      var obj = JSON.parse(raw);
+      return (obj && obj.h === srcHash) ? obj.c : null;
+    }catch(e){ return null; }
+  }
+  function writeCompiledCache(code){
+    try{ localStorage.setItem(CACHE_KEY, JSON.stringify({h: srcHash, c: code})); }catch(e){}
+  }
+
+  var cached = readCompiledCache();
+  // react-dom 需要 React 全域，兩者依序執行；babel 與它們無關可並行下載，有快取時則完全不載入
+  Promise.all([
+    loadWithFallback(CDN.react).then(function(){ return loadWithFallback(CDN.reactDom); }),
+    cached ? Promise.resolve() : loadWithFallback(CDN.babel)
+  ])
     .then(function(){
-      var src = document.getElementById('app-src').textContent;
-      var compiled = Babel.transform(src, {presets:[['react',{runtime:'classic'}]]}).code;
+      var compiled = cached;
+      if(!compiled){
+        compiled = Babel.transform(APP_SRC, {presets:[['react',{runtime:'classic'}]]}).code;
+        writeCompiledCache(compiled);
+      }
       var statusEl = document.getElementById('boot-status');
       if(statusEl) statusEl.remove();
-      (0, eval)(compiled);
+      try{
+        (0, eval)(compiled);
+      }catch(evalErr){
+        // 快取損毀時清掉重載一次，用 sessionStorage 標記避免無限重整
+        if(cached && !sessionStorage.getItem('tap_admin_cache_retried')){
+          try{ sessionStorage.setItem('tap_admin_cache_retried','1'); localStorage.removeItem(CACHE_KEY); }catch(e){}
+          location.reload();
+          return;
+        }
+        throw evalErr;
+      }
+      try{ sessionStorage.removeItem('tap_admin_cache_retried'); }catch(e){}
     })
     .catch(function(err){
       showError('必要程式庫載入失敗，畫面因此空白。\n原因：' + err.message + '\n\n最常見情況：瀏覽器擴充功能（例如廣告攔截/隱私保護外掛）封鎖了 unpkg.com 或 jsdelivr.net，或目前網路無法連線到這兩個網域。\n\n請嘗試：\n1. 停用廣告攔截類擴充功能後重新整理本頁\n2. 改用無痕視窗開啟同一網址測試\n3. 確認網路能連上 unpkg.com 與 cdn.jsdelivr.net');
