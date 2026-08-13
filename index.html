@@ -1662,6 +1662,34 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 </div>
               )}
 
+              {/* 特休不在 quotas 裡（它的分母是個人核定時數、不是法定上限），所以另外畫一條。
+                  後端 createRequest 對特休超額一樣會擋，這裡的紅色狀態與那個檢核對應。 */}
+              {leaveBox.leaveType==='特休' && balances && (()=>{
+                const granted = Number(balances.annualGranted)||0;
+                const used = Number(balances.annualUsed)||0;
+                const remain = Math.max(0, Number(balances.annualRemain)||0);
+                const day = h => (Math.round(h/8*10)/10);
+                if(granted <= 0) return (
+                  <div style={{marginTop:8, padding:'10px 12px', border:'1px solid var(--line,#3a3a3a)', borderRadius:8, fontSize:12, opacity:.75}}>
+                    本年度尚無特休核定時數，請洽管理部
+                  </div>
+                );
+                const pct = Math.min(100, Math.round(used/granted*100));
+                const full = remain <= 0;
+                return (
+                  <div style={{marginTop:8, padding:'10px 12px', border:'1px solid var(--line,#3a3a3a)', borderRadius:8}}>
+                    <div style={{display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:5}}>
+                      <span>特休　本年度核定 {day(granted)} 日</span>
+                      <span style={{fontVariantNumeric:'tabular-nums'}}>已休 {day(used)} 日 · 剩 {day(remain)} 日</span>
+                    </div>
+                    <div style={{height:6, borderRadius:3, background:'rgba(128,128,128,.25)', overflow:'hidden'}}>
+                      <div style={{height:'100%', width:pct+'%', background: full ? '#c05a4f' : 'var(--gold,#00ADB5)'}}></div>
+                    </div>
+                    {full && <div style={{fontSize:11.5, color:'#c05a4f', marginTop:5}}>特休已休完，本次申請會被系統擋下</div>}
+                  </div>
+                );
+              })()}
+
               {/* 法定假別的額度條：選了假別就顯示已用／剩餘，讓員工送出前就知道，而不是被擋下來才發現 */}
               {quotas && quotas[leaveBox.leaveType] && (()=>{
                 const q = quotas[leaveBox.leaveType];
