@@ -3217,7 +3217,7 @@ function RequestsTab({month, employees}){
     }catch(e){ alert(e.message); }
     finally{ setBusy(false); }
   }
-  const STATUS_BADGE = {'待審核':'warn', '已核准':'', '已駁回':'warn', '已取消':''};
+  const STATUS_BADGE = {'待審核':'warn', '初核通過':'warn', '已核准':'', '已駁回':'warn', '已取消':''};
 
   // 員工篩選在前端做：資料本來就都在手上，不必為了篩選再打一次 API（省一趟往返）
   const shownList = useMemo(
@@ -3237,7 +3237,8 @@ function RequestsTab({month, employees}){
         <label style={{marginBottom:0}}>狀態</label>
         <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
           <option value="">全部</option>
-          <option value="待審核">待審核</option>
+          <option value="待審核">待審核（等主管初核）</option>
+          <option value="初核通過">初核通過（等我複核）</option>
           <option value="已核准">已核准</option>
           <option value="已駁回">已駁回</option>
           <option value="已取消">已取消</option>
@@ -3269,12 +3270,15 @@ function RequestsTab({month, employees}){
                   <td className="center">{r.delegateName || '-'}</td>
                   <td className="center">{r.reason}</td>
                   <td className="center">{r.attachmentUrl ? <a href={r.attachmentUrl} target="_blank" rel="noopener"><span className="material-icons" style={{fontSize:18}}>attachment</span></a> : '-'}</td>
-                  <td className="center">{r.status==='待審核' ? <span className="badge warn">待審核</span> : <span className="badge">{r.status}</span>}</td>
+                  <td className="center">{(r.status==='待審核'||r.status==='初核通過') ? <span className="badge warn">{r.status}</span> : <span className="badge">{r.status}</span>}</td>
                   <td className="center">{r.reviewer}{r.reviewComment ? '（'+r.reviewComment+'）' : ''}</td>
                   <td className="center">
-                    {r.status==='待審核' && (
+                    {(r.status==='待審核' || r.status==='初核通過') && (
                       <>
-                        <button className="ghost sm" onClick={()=>setReviewBox({req:r, mode:'approve', comment:''})}>核准</button>{' '}
+                        {/* 管理者核「待審核」等於一次完成兩段；核「初核通過」則是第二關定案 */}
+                        <button className="ghost sm" onClick={()=>setReviewBox({req:r, mode:'approve', comment:''})}>
+                          {r.status==='初核通過' ? '確認核准' : '核准'}
+                        </button>{' '}
                         <button className="danger sm" onClick={()=>setReviewBox({req:r, mode:'reject', comment:''})}>駁回</button>
                       </>
                     )}

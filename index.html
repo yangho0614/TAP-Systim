@@ -629,7 +629,9 @@ function formatDateReadable(dateValue){
   return `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}（${dow}）`;
 }
 const LEAVE_TYPES = ['特休', '補休', '事假', '病假', '生理假', '婚假', '喪假', '公假', '公傷病假', '產假', '產檢假', '陪產假', '家庭照顧假', '災防假'];
-const STATUS_CLASS = {'待審核':'pending', '已核准':'ok', '已駁回':'no', '已取消':'cancel'};
+const STATUS_CLASS = {'待審核':'pending', '初核通過':'pending', '已核准':'ok', '已駁回':'no', '已取消':'cancel'};
+// 兩段簽核：主管初核後仍未定案，薪資要等管理者複核才計入，這裡讓員工看得懂目前卡在哪一關
+const STATUS_HINT = {'待審核':'等待主管審核', '初核通過':'主管已核可，待管理者確認'};
 
 /* ========================= 登入畫面 ========================= */
 /* ========================= 自訂日期時間選擇器 ========================= */
@@ -1610,9 +1612,10 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
             {reqSummary(r)}
             {r.reason && <><br/>事由：{r.reason}</>}
             {r.attachmentUrl && <><br/><a href={r.attachmentUrl} target="_blank" rel="noopener" style={{color:'var(--gold)'}}>查看附件</a></>}
+            {STATUS_HINT[r.status] && <><br/><span style={{color:'var(--gold)'}}>{STATUS_HINT[r.status]}</span></>}
             {r.reviewer && <><br/>審核：{r.reviewer}{r.reviewComment ? '（' + r.reviewComment + '）' : ''}</>}
           </div>
-          {r.status==='待審核' && (
+          {(r.status==='待審核' || r.status==='初核通過') && (
             <div className="req-actions">
               <button className="btn-cancel-req" onClick={()=>cancelReq(r.id)}>取消申請</button>
             </div>
