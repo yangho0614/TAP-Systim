@@ -709,6 +709,7 @@ function App(){
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState(null);
+  const [settingsCategory, setSettingsCategory] = useState('basic'); // 供其他頁面深連結到指定的設定分頁
   useEffect(()=>{
     const brand = settings?.storeName || '';
     if(settings?.adminTitle) document.title = brand ? `${brand} - ${settings.adminTitle}` : settings.adminTitle;
@@ -927,16 +928,16 @@ function App(){
           {tab==='holidays' && <HolidaysTab/>}
           {tab==='announcements' && <AnnouncementsTab/>}
           {tab==='accounts' && <AccountsTab employees={employees}/>}
-          {tab==='settings' && <SettingsTab onSaved={reloadSettings}/>}
+          {tab==='settings' && <SettingsTab onSaved={reloadSettings} key={settingsCategory} initialCategory={settingsCategory}/>}
         </div>
       </div>
-      <EmployeeEditModal editing={editingEmployee} setEditing={setEditingEmployee} isNew={isNewEmployee} saving={savingEmployee} onSave={saveEmployee} companies={companies} departments={departments} shifts={shifts} settings={settings}/>
+      <EmployeeEditModal editing={editingEmployee} setEditing={setEditingEmployee} isNew={isNewEmployee} saving={savingEmployee} onSave={saveEmployee} companies={companies} departments={departments} shifts={shifts} settings={settings} onGoSettings={cat=>{ setEditingEmployee(null); setSettingsCategory(cat); setTab('settings'); }}/>
     </div>
   );
 }
 
 /* ========================= 員工資料 ========================= */
-function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companies, departments, shifts, settings}){
+function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companies, departments, shifts, settings, onGoSettings}){
   const [resignPreview, setResignPreview] = useState(null);
   const [resignPreviewLoading, setResignPreviewLoading] = useState(false);
   useEffect(()=>{ setResignPreview(null); }, [editing && editing.id]);
@@ -1043,7 +1044,9 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
                     <span className="mono" style={{textAlign:'right', fontWeight:600, color: sug===Number(editing.insuranceGrade) ? 'inherit' : 'var(--danger)'}}>{sug.toLocaleString()}</span>
                   </div>
                   <div style={{marginTop:5}}>
-                    扣除項目可在「系統設定 → 請假與獎金規則」調整。實際級距以向勞保局申報的值為準，建議值僅供對照。
+                    扣除項目可在
+                    <a href="#" onClick={e=>{e.preventDefault(); onGoSettings && onGoSettings('leave');}} style={{color:'var(--brand)', textDecoration:'underline', margin:'0 2px'}}>系統設定 → 請假與獎金規則</a>
+                    調整（會離開此畫面，未儲存的變更會遺失）。實際級距以向勞保局申報的值為準，建議值僅供對照。
                   </div>
                 </div>
               );
@@ -1073,8 +1076,13 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
           <div className="field"><label>全勤獎金（固定）</label><input type="number" value={editing.fullAttendanceBonus} onChange={e=>setEditing({...editing, fullAttendanceBonus:Number(e.target.value)})} /></div>
 
-          <div className="field"><label>銀行</label><input value={editing.bankName} onChange={e=>setEditing({...editing, bankName:e.target.value})} /></div>
-          <div className="field"><label>銀行帳號</label><input value={editing.bankAccount} onChange={e=>setEditing({...editing, bankAccount:e.target.value})} /></div>
+          {/* 銀行與帳號併成同一格：銀行名稱較短放左，帳號放右 */}
+          <div className="field"><label>銀行 / 帳號</label>
+            <div style={{display:'flex', gap:6}}>
+              <input style={{flex:'0 0 40%', minWidth:0}} placeholder="銀行" value={editing.bankName} onChange={e=>setEditing({...editing, bankName:e.target.value})} />
+              <input style={{flex:'1 1 auto', minWidth:0}} placeholder="帳號" value={editing.bankAccount} onChange={e=>setEditing({...editing, bankAccount:e.target.value})} />
+            </div>
+          </div>
         </div>
         {editing.baseSalary>0 && (n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance)) < MIN_WAGE_MONTHLY && (
           <div className="hint" style={{color:'var(--danger)'}}>⚠ 本薪＋伙食＋交通＋職務加給合計 {money(n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance))} 元，低於2026年最低工資 {money(MIN_WAGE_MONTHLY)} 元，可能違反《最低工資法》（全勤獎金為條件式給予，不列入計算基準）</div>
@@ -3474,11 +3482,11 @@ function AnnouncementsTab(){
 }
 
 /* ========================= 系統設定 ========================= */
-function SettingsTab({onSaved}){
+function SettingsTab({onSaved, initialCategory}){
   const [s, setS] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
-  const [category, setCategory] = useState('basic');
+  const [category, setCategory] = useState(initialCategory || 'basic');
   const DOW = ['日','一','二','三','四','五','六'];
   const savedThemeRef = useRef('default'); // 記住「目前真正已儲存」的配色，離開頁面若沒按儲存要還原成這個
   const [companies, setCompanies] = useState([]);
