@@ -1666,14 +1666,21 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
               {quotas && quotas[leaveBox.leaveType] && (()=>{
                 const q = quotas[leaveBox.leaveType];
                 const used = Number(q.已用)||0, cap = Number(q.上限)||0;
-                const pct = cap ? Math.min(100, Math.round(used/cap*100)) : 0;
-                const full = used >= cap;
                 const day = h => (Math.round(h/8*10)/10);
+                // 事假與家庭照顧假共用全年 14 日上限（性平法第 20 條），所以「剩餘」要取兩個限制的
+                // 較小值，才會跟上方下拉選單的數字一致，也才不會顯示一個送出時反而被擋下來的額度。
+                const combined = quotas['家庭照顧假'] ? (Number(quotas['家庭照顧假'].併入事假合計)||0) : 0;
+                const shared = (leaveBox.leaveType==='事假' || leaveBox.leaveType==='家庭照顧假');
+                const remain = Math.max(0, shared
+                  ? Math.min(cap - used, (Number(quotas['事假'].上限)||0) - combined)
+                  : cap - used);
+                const pct = cap ? Math.min(100, Math.round((cap-remain)/cap*100)) : 0;
+                const full = remain <= 0;
                 return (
                   <div style={{marginTop:8, padding:'10px 12px', border:'1px solid var(--line,#3a3a3a)', borderRadius:8}}>
                     <div style={{display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:5}}>
                       <span>{leaveBox.leaveType}　{q.週期}上限 {day(cap)} 日</span>
-                      <span style={{fontVariantNumeric:'tabular-nums'}}>已用 {day(used)} 日 · 剩 {day(Math.max(0,cap-used))} 日</span>
+                      <span style={{fontVariantNumeric:'tabular-nums'}}>已用 {day(used)} 日 · 剩 {day(remain)} 日</span>
                     </div>
                     <div style={{height:6, borderRadius:3, background:'rgba(128,128,128,.25)', overflow:'hidden'}}>
                       <div style={{height:'100%', width:pct+'%', background: full ? '#c05a4f' : 'var(--gold,#00ADB5)'}}></div>
@@ -1681,11 +1688,13 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                     {full && <div style={{fontSize:11.5, color:'#c05a4f', marginTop:5}}>額度已用完，本次申請會被系統擋下</div>}
                     {leaveBox.leaveType==='家庭照顧假' && (
                       <div style={{fontSize:11.5, opacity:.7, marginTop:5}}>
-                        家庭照顧假的日數併入事假計算，兩者合計全年以 14 日為限（目前合計 {day(q.併入事假合計||0)} 日）
+                        家庭照顧假的日數併入事假計算，兩者合計全年以 14 日為限（目前合計 {day(combined)} 日）
                       </div>
                     )}
                     {leaveBox.leaveType==='事假' && (
-                      <div style={{fontSize:11.5, opacity:.7, marginTop:5}}>家庭照顧假的日數也會併入這個額度計算</div>
+                      <div style={{fontSize:11.5, opacity:.7, marginTop:5}}>
+                        家庭照顧假的日數也併入這個額度計算（目前合計 {day(combined)} 日）
+                      </div>
                     )}
                   </div>
                 );
