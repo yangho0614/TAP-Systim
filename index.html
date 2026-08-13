@@ -176,8 +176,10 @@
     body *{ visibility:hidden !important; }
     #payslip-print, #payslip-print *{ visibility:visible !important; }
     #payslip-print{
-      display:block !important; position:absolute; left:0; top:0; width:100%;
-      max-width:180mm; margin:0 auto; /* 避免在寬紙張上左右拉太開，標籤與金額離太遠不好讀 */
+      display:block !important; position:absolute; top:0;
+      /* 絕對定位要 left 與 right 同時有值，margin:auto 才會平分剩餘空間達成置中；
+         只給 left:0 的話會整份靠左。max-width 是避免在寬紙張上標籤與金額離太遠。 */
+      left:0; right:0; width:auto; max-width:180mm; margin:0 auto;
       background:#fff; color:#1a1a1a; font-size:12px;
     }
     #payslip-print .pp-title{ text-align:center; font-size:17px; font-weight:700; margin-bottom:2px; }
