@@ -905,10 +905,11 @@ function App(){
     setPayrollLoading(true);
     return apiGet('getPayrollEntries', {month:m}).then(data=>{ setPayrollEntries(data||{}); setDirty(false); }).catch(e=>alert(e.message)).finally(()=>setPayrollLoading(false));
   }
-  useEffect(()=>{ if(session) reloadEmployees(); }, [session]);
-  useEffect(()=>{ if(session) reloadPayroll(month); }, [session, month]);
-  useEffect(()=>{ if(session) reloadSettings(); }, [session]);
-  useEffect(()=>{ if(session) loadRefs(); }, [session]);
+  /* 首屏改走合併端點：原本登入後要連打 7 支請求（員工／薪資／設定／公司／部門／班別／出缺勤彙總），
+     每支都要各付一次 GAS 固定開銷（實測 2.5～15 秒），這是後台一直在等待的主因。
+     切換月份時也走同一支——雖然會多帶回員工與設定等不會變的資料，
+     但那些在後端都有快取、幾乎不花時間，比起多開一次連線划算得多。
+     個別的 reloadXxx() 保留，供存檔後的局部更新使用。 */
 
   function setEntry(empId, patch){
     setPayrollEntries(prev => ({...prev, [empId]: {...emptyEntry(), ...(prev[empId]||{}), ...patch}}));
@@ -922,14 +923,34 @@ function App(){
   }
   const [menstrualBaseline, setMenstrualBaseline] = useState({});
 
-  function refreshMenstrualBaseline(){
-    apiGet('getMonthlySummary', {month}).then(summary=>{
-      const map = {};
-      summary.forEach(s=>{ map[s.employeeId] = {menstrual: s.menstrualLeaveUsedBefore || 0, sick: s.sickLeaveUsedBefore || 0}; });
-      setMenstrualBaseline(map);
-    }).catch(()=>{});
+  function applyMenstrualBaseline(summary){
+    const map = {};
+    (summary||[]).forEach(s=>{ map[s.employeeId] = {menstrual: s.menstrualLeaveUsedBefore || 0, sick: s.sickLeaveUsedBefore || 0}; });
+    setMenstrualBaseline(map);
   }
-  useEffect(()=>{ if(session) refreshMenstrualBaseline(); }, [session, month]);
+  function refreshMenstrualBaseline(){
+    apiGet('getMonthlySummary', {month}).then(applyMenstrualBaseline).catch(()=>{});
+  }
+
+  // 後台首屏／換月份：一次請求取回全部所需資料（取代原本的 7 支）
+  function loadAdminBootstrap(m){
+    setEmployeesLoading(true);
+    setPayrollLoading(true);
+    return apiGet('getAdminBootstrap', {month:m})
+      .then(d=>{
+        // 後端每段各自 try/catch，單項失敗回 null，這裡沿用「拿不到就維持原值」的行為
+        if(d.employees) setEmployees(d.employees);
+        if(d.payrollEntries !== null && d.payrollEntries !== undefined){ setPayrollEntries(d.payrollEntries || {}); setDirty(false); }
+        if(d.settings) setSettings(d.settings);
+        if(d.companies) setCompanies(d.companies);
+        if(d.departments) setDepartments(d.departments);
+        if(d.shifts) setShifts(d.shifts);
+        if(d.monthlySummary) applyMenstrualBaseline(d.monthlySummary);
+      })
+      .catch(e=>alert(e.message))
+      .finally(()=>{ setEmployeesLoading(false); setPayrollLoading(false); });
+  }
+  useEffect(()=>{ if(session) loadAdminBootstrap(month); }, [session, month]);
 
   // 「套用出缺勤時數」會用打卡計算結果覆蓋薪資表的時數欄位，包括手動填過的值。
   // 為避免靜默蓋掉，改成兩段式：先算出差異給使用者確認，套用後再保留一份還原點供一鍵復原。
