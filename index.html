@@ -1029,12 +1029,13 @@ function HomePage({session, setSession, status, pendingCount, goForms, goNews, s
 }
 
 /* ========================= 修改密碼（Modal） ========================= */
-function ChangePasswordModal({onClose, showToast}){
+function ChangePasswordModal({onClose, showToast, forced}){
   const [pw, setPw] = useState({oldPassword:'', newPassword:'', confirm:''});
   const [saving, setSaving] = useState(false);
 
   async function changePw(){
     if(!pw.newPassword || pw.newPassword.length < 4){ showToast('新密碼至少 4 碼', 'err'); return; }
+    if(forced && pw.newPassword === pw.oldPassword){ showToast('新密碼不能與預設密碼相同', 'err'); return; }
     if(pw.newPassword !== pw.confirm){ showToast('兩次輸入的新密碼不一致', 'err'); return; }
     setSaving(true);
     try{
@@ -1048,13 +1049,19 @@ function ChangePasswordModal({onClose, showToast}){
   return (
     <div className="modal-bg">
       <div className="modal">
-        <h3><span className="material-icons">lock_reset</span>修改密碼</h3>
+        <h3><span className="material-icons">lock_reset</span>{forced ? '請先設定你的密碼' : '修改密碼'}</h3>
+        {forced && (
+          <div className="hint" style={{marginBottom:10, lineHeight:1.7}}>
+            你目前使用的是公司提供的預設密碼 <b>1234</b>。為了保護你的薪資與個人資料，
+            <b>首次登入必須先改成只有你知道的密碼</b>，改完才能使用其他功能。
+          </div>
+        )}
         <div className="field"><label>原密碼</label><input type="password" value={pw.oldPassword} onChange={e=>setPw({...pw,oldPassword:e.target.value})} /></div>
         <div className="field"><label>新密碼（至少4碼）</label><input type="password" value={pw.newPassword} onChange={e=>setPw({...pw,newPassword:e.target.value})} /></div>
         <div className="field"><label>再次輸入新密碼</label><input type="password" value={pw.confirm} onChange={e=>setPw({...pw,confirm:e.target.value})} /></div>
         <div className="modal-actions">
-          <button className="stay" onClick={onClose}>取消</button>
-          <button className="go" onClick={changePw} disabled={saving}>{saving?'儲存中...':'確認修改'}</button>
+          {!forced && <button className="stay" onClick={onClose}>取消</button>}
+          <button className="go" onClick={changePw} disabled={saving}>{saving?'儲存中...':(forced?'設定密碼':'確認修改')}</button>
         </div>
       </div>
     </div>
@@ -2275,6 +2282,11 @@ function App(){
         </>
       )}
       {pwOpen && <ChangePasswordModal onClose={()=>setPwOpen(false)} showToast={showToast} />}
+      {/* 管理者建立帳號或重設密碼後，員工首次登入必須先自行變更密碼才能使用系統 */}
+      {session?.mustChangePassword && !pwOpen && (
+        <ChangePasswordModal forced showToast={showToast}
+          onClose={()=>setSession(prev=>({...prev, mustChangePassword:false}))} />
+      )}
       {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
     </div>
   );
