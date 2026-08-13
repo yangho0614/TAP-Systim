@@ -1108,7 +1108,7 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
                 {resignPreview && (
                   <div className="hint" style={{marginTop:6, background:'var(--bg-soft, #f5f5f5)', padding:8, borderRadius:6, lineHeight:1.7}}>
                     週年制重新計算期間：{resignPreview.periodStart} ～ {resignPreview.periodEnd}<br/>
-                    應有 {resignPreview.entitledDays} 天，已休 {resignPreview.usedDays} 天，可結算 {resignPreview.settleDays} 天（{resignPreview.settleHours}小時）<br/>
+                    應有 {trimNum(resignPreview.entitledDays,1)} 天，已休 {trimNum(resignPreview.usedDays,1)} 天，可結算 {trimNum(resignPreview.settleDays,1)} 天（{trimNum(resignPreview.settleHours,1)} 小時）<br/>
                     {resignPreview.overUsed && <span style={{color:'var(--danger)'}}>⚠ 已超休 {resignPreview.overDays} 天，公司不能扣薪，結算金額以0計<br/></span>}
                     以本薪 {money(editing.baseSalary)} 估算，結算金額約 <b>{money(resignPreview.settlePay)}</b> 元
                     <div style={{marginTop:4, color:'var(--muted, #888)'}}>正式金額請至「薪資結算」頁該員工當月薪資列，按同樣的試算按鈕帶入。</div>
@@ -2072,13 +2072,13 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             <div className="hint" style={{marginBottom:10}}>依「特休設定」裡的核定時數與已使用時數，試算每位員工剩餘特休折算的金額。確認無誤後按「套用」，會自動填入下方「特休結算」欄位，仍可個別手動調整。</div>
             {settleBox.loading ? <div className="hint">試算中...</div> : (
               <table>
-                <thead><tr><th className="left">姓名</th><th>剩餘時數</th><th className="left">算式</th><th>結算金額</th></tr></thead>
+                <thead><tr><th className="left">姓名</th><th>剩餘時數 / 天數</th><th className="left">算式</th><th>結算金額</th></tr></thead>
                 <tbody>
                   {settleBox.items.map(it=>(
                     <tr key={it.employeeId}>
-                      <td className="left">{it.name}{it.overUsed && <div className="hint" style={{color:'var(--danger)'}}>⚠ 已超休 {it.overHours} 小時，公司不能扣薪，金額以0計</div>}</td>
-                      <td>{it.remainHours}</td>
-                      <td className="left hint">{it.remainHours} hr × {it.hourly} 元/hr =</td>
+                      <td className="left">{it.name}{it.overUsed && <div className="hint" style={{color:'var(--danger)'}}>⚠ 已超休 {trimNum(it.overHours,1)} 小時（{trimNum(it.overHours/8,1)} 天），公司不能扣薪，金額以0計</div>}</td>
+                      <td>{trimNum(it.remainHours,1)}<span className="hint" style={{marginLeft:4}}>（{trimNum(it.remainHours/8,1)} 天）</span></td>
+                      <td className="left hint">{trimNum(it.remainHours,1)} hr × {it.hourly} 元/hr =</td>
                       <td><b>{money(it.amount)}</b></td>
                     </tr>
                   ))}
@@ -2131,7 +2131,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
                   <tbody>
                     <tr><td className="left">重新計算期間</td><td>{resignRowBox.data.periodStart} ～ {resignRowBox.data.periodEnd}</td></tr>
                     <tr><td className="left">應有天數</td><td>{resignRowBox.data.entitledDays} 天</td></tr>
-                    <tr><td className="left">已休天數</td><td>{resignRowBox.data.usedDays} 天（{resignRowBox.data.usedHours} 小時）</td></tr>
+                    <tr><td className="left">已休天數</td><td>{trimNum(resignRowBox.data.usedDays,1)} 天（{trimNum(resignRowBox.data.usedHours,1)} 小時）</td></tr>
                     <tr><td className="left">可結算天數</td><td><b>{resignRowBox.data.settleDays} 天</b>（{resignRowBox.data.settleHours} 小時）</td></tr>
                     <tr><td className="left">日薪基準</td><td>{money(resignRowBox.data.dailyWage)}</td></tr>
                     <tr><td className="left">結算金額</td><td><b>{money(resignRowBox.data.settlePay)}</b></td></tr>
@@ -3148,7 +3148,7 @@ function AnnualLeaveTab({employees}){
               <col style={{width:'10%'}} /><col style={{width:'12%'}} /><col style={{width:'10%'}} />
               <col style={{width:'10%'}} /><col style={{width:'17%'}} />
             </colgroup>
-            <thead><tr><th className="center">姓名</th><th className="center">部門</th><th className="left">到職日</th><th className="center">核定天數</th><th className="center">核定時數</th><th className="center">已用(hr)</th><th className="center">剩餘(hr)</th><th className="center">操作</th></tr></thead>
+            <thead><tr><th className="center">姓名</th><th className="center">部門</th><th className="left">到職日</th><th className="center">核定天數</th><th className="center">核定時數</th><th className="center">已用</th><th className="center">剩餘</th><th className="center">操作</th></tr></thead>
             <tbody>
               {employees.map(emp=>{
                 const granted = data.granted[emp.id] ? data.granted[emp.id].hours : 0;
@@ -3162,8 +3162,11 @@ function AnnualLeaveTab({employees}){
                     <td className="left">{emp.hireDate ? rocDate(emp.hireDate) : '-'}</td>
                     <td className="center hint">{editDays} 天</td>
                     <td className="center"><input type="number" min="0" step="0.01" value={editVal} onChange={e=>setEdits({...edits, [emp.id]: e.target.value})} style={{width:80, textAlign:'center'}} /></td>
-                    <td className="center">{trimNum(used, 2)}</td>
-                    <td className={'center' + (granted-used < 8 ? ' flag' : '')}>{trimNum(Math.max(0, granted-used), 2)}</td>
+                    <td className="center">{trimNum(used, 1)}<span className="hint" style={{marginLeft:4}}>（{trimNum(used/8, 1)} 天）</span></td>
+                    <td className={'center' + (granted-used < 8 ? ' flag' : '')}>
+                      {trimNum(Math.max(0, granted-used), 1)}
+                      <span className="hint" style={{marginLeft:4}}>（{trimNum(Math.max(0, granted-used)/8, 1)} 天）</span>
+                    </td>
                     <td className="center">
                       <button className="ghost sm" onClick={()=>estimate(emp.id)} disabled={estimatingId===emp.id || !emp.hireDate} title={!emp.hireDate?'請先設定到職日':''}>{estimatingId===emp.id?'試算中':'試算'}</button>{' '}
                       <button className="ghost sm" onClick={()=>save(emp.id)} disabled={savingId===emp.id}>{savingId===emp.id?'儲存中':'儲存'}</button>

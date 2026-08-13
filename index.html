@@ -315,6 +315,8 @@
 
 <script type="text/plain" id="app-src">
 const {useState, useEffect, useMemo, useRef} = React;
+// 時數／天數一律取小數一位，末尾的 .0 去掉
+function trim1(v){ const x = Math.round((Number(v)||0)*10)/10; return String(x); }
 
 /* ⚠️ 部署 Code.gs 為網頁應用程式後，把網址貼在這裡 */
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzW7073VQtPGa9cIn-pBNdfLClDdkEn8eBGVzDSkv26ZZWiHGcD5wikhx7KL5l4mlsC/exec';
@@ -1399,7 +1401,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
     <div className="page">
       {balances && (
         <div className="balance-row">
-          <div className="balance-cell"><div className="num">{balances.annualRemain}</div><div className="lbl">特休剩餘（小時）</div></div>
+          <div className="balance-cell"><div className="num">{trim1(balances.annualRemain)}</div><div className="lbl">特休剩餘　{trim1(balances.annualRemain/8)} 天</div></div>
           <div className="balance-cell"><div className="num">{balances.compRemain}</div><div className="lbl">補休剩餘（小時）</div></div>
         </div>
       )}
@@ -1473,8 +1475,8 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 <option value="">請選擇</option>
                 {LEAVE_TYPES.filter(t=> t!=='生理假' || session.employee?.gender !== '男').map(t=>{
                   let extra = '';
-                  if(t==='特休' && balances) extra = `（剩 ${balances.annualRemain} 小時）`;
-                  if(t==='補休' && balances) extra = `（剩 ${balances.compRemain} 小時）`;
+                  if(t==='特休' && balances) extra = `（剩 ${trim1(balances.annualRemain)} 小時 / ${trim1(balances.annualRemain/8)} 天）`;
+                  if(t==='補休' && balances) extra = `（剩 ${trim1(balances.compRemain)} 小時 / ${trim1(balances.compRemain/8)} 天）`;
                   if(t==='生理假' && menstrualStatus) extra = `（今年已用 ${menstrualStatus.usedHours} hr，剩 ${menstrualStatus.remainingFullPayHours} hr 全薪）`;
                   return <option key={t} value={t}>{t}{extra}</option>;
                 })}
