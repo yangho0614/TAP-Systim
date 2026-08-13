@@ -1110,7 +1110,7 @@ function App(){
           {tab==='dashboard' && <DashboardTab setTab={setTab}/>}
           {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees} onEdit={openEditEmployee} onNew={openNewEmployee} accountBox={accountBox} setAccountBox={setAccountBox} createAccountSubmit={createAccountSubmit}/>}
           {tab==='records' && <RecordsTab employees={employees} month={month}/>}
-          {tab==='requests' && <RequestsTab month={month}/>}
+          {tab==='requests' && <RequestsTab month={month} employees={employees}/>}
           {tab==='annual' && <AnnualLeaveTab employees={employees}/>}
           {tab==='comp' && <CompLedgerTab employees={employees}/>}
           {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}/>}
@@ -3167,8 +3167,14 @@ function AccountsTab({employees}){
 }
 
 /* ========================= 假單審核 ========================= */
-function RequestsTab({month}){
+function RequestsTab({month, employees}){
   const [list, setList] = useState([]);
+  // 申請單本身沒有存員工類型，用員工ID對照員工主檔取得（避免另外打一支 API）
+  const empTypeById = useMemo(()=>{
+    const m = {};
+    (employees||[]).forEach(e=>{ m[e.id] = e.employeeType || '正式員工'; });
+    return m;
+  }, [employees]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [reviewBox, setReviewBox] = useState(null);
@@ -3209,11 +3215,13 @@ function RequestsTab({month}){
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
-            <thead><tr><th className="center">姓名</th><th className="center">類型</th><th className="center">假別</th><th className="center">起訖 / 加班日期</th><th className="center">時數</th><th className="center">代理人</th><th className="center">事由</th><th className="center">附件</th><th className="center">狀態</th><th className="center">審核人</th><th className="center">操作</th></tr></thead>
+            <thead><tr><th className="center">姓名</th><th className="center">員工類型</th><th className="center">類型</th><th className="center">假別</th><th className="center">起訖 / 加班日期</th><th className="center">時數</th><th className="center">代理人</th><th className="center">事由</th><th className="center">附件</th><th className="center">狀態</th><th className="center">審核人</th><th className="center">操作</th></tr></thead>
             <tbody>
               {list.map(r=>(
                 <tr key={r.id}>
                   <td className="center"><b>{r.name}</b></td>
+                  <td className="center">{(()=>{ const t = empTypeById[r.employeeId] || '—';
+                    return t === '正式員工' ? <span className="hint">{t}</span> : <span className="badge warn">{t}</span>; })()}</td>
                   <td className="center">{r.type}</td>
                   <td className="center">{r.leaveType || '-'}</td>
                   <td className="center">{r.type==='請假' ? (withWeekday(r.startTime) + ' ~ ' + withWeekday(r.endTime)) : withWeekday(String(r.startTime).split(' ')[0])}</td>
@@ -3233,7 +3241,7 @@ function RequestsTab({month}){
                   </td>
                 </tr>
               ))}
-              {list.length===0 && <tr><td colSpan="11" className="hint" style={{textAlign:'center'}}>本月尚無申請單</td></tr>}
+              {list.length===0 && <tr><td colSpan="12" className="hint" style={{textAlign:'center'}}>本月尚無申請單</td></tr>}
             </tbody>
           </table>
         )}
