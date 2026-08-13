@@ -2035,7 +2035,12 @@ function NewsPage({showToast, onMarkedRead}){
 
 /* ========================= 薪資條（Modal） ========================= */
 function PayslipModal({onClose, showToast}){
-  const [month, setMonth] = useState(()=>{ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); });
+  // 預設帶「上個月」：當月薪資要到次月 6 日才結算產出，開當月一定是空的。
+  // setMonth(0 值) 會自動退到前一年 12 月，跨年不必特別處理。
+  const [month, setMonth] = useState(()=>{
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-1);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  });
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
