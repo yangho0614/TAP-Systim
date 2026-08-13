@@ -80,6 +80,14 @@
   thead .col-deduct{background:#F5D6CE;}
   thead .col-result{background:#F3E0A0;}
   .card{background:var(--paper-2); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:18px;}
+  .mobile-warn{display:none;}
+  @media (max-width: 820px){
+    .mobile-warn{
+      display:flex; gap:10px; align-items:flex-start;
+      background:#FBF1DE; border:1px solid #E8C88A; color:#8A5A00;
+      border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:13px; line-height:1.6;
+    }
+  }
   .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:0 18px;}
   .badge{display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:2px 9px; border-radius:20px; background:#D6F1F2; color:var(--brand-dark); font-weight:700;}
   .badge.warn{background:#f6d9ce; color:#7a3b1e;}
@@ -1640,6 +1648,10 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
     setOpenGroups(GROUPS.filter(g=>groupCounts[g.key]>0).map(g=>g.key));
   }, [rows.length, groupCounts]);
   const shown = k => !openGroups || openGroups.indexOf(k) !== -1;
+  // 本月是否已有任何輸入或鎖定紀錄，用來決定要不要顯示空狀態引導
+  const hasAnyEntry = useMemo(()=> rows.some(({entry})=>
+    entry.locked || Object.keys(entry).some(k=> typeof entry[k]==='number' && entry[k]!==0)
+  ), [rows]);
   const toggleGroup = k => setOpenGroups(prev => {
     const cur = prev || GROUPS.map(g=>g.key);
     return cur.indexOf(k)===-1 ? cur.concat([k]) : cur.filter(x=>x!==k);
@@ -1812,6 +1824,22 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
         </div>
       )}
 
+      <div className="mobile-warn no-print">
+        <span className="material-icons" style={{fontSize:19}}>devices</span>
+        <div><b>建議用電腦操作</b><br/>薪資明細有 20 餘欄，手機畫面需要大量左右滑動，容易點錯格子。查看金額可用「整月總覽」頁籤，編輯請用電腦。</div>
+      </div>
+      {subTab==='06' && !loading && rows.length>0 && !hasAnyEntry && (
+        <div className="card" style={{textAlign:'center', padding:'26px 18px', marginBottom:14}}>
+          <span className="material-icons" style={{fontSize:30, opacity:.35}}>event_note</span>
+          <div style={{fontWeight:700, marginTop:6}}>{monthLabel(month)}尚無薪資紀錄</div>
+          <div className="hint" style={{marginTop:4}}>
+            先按「套用出缺勤時數」把打卡資料帶進來，再補上獎金與 26 日項目，最後按「儲存薪資紀錄」。
+          </div>
+          <div style={{marginTop:12}}>
+            <button onClick={onApply} disabled={allLocked}>套用出缺勤時數</button>
+          </div>
+        </div>
+      )}
       {subTab==='06' && !loading && rows.length>0 && (
         <div className="no-print" style={{display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', margin:'0 0 10px'}}>
           <span className="hint" style={{marginRight:2}}>顯示欄位</span>
@@ -2397,6 +2425,10 @@ function PayrollRegisterTab(){
     setOpenGroups(GROUPS.filter(g=>groupCounts[g.key]>0).map(g=>g.key));
   }, [rows.length, groupCounts]);
   const shown = k => !openGroups || openGroups.indexOf(k) !== -1;
+  // 本月是否已有任何輸入或鎖定紀錄，用來決定要不要顯示空狀態引導
+  const hasAnyEntry = useMemo(()=> rows.some(({entry})=>
+    entry.locked || Object.keys(entry).some(k=> typeof entry[k]==='number' && entry[k]!==0)
+  ), [rows]);
   const toggleGroup = k => setOpenGroups(prev => {
     const cur = prev || GROUPS.map(g=>g.key);
     return cur.indexOf(k)===-1 ? cur.concat([k]) : cur.filter(x=>x!==k);
