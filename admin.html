@@ -717,7 +717,7 @@ function App(){
   function openNewEmployee(){
     setEditingEmployee({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
       mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
-      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false,
+      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false, employeeType:'正式員工',
       nationalId:'', householdAddress:'', dependentCount:0, resignDate:'', gender:'', transportAllowanceMode:'fixed', tenureBreakStart:'', tenureBreakEnd:''});
     setIsNewEmployee(true);
   }
@@ -1038,9 +1038,22 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           <input type="checkbox" checked={editing.canBeDelegate !== false} onChange={e=>setEditing({...editing, canBeDelegate:e.target.checked})} style={{width:'auto'}} />
           可被員工指定為請假代理人
         </label>
+        <div className="field">
+          <label>員工類型</label>
+          <select value={editing.employeeType || '正式員工'} onChange={e=>setEditing({...editing, employeeType:e.target.value})} style={{width:'100%'}}>
+            <option value="正式員工">正式員工（受僱勞工，需打卡，適用特休與加班費）</option>
+            <option value="負責人">負責人（委任關係非勞工，不需出勤紀錄，不適用特休與加班費）</option>
+            <option value="非正式員工">非正式員工（外包／兼職，不需打卡）</option>
+          </select>
+          <div className="hint" style={{marginTop:4}}>
+            {(editing.employeeType && editing.employeeType !== '正式員工')
+              ? '此類型已自動視為免打卡，不列入出缺勤彙總、今日打卡統計與特休試算。'
+              : '正式員工需打卡；若個別情況不需打卡（例如外派、彈性工時），可另外勾選下方的免打卡。'}
+          </div>
+        </div>
         <label style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)', marginTop:6}}>
           <input type="checkbox" checked={editing.exemptFromAttendance === true} onChange={e=>setEditing({...editing, exemptFromAttendance:e.target.checked})} style={{width:'auto'}} />
-          免打卡（不列入出缺勤彙總與薪資自動試算，薪資項目需手動填寫，如業務費用）
+          免打卡（個別例外用；不列入出缺勤彙總與薪資自動試算，薪資項目需手動填寫）
         </label>
         {editing.hireDate && <div className="hint">{tenureText(editing.hireDate, editing.tenureBreakStart, editing.tenureBreakEnd)}</div>}
         <div className="modal-actions">
@@ -1087,7 +1100,7 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
                   {employees.filter(e=>(e.company||'(未分類)')===co).map(emp=>(
                     <tr key={emp.id}>
                       <td className="left">{emp.department}</td>
-                      <td className="left" style={{cursor:'pointer'}} onClick={()=>onEdit(emp)}><b>{emp.name}</b>{emp.exemptFromAttendance && <span className="badge warn" style={{marginLeft:6}}>免打卡</span>}</td>
+                      <td className="left" style={{cursor:'pointer'}} onClick={()=>onEdit(emp)}><b>{emp.name}</b>{emp.employeeType && emp.employeeType !== '正式員工' && <span className="badge warn" style={{marginLeft:6}}>{emp.employeeType}</span>}{emp.exemptFromAttendance && (!emp.employeeType || emp.employeeType === '正式員工') && <span className="badge warn" style={{marginLeft:6}}>免打卡</span>}</td>
                       <td className="left mono">{emp.phone}</td>
                       <td>{emp.shift ? emp.shift.name : <span className="hint">預設</span>}</td>
                       <td>{emp.hireDate || '-'}</td>
@@ -1155,7 +1168,7 @@ function RecordsTab({employees, month}){
   const companies = ['全部', ...Array.from(new Set(employees.map(e=>e.company||'(未分類)')))];
   const namesInCompany = filterCompany==='全部' ? employees : employees.filter(e=>(e.company||'(未分類)')===filterCompany);
   const namesWithRecords = new Set(records.map(r=>r.name)); // 免打卡員工若本月確實有紀錄（例如手動補登），還是要能被篩選到
-  const eligibleForFilter = namesInCompany.filter(e=>!e.exemptFromAttendance || namesWithRecords.has(e.name));
+  const eligibleForFilter = namesInCompany.filter(e=>!(e.exemptFromAttendance || (e.employeeType && e.employeeType!=='正式員工')) || namesWithRecords.has(e.name));
   const names = ['全部', ...Array.from(new Set(eligibleForFilter.map(e=>e.name)))];
 
   const filtered = records.filter(r=>{
