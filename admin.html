@@ -372,13 +372,24 @@ function suggestGrade(salary){
   const c = sorted.find(r => r.grade >= s);
   return c ? c.grade : sorted[sorted.length-1].grade;
 }
-/* 投保基準＝本薪合計扣除伙食津貼、交通津貼、職務加給（公司現行做法，這三項不計入投保薪資）。
-   全勤獎金自2026年8月起因法規變動已併入本薪，計入投保基準，所以不扣除。 */
-function insuranceBase(emp){
+/* 投保基準＝本薪合計扣掉「不計入投保薪資」的津貼。
+   哪幾項要計入由「系統設定 → 請假與獎金規則」控制，預設伙食／交通／職務不計入、全勤計入。
+   回傳算式明細供畫面條列顯示。 */
+function insuranceBaseDetail(emp, settings){
   const v = x => Number(x)||0;
-  const base = v(emp.baseSalary) - v(emp.mealAllowance) - v(emp.transportAllowance) - v(emp.positionAllowance);
-  return base > 0 ? base : 0;
+  const s = settings || {};
+  const on = key => s[key] === '是' || s[key] === true;
+  const items = [
+    {label:'伙食津貼', amount:v(emp.mealAllowance), included:on('insIncludeMeal')},
+    {label:'交通津貼', amount:v(emp.transportAllowance), included:on('insIncludeTransport')},
+    {label:'職務加給', amount:v(emp.positionAllowance), included:on('insIncludePosition')},
+    {label:'全勤獎金', amount:v(emp.fullAttendanceBonus), included:s.insIncludeFullAttendance === undefined ? true : on('insIncludeFullAttendance')}
+  ];
+  const deducted = items.filter(x=>!x.included && x.amount>0);
+  const base = Math.max(0, v(emp.baseSalary) - deducted.reduce((a,b)=>a+b.amount,0));
+  return {base, deducted, items};
 }
+function insuranceBase(emp, settings){ return insuranceBaseDetail(emp, settings).base; }
 
 /* ========================= 台灣勞基法相關常數（115年/2026年適用） ========================= */
 const MIN_WAGE_MONTHLY = 29500;
@@ -919,13 +930,13 @@ function App(){
           {tab==='settings' && <SettingsTab onSaved={reloadSettings}/>}
         </div>
       </div>
-      <EmployeeEditModal editing={editingEmployee} setEditing={setEditingEmployee} isNew={isNewEmployee} saving={savingEmployee} onSave={saveEmployee} companies={companies} departments={departments} shifts={shifts}/>
+      <EmployeeEditModal editing={editingEmployee} setEditing={setEditingEmployee} isNew={isNewEmployee} saving={savingEmployee} onSave={saveEmployee} companies={companies} departments={departments} shifts={shifts} settings={settings}/>
     </div>
   );
 }
 
 /* ========================= 員工資料 ========================= */
-function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companies, departments, shifts}){
+function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companies, departments, shifts, settings}){
   const [resignPreview, setResignPreview] = useState(null);
   const [resignPreviewLoading, setResignPreviewLoading] = useState(false);
   useEffect(()=>{ setResignPreview(null); }, [editing && editing.id]);
@@ -1010,14 +1021,33 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
                 <option value={0}>未設定</option>
                 {INSURANCE_TABLE.map(r=><option key={r.grade} value={r.grade}>{r.grade.toLocaleString()}</option>)}
               </select>
-              <button type="button" className="ghost sm" onClick={()=>setEditing({...editing, insuranceGrade: suggestGrade(insuranceBase(editing))})} title="依投保基準建議級距">依基準建議</button>
+              <button type="button" className="ghost sm" onClick={()=>setEditing({...editing, insuranceGrade: suggestGrade(insuranceBase(editing, settings))})} title="依投保基準建議級距">依基準建議</button>
             </div>
-            <div className="hint" style={{marginTop:4}}>
-              投保基準 <b>{money(insuranceBase(editing))}</b>
-              （本薪 {money(editing.baseSalary)} − 伙食 {money(editing.mealAllowance)} − 交通 {money(editing.transportAllowance)} − 職務 {money(editing.positionAllowance)}）
-              → 建議級距 <b>{suggestGrade(insuranceBase(editing)).toLocaleString()}</b>
-              <br/>這三項津貼依公司做法不計入投保薪資；全勤獎金自2026年8月起併入本薪，已計入基準。實際級距以向勞保局申報的值為準。
-            </div>
+            {(()=>{
+              const d = insuranceBaseDetail(editing, settings);
+              const sug = suggestGrade(d.base);
+              return (
+                <div className="hint" style={{marginTop:6}}>
+                  <div style={{display:'grid', gridTemplateColumns:'auto 1fr', columnGap:10, rowGap:3, maxWidth:240}}>
+                    <span>本薪合計</span>
+                    <span className="mono" style={{textAlign:'right'}}>{money(editing.baseSalary)}</span>
+                    {d.deducted.map(x=>(
+                      <React.Fragment key={x.label}>
+                        <span>− {x.label}</span>
+                        <span className="mono" style={{textAlign:'right'}}>{money(x.amount)}</span>
+                      </React.Fragment>
+                    ))}
+                    <span style={{borderTop:'1px solid var(--line)', paddingTop:3, fontWeight:600}}>投保基準</span>
+                    <span className="mono" style={{borderTop:'1px solid var(--line)', paddingTop:3, textAlign:'right', fontWeight:600}}>{money(d.base)}</span>
+                    <span style={{fontWeight:600, color: sug===Number(editing.insuranceGrade) ? 'inherit' : 'var(--danger)'}}>建議級距</span>
+                    <span className="mono" style={{textAlign:'right', fontWeight:600, color: sug===Number(editing.insuranceGrade) ? 'inherit' : 'var(--danger)'}}>{sug.toLocaleString()}</span>
+                  </div>
+                  <div style={{marginTop:5}}>
+                    扣除項目可在「系統設定 → 請假與獎金規則」調整。實際級距以向勞保局申報的值為準，建議值僅供對照。
+                  </div>
+                </div>
+              );
+            })()}
           </div>
           <div className="field">
             <label>健保眷屬人數（不含本人）</label>
@@ -1027,17 +1057,18 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           </div>
           <div className="field"><label>本薪</label><input type="number" value={editing.baseSalary} onChange={e=>setEditing({...editing, baseSalary:Number(e.target.value)})} /></div>
 
+          {/* 兩欄式排版：交通津貼與其計算方式排在同一列，方便對照 */}
           <div className="field"><label>伙食津貼</label><input type="number" value={editing.mealAllowance} onChange={e=>setEditing({...editing, mealAllowance:Number(e.target.value)})} /></div>
+          <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
+          <div className="field"><label>{editing.transportAllowanceMode==='daily' ? '每日補貼金額' : '交通津貼'}</label><input type="number" value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} />
+            {editing.transportAllowanceMode==='daily' && <div className="hint" style={{marginTop:4}}>系統會用「套用出缺勤時數」抓當月實際出勤天數 × 這個金額，自動算出當月交通津貼</div>}
+          </div>
           <div className="field"><label>交通津貼計算方式</label>
             <select value={editing.transportAllowanceMode||'fixed'} onChange={e=>setEditing({...editing, transportAllowanceMode:e.target.value})}>
               <option value="fixed">固定金額（每月）</option>
               <option value="daily">依出勤天數計算</option>
             </select>
           </div>
-          <div className="field"><label>{editing.transportAllowanceMode==='daily' ? '每日補貼金額' : '交通津貼'}</label><input type="number" value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} />
-            {editing.transportAllowanceMode==='daily' && <div className="hint" style={{marginTop:4}}>系統會用「套用出缺勤時數」抓當月實際出勤天數 × 這個金額，自動算出當月交通津貼</div>}
-          </div>
-          <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
           <div className="field"><label>全勤獎金（固定）</label><input type="number" value={editing.fullAttendanceBonus} onChange={e=>setEditing({...editing, fullAttendanceBonus:Number(e.target.value)})} /></div>
 
           <div className="field"><label>銀行</label><input value={editing.bankName} onChange={e=>setEditing({...editing, bankName:e.target.value})} /></div>
@@ -3658,6 +3689,28 @@ function SettingsTab({onSaved}){
         <div className="field"><label>補休到期提醒（到期前幾天）</label><input type="number" min="1" value={s.compExpireReminderDays} onChange={e=>setS({...s,compExpireReminderDays:e.target.value})} /></div>
       </div>
       <div className="hint">補休期限自核准日起算，依勞基法第32條之1，補休期限屆滿或契約終止仍未休完的時數，應依原加班費標準折算工資。</div>
+
+      <h3 style={{marginTop:18}}><span className="material-icons">shield</span> 投保薪資計算基準</h3>
+      <div className="hint" style={{marginTop:-4, marginBottom:8}}>
+        決定「員工資料」頁的投保級距建議值要用哪些項目加總。勾起來代表該項目計入投保薪資。
+        <b>這只影響建議值，不會自動改動任何人的投保級距</b>——實際級距一律以向勞保局申報的值為準。
+      </div>
+      <div style={{display:'flex', flexWrap:'wrap', gap:'6px 22px'}}>
+        {[
+          ['insIncludeMeal','伙食津貼'],
+          ['insIncludeTransport','交通津貼'],
+          ['insIncludePosition','職務加給'],
+          ['insIncludeFullAttendance','全勤獎金']
+        ].map(([key,label])=>(
+          <label key={key} style={{display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--ink)'}}>
+            <input type="checkbox" style={{width:'auto'}}
+              checked={(s[key]===undefined ? (key==='insIncludeFullAttendance') : s[key]==='是')}
+              onChange={e=>setS({...s,[key]:e.target.checked?'是':'否'})} />
+            {label}計入
+          </label>
+        ))}
+      </div>
+      <div className="hint" style={{marginTop:6}}>公司現行做法：伙食、交通、職務加給不計入；全勤獎金自2026年8月起因法規變動已併入本薪，故計入。</div>
 
       <h3 style={{marginTop:18}}><span className="material-icons">verified</span> 全勤獎金比例扣除</h3>
       <div className="hint" style={{marginTop:-4, marginBottom:8}}>依2026年新制《勞工請假規則》第9條，全勤獎金扣發不得「全有全無」，一律按比例計算。病假、事假時數會依比例自動扣（時數÷240）；婚喪公傷病假、公假、生理假等法定假別不受影響。「事假」欄位仍會合併家庭照顧假一起輸入（家庭照顧假依法併入事假計算），薪資條顯示時系統會自動拆開顯示兩者各自時數，方便員工核對。</div>
