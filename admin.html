@@ -894,6 +894,14 @@ function App(){
   // 換月份時清掉還原點與確認框，避免把 A 月的值復原到 B 月
   useEffect(()=>{ setApplyUndo(null); setApplyBox(null); }, [month]);
 
+  // 有未儲存的薪資異動時，關閉分頁或重新整理前提醒（切換月份的提醒在 setMonth 處另外處理）
+  useEffect(()=>{
+    if(!dirty) return;
+    const warn = e => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return ()=> window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
   const rows = useMemo(()=> employees.map(emp=>{
     const entry = payrollEntries[emp.id] || emptyEntry();
     return {emp, entry, calc: calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||{menstrual:0,sick:0}, month)};
@@ -1325,8 +1333,14 @@ function RecordsTab({employees, month}){
   async function saveEdit(){
     try{ await apiPost('adjustRecord', editing); setEditing(null); load(); }catch(e){ alert(e.message); }
   }
-  async function removeRecord(id){
-    if(!confirm('確定刪除這筆紀錄？')) return;
+  async function removeRecord(id, info){
+    const who = info ? `${info.date}　${info.name}　${info.checkIn||'—'} / ${info.checkOut||'—'}\n\n` : '';
+    if(!confirm(
+      '刪除打卡紀錄\n\n' + who +
+      '出勤紀錄依勞動基準法第 30 條應保存 5 年，未依規定保存可處 9 萬至 45 萬元罰鍰。\n' +
+      '本系統為永久刪除，刪除後無法還原，也無法在勞檢或勞資爭議時舉證。\n\n' +
+      '確定仍要刪除嗎？'
+    )) return;
     try{ await apiPost('deleteRecord', {id}); load(); }catch(e){ alert(e.message); }
   }
 
@@ -1396,7 +1410,7 @@ function RecordsTab({employees, month}){
                   <td className="center">{r.source}</td>
                   <td className="left">{r.note}</td>
                   <td><button className="ghost sm" onClick={()=>setEditing({id:r.id, checkIn:r.checkIn, checkOut:r.checkOut, note:r.note, lat:r.checkInLat||r.checkOutLat||'', lng:r.checkInLng||r.checkOutLng||''})}>修改</button>{' '}
-                      <button className="danger sm" onClick={()=>removeRecord(r.id)}>刪除</button></td>
+                      <button className="danger sm" onClick={()=>removeRecord(r.id, r)}>刪除</button></td>
                 </tr>
                 );
               })}
@@ -1652,7 +1666,12 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
     }catch(e){ alert(e.message); setLockBox(prev=>({...prev, saving:false})); }
   }
   async function doUnlock(){
-    if(!confirm(`確定要解除 ${month} 的鎖定嗎？解除後這個月的欄位就可以再編輯。`)) return;
+    if(!confirm(
+      `解除 ${month} 的鎖定\n\n` +
+      '解除後這個月可以再編輯，但要注意：重新鎖定時，系統會用「員工主檔當下的薪資結構」重新產生快照。\n' +
+      '若期間有人調薪或改過投保級距，這個月的歷史薪資條金額就會跟著變動。\n\n' +
+      '確定要解除嗎？'
+    )) return;
     setLocking(true);
     try{
       await apiPost('unlockPayrollMonth', {month});
@@ -1739,7 +1758,12 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
         {onUndoApply && <button className="ghost sm" onClick={onUndoApply} title="回到套用前的數值，儲存後即失效"><span className="material-icons" style={{fontSize:14}}>undo</span>復原套用</button>}
         <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
         <button className="ghost sm" onClick={doExport}>匯出 CSV</button>
-        <button onClick={onSave} disabled={saving || !dirty || allLocked}>{saving?'儲存中...':'儲存薪資紀錄'}</button>
+        <button onClick={onSave} disabled={saving || !dirty || allLocked}
+          style={dirty && !allLocked ? {position:'relative', boxShadow:'0 0 0 2px var(--danger)'} : null}
+          title={dirty ? '有未儲存的變更' : ''}>
+          {saving?'儲存中...':'儲存薪資紀錄'}
+          {dirty && !allLocked && <span style={{position:'absolute', top:-4, right:-4, width:9, height:9, borderRadius:'50%', background:'var(--danger)', border:'2px solid #fff'}}></span>}
+        </button>
       </div>
       <div className="toolbar no-print">
         <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍/其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3天全薪、第4天起50%）、災防假100%（公司採不支薪，惟不影響全勤與考績）；病假與生理假(超過3天部分)共用年度30天上限，超過後不給薪</span>
