@@ -2344,8 +2344,10 @@ function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseli
   useEffect(()=>{ apiGet('getHolidays').then(setHolidays).catch(()=>{}); }, []);
   const holidaySet = {}; holidays.forEach(h=>{ if(h.type==='國定假日') holidaySet[h.date]=true; });
   const [py, pm] = month.split('-').map(Number);
-  const payDate06 = getActualPayDateJS(py, pm, 6, holidaySet);
-  const payDate26 = getActualPayDateJS(py, pm, 26, holidaySet);
+  // 薪資於「次月」發放：計薪月份 2026-06 的實際發放日是 2026-07-06 與 2026-07-26（遇假日提前）。
+  // 傳 pm + 1，12 月變 13 時 new Date 會自動進位成隔年 1 月，年度交界不需另外處理。
+  const payDate06 = getActualPayDateJS(py, pm + 1, 6, holidaySet);
+  const payDate26 = getActualPayDateJS(py, pm + 1, 26, holidaySet);
   const list = selected==='all' ? employees : employees.filter(e=>e.id===selected);
   return (
     <div>
