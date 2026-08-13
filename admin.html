@@ -2892,9 +2892,22 @@ function AnnualLeaveTab({employees}){
 function DashboardTab({setTab}){
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [remind, setRemind] = useState(null); // 薪資作業提醒，失敗不影響其他統計顯示
 
-  function load(){ setLoading(true); apiGet('getDashboardStats').then(setStats).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
+  function load(){
+    setLoading(true);
+    apiGet('getDashboardStats').then(setStats).catch(e=>alert(e.message)).finally(()=>setLoading(false));
+    apiGet('getPayrollReminders').then(setRemind).catch(()=>setRemind(null));
+  }
   useEffect(load, []);
+
+  // 每月薪資分兩段（6日正常薪資、26日業務獎金與代墊費用），依今天幾號提示現在該做哪一段
+  const STAGE_STYLE = {
+    input06: {color:'var(--brand)', icon:'edit_calendar'},
+    input26: {color:'#c98a4b', icon:'payments'},
+    lock:    {color:'var(--danger)', icon:'lock'},
+    idle:    {color:'#8a9080', icon:'check_circle'}
+  };
 
   const CARDS = stats ? [
     {label:'在職員工', value:stats.employeeCount, icon:'people', color:'var(--brand)', onClick:()=>setTab('employees')},
@@ -2909,6 +2922,42 @@ function DashboardTab({setTab}){
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
+      {remind && (
+        <div className="card" style={{marginBottom:18, borderLeft:'4px solid '+STAGE_STYLE[remind.階段].color}}>
+          <div style={{display:'flex', alignItems:'flex-start', gap:12}}>
+            <span className="material-icons" style={{fontSize:28, color:STAGE_STYLE[remind.階段].color}}>{STAGE_STYLE[remind.階段].icon}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:15, fontWeight:700, color:STAGE_STYLE[remind.階段].color}}>{remind.標題}</div>
+              <div className="hint" style={{marginTop:4}}>{remind.說明}</div>
+
+              {remind.未鎖定月份.length>0 && (
+                <div style={{marginTop:10}}>
+                  <div style={{fontSize:12, fontWeight:600}}>尚未鎖定結案的月份</div>
+                  <div className="hint" style={{marginTop:2}}>
+                    {remind.未鎖定月份.map(m=>m.月份+'（'+m.未鎖定人數+' 人）').join('、')}
+                    　— 鎖定後才會凍結當月薪資結構，日後調薪不會改到歷史薪資條
+                  </div>
+                </div>
+              )}
+
+              {remind.假單待審逾期.length>0 && (
+                <div style={{marginTop:10}}>
+                  <div style={{fontSize:12, fontWeight:600, color:'var(--danger)'}}>假單待審超過 {remind.假單逾期天數門檻} 天</div>
+                  <div className="hint" style={{marginTop:2}}>
+                    {remind.假單待審逾期.map(x=>x.姓名+'（'+x.類型+'，'+x.申請時間+'）').join('、')}
+                  </div>
+                </div>
+              )}
+
+              <div style={{marginTop:10, display:'flex', gap:8}}>
+                <button className="ghost sm" onClick={()=>setTab('payroll')}>前往薪資計算</button>
+                {remind.假單待審逾期.length>0 && <button className="ghost sm" onClick={()=>setTab('requests')}>前往假單審核</button>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {loading || !stats ? <div className="hint">載入中...</div> : (
         <>
           <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:14, marginBottom:18}}>
