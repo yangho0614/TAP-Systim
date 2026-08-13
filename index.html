@@ -320,7 +320,9 @@ const {useState, useEffect, useMemo, useRef} = React;
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzW7073VQtPGa9cIn-pBNdfLClDdkEn8eBGVzDSkv26ZZWiHGcD5wikhx7KL5l4mlsC/exec';
 
 /* ⚠️ 打卡地圖功能需要 Google Maps API 金鑰，請填入你申請到的金鑰（申請步驟見下方 GOOGLE_MAPS_SETUP_NOTE） */
-const GOOGLE_MAPS_API_KEY = 'AIzaSyCTj0NrEzqJPLXWG8ct7FQfJ1Q0CeAcKoA';
+// 這把金鑰限定只能從 https://yangho0614.github.io/* 使用（Google Cloud 的網站限制），
+// 且只開放 Maps JavaScript API。前台是公開網頁，金鑰一定看得到，靠的是這兩層限制而不是藏起來。
+const GOOGLE_MAPS_API_KEY = 'AIzaSyCWRR6fCWzUavnQjApDoYFsoCGQXYhLtqU';
 let mapsLoadPromise = null;
 function loadGoogleMaps(){
   if(mapsLoadPromise) return mapsLoadPromise;

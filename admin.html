@@ -241,20 +241,11 @@ function linkifyBlank(html){
 }
 const CATEGORY_COLORS = ['#00ADB5', '#4f9b6f', '#c05a4f', '#5b8db8', '#8b6fa8', '#c98a4b'];
 const NOTE_PRESETS = ['員工忘記打卡，已口頭確認時間', '設備/網路異常，事後補登', '主管同意調整'];
-/* ⚠️ 地址轉座標（地理編碼）需要 Google Cloud 專案裡另外啟用「Geocoding API」，跟地圖顯示是不同服務 */
-const GOOGLE_MAPS_API_KEY = 'AIzaSyCTj0NrEzqJPLXWG8ct7FQfJ1Q0CeAcKoA';
+/* 地址轉座標改由後端處理（Apps Script 內建 Maps 服務，不需金鑰）。
+   這支檔案放在公開的 GitHub repo，原本寫死在這裡的 Google 金鑰等於公開，已於 2026-08-13 移除。 */
 async function geocodeAddress(address){
   if(!address || !address.trim()) throw new Error('請輸入地址');
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address.trim())}&key=${GOOGLE_MAPS_API_KEY}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if(data.status !== 'OK' || !data.results || !data.results[0]){
-    if(data.status === 'REQUEST_DENIED') throw new Error('地址查詢失敗：Google的「Geocoding API」可能還沒啟用，請到 Google Cloud Console 開啟後再試');
-    if(data.status === 'ZERO_RESULTS') throw new Error('查無此地址，請確認地址是否正確');
-    throw new Error('地址查詢失敗（' + data.status + '）');
-  }
-  const loc = data.results[0].geometry.location;
-  return { lat: loc.lat, lng: loc.lng, formattedAddress: data.results[0].formatted_address };
+  return await apiGet('geocodeAddress', {address: address.trim()});
 }
 // 共用的「輸入地址→查詢座標」元件，供地理圍籬設定跟打卡補登/修改共用
 function AddressGeocodeField({lat, lng, onFound}){
