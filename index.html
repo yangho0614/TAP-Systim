@@ -1232,6 +1232,8 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   const [colleagues, setColleagues] = useState([]);
   const [pickerFor, setPickerFor] = useState(null); // 'start' | 'end' | null
   const [menstrualStatus, setMenstrualStatus] = useState(null);
+  const [quotas, setQuotas] = useState(null);      // 法定假別的已用／上限
+  const [showLeaveRules, setShowLeaveRules] = useState(false);
   const [myOvertime, setMyOvertime] = useState(null);
 
   const unit = Number(settings?.leaveUnit) || 1;
@@ -1279,6 +1281,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   useEffect(load, []);
   useEffect(()=>{ apiGet('getColleagueList').then(setColleagues).catch(()=>{}); }, []);
   useEffect(()=>{ if(leaveBox) apiGet('getMyMenstrualLeaveStatus').then(setMenstrualStatus).catch(()=>{}); }, [!!leaveBox]);
+  useEffect(()=>{ if(leaveBox) apiGet('getLeaveQuotas').then(setQuotas).catch(()=>{}); }, [!!leaveBox]);
   useEffect(()=>{
     if(compBox){
       const d = new Date();
@@ -1438,6 +1441,62 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                   依勞基法第14條之1，生理假每年前3天（24小時）全薪，超過部分比照病假折半發給。你今年已使用 {menstrualStatus.usedHours} 小時，還有 {menstrualStatus.remainingFullPayHours} 小時全薪額度。
                 </div>
               )}
+
+              {/* 法定假別的額度條：選了假別就顯示已用／剩餘，讓員工送出前就知道，而不是被擋下來才發現 */}
+              {quotas && quotas[leaveBox.leaveType] && (()=>{
+                const q = quotas[leaveBox.leaveType];
+                const used = Number(q.已用)||0, cap = Number(q.上限)||0;
+                const pct = cap ? Math.min(100, Math.round(used/cap*100)) : 0;
+                const full = used >= cap;
+                const day = h => (Math.round(h/8*10)/10);
+                return (
+                  <div style={{marginTop:8, padding:'10px 12px', border:'1px solid var(--line,#3a3a3a)', borderRadius:8}}>
+                    <div style={{display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:5}}>
+                      <span>{leaveBox.leaveType}　{q.週期}上限 {day(cap)} 日</span>
+                      <span style={{fontVariantNumeric:'tabular-nums'}}>已用 {day(used)} 日 · 剩 {day(Math.max(0,cap-used))} 日</span>
+                    </div>
+                    <div style={{height:6, borderRadius:3, background:'rgba(128,128,128,.25)', overflow:'hidden'}}>
+                      <div style={{height:'100%', width:pct+'%', background: full ? '#c05a4f' : 'var(--gold,#00ADB5)'}}></div>
+                    </div>
+                    {full && <div style={{fontSize:11.5, color:'#c05a4f', marginTop:5}}>額度已用完，本次申請會被系統擋下</div>}
+                    {leaveBox.leaveType==='家庭照顧假' && (
+                      <div style={{fontSize:11.5, opacity:.7, marginTop:5}}>
+                        家庭照顧假的日數併入事假計算，兩者合計全年以 14 日為限（目前合計 {day(q.併入事假合計||0)} 日）
+                      </div>
+                    )}
+                    {leaveBox.leaveType==='事假' && (
+                      <div style={{fontSize:11.5, opacity:.7, marginTop:5}}>家庭照顧假的日數也會併入這個額度計算</div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div style={{marginTop:8}}>
+                <button type="button" onClick={()=>setShowLeaveRules(v=>!v)}
+                  style={{background:'none', border:'none', padding:0, fontSize:12, opacity:.75, textDecoration:'underline', cursor:'pointer', color:'inherit'}}>
+                  {showLeaveRules ? '收起請假規定' : '各假別請假規定一覽'}
+                </button>
+                {showLeaveRules && (
+                  <div style={{marginTop:8, fontSize:11.5, lineHeight:1.7, opacity:.85}}>
+                    <div style={{display:'grid', gridTemplateColumns:'auto auto 1fr', gap:'3px 10px'}}>
+                      <b>假別</b><b>上限</b><b>說明</b>
+                      <span>事假</span><span>全年 14 日</span><span>不給工資（勞工請假規則 7 條）</span>
+                      <span>病假</span><span>全年 30 日</span><span>工資折半，超過部分不給薪（請假規則 4 條）</span>
+                      <span>家庭照顧假</span><span>全年 7 日</span><span>不給工資，日數併入事假計算（性平法 20 條）</span>
+                      <span>生理假</span><span>每月 1 日</span><span>公司政策前 3 日全薪，其餘折半（性平法 14 條）</span>
+                      <span>特休</span><span>依年資</span><span>全薪，剩餘時數見上方選單</span>
+                      <span>補休</span><span>依加班時數</span><span>全薪，期限內未休完折算工資</span>
+                      <span>婚假 / 喪假</span><span>依法定日數</span><span>全薪</span>
+                      <span>公假 / 公傷病假</span><span>依實際需要</span><span>全薪</span>
+                      <span>災防假</span><span>—</span><span>不支薪，但不影響全勤與考績</span>
+                    </div>
+                    <div style={{marginTop:8, opacity:.75}}>
+                      生理假、家庭照顧假、婚喪假、公假、公傷病假<b>不會扣全勤獎金</b>（性別平等工作法 21 條）。
+                      病假、事假、遲到、早退則依時數比例扣。
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="hint" style={{marginBottom:10}}>班別時間 {shiftStart}~{shiftEnd}，請假時段需在此範圍內</div>
             <div className="field">
