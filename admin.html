@@ -372,6 +372,13 @@ function suggestGrade(salary){
   const c = sorted.find(r => r.grade >= s);
   return c ? c.grade : sorted[sorted.length-1].grade;
 }
+/* 投保基準＝本薪合計扣除伙食津貼、交通津貼、職務加給（公司現行做法，這三項不計入投保薪資）。
+   全勤獎金自2026年8月起因法規變動已併入本薪，計入投保基準，所以不扣除。 */
+function insuranceBase(emp){
+  const v = x => Number(x)||0;
+  const base = v(emp.baseSalary) - v(emp.mealAllowance) - v(emp.transportAllowance) - v(emp.positionAllowance);
+  return base > 0 ? base : 0;
+}
 
 /* ========================= 台灣勞基法相關常數（115年/2026年適用） ========================= */
 const MIN_WAGE_MONTHLY = 29500;
@@ -1003,12 +1010,19 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
                 <option value={0}>未設定</option>
                 {INSURANCE_TABLE.map(r=><option key={r.grade} value={r.grade}>{r.grade.toLocaleString()}</option>)}
               </select>
-              <button type="button" className="ghost sm" onClick={()=>setEditing({...editing, insuranceGrade: suggestGrade(editing.baseSalary)})}>依本薪建議</button>
+              <button type="button" className="ghost sm" onClick={()=>setEditing({...editing, insuranceGrade: suggestGrade(insuranceBase(editing))})} title="依投保基準建議級距">依基準建議</button>
+            </div>
+            <div className="hint" style={{marginTop:4}}>
+              投保基準 <b>{money(insuranceBase(editing))}</b>
+              （本薪 {money(editing.baseSalary)} − 伙食 {money(editing.mealAllowance)} − 交通 {money(editing.transportAllowance)} − 職務 {money(editing.positionAllowance)}）
+              → 建議級距 <b>{suggestGrade(insuranceBase(editing)).toLocaleString()}</b>
+              <br/>這三項津貼依公司做法不計入投保薪資；全勤獎金自2026年8月起併入本薪，已計入基準。實際級距以向勞保局申報的值為準。
             </div>
           </div>
           <div className="field">
-            <label>健保眷屬人數</label>
-            <input type="number" min="0" value={editing.dependentCount} onChange={e=>setEditing({...editing, dependentCount:Number(e.target.value)})} />
+            <label>健保眷屬人數（不含本人）</label>
+            <input type="number" min="0" max="3" value={editing.dependentCount} onChange={e=>setEditing({...editing, dependentCount:Number(e.target.value)})} />
+            <div className="hint" style={{marginTop:4}}>健保費＝一口金額 ×（本人 1 口 ＋ 眷屬口數），眷屬超過 3 口以 3 口計。健保繳費表上的「人數」是含本人的，這裡要填不含本人的眷屬數。</div>
             <div className="hint" style={{marginTop:4}}>眷屬保費同本人金額，超過3人一律以3人計算</div>
           </div>
           <div className="field"><label>本薪</label><input type="number" value={editing.baseSalary} onChange={e=>setEditing({...editing, baseSalary:Number(e.target.value)})} /></div>
