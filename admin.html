@@ -188,10 +188,22 @@ async function fetchWithRetry(url, options, retries=1, delayMs=1000){
     catch(e){ if(i===retries) throw e; await new Promise(r=>setTimeout(r, delayMs)); }
   }
 }
+// 後端偶爾會回傳 HTML（例如 GAS 錯誤頁、登入逾期被導向），直接 res.json() 會丟出看不懂的
+// 「Unexpected token '<'」。統一在這裡轉成人看得懂的訊息。
+async function parseApiResponse(res){
+  const text = await res.text();
+  try{ return JSON.parse(text); }
+  catch(e){
+    if(text.indexOf('<!DOCTYPE') === 0 || text.indexOf('<html') === 0){
+      throw new Error('伺服器回傳了非預期的內容（可能是 Google 服務暫時忙碌或連線逾時），請稍候再試一次。');
+    }
+    throw new Error('伺服器回應格式錯誤：' + text.slice(0, 80));
+  }
+}
 async function apiGet(action, params={}){
   const qs = new URLSearchParams({action, token: CURRENT_TOKEN||'', ...params}).toString();
   const res = await fetchWithRetry(`${GAS_URL}?${qs}`);
-  const json = await res.json();
+  const json = await parseApiResponse(res);
   if(json.status !== 'success'){
     if(isSessionError(json.message)) forceReLogin();
     throw new Error(json.message || '發生錯誤');
@@ -200,7 +212,7 @@ async function apiGet(action, params={}){
 }
 async function apiPost(action, body={}){
   const res = await fetchWithRetry(GAS_URL, {method:'POST', body: JSON.stringify({action, token: CURRENT_TOKEN, ...body})});
-  const json = await res.json();
+  const json = await parseApiResponse(res);
   if(json.status !== 'success'){
     if(isSessionError(json.message)) forceReLogin();
     throw new Error(json.message || '發生錯誤');
