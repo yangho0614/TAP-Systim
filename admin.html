@@ -3198,6 +3198,7 @@ function RequestsTab({month, employees}){
   }, [employees]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [empFilter, setEmpFilter] = useState('');
   const [reviewBox, setReviewBox] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -3205,7 +3206,7 @@ function RequestsTab({month, employees}){
     setLoading(true);
     apiGet('listAllRequests', {month, status: statusFilter}).then(setList).catch(e=>alert(e.message)).finally(()=>setLoading(false));
   }
-  useEffect(load, [month, statusFilter]);
+  useEffect(()=>{ setEmpFilter(''); load(); }, [month, statusFilter]);
 
   async function doReview(){
     setBusy(true);
@@ -3218,6 +3219,18 @@ function RequestsTab({month, employees}){
   }
   const STATUS_BADGE = {'待審核':'warn', '已核准':'', '已駁回':'warn', '已取消':''};
 
+  // 員工篩選在前端做：資料本來就都在手上，不必為了篩選再打一次 API（省一趟往返）
+  const shownList = useMemo(
+    () => empFilter ? list.filter(r => r.employeeId === empFilter) : list,
+    [list, empFilter]
+  );
+  // 下拉只列出本月真的有申請單的人，避免一長串沒資料的名字
+  const empOptions = useMemo(() => {
+    const seen = new Map();
+    list.forEach(r => { if(r.employeeId && !seen.has(r.employeeId)) seen.set(r.employeeId, r.name); });
+    return [...seen.entries()].map(([id, name]) => ({id, name}));
+  }, [list]);
+
   return (
     <div>
       <div className="toolbar">
@@ -3229,6 +3242,12 @@ function RequestsTab({month, employees}){
           <option value="已駁回">已駁回</option>
           <option value="已取消">已取消</option>
         </select>
+        <label style={{marginBottom:0, marginLeft:10}}>員工</label>
+        <select value={empFilter} onChange={e=>setEmpFilter(e.target.value)}>
+          <option value="">全部（{list.length} 筆）</option>
+          {empOptions.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
+        </select>
+        {empFilter && <button className="ghost sm" onClick={()=>setEmpFilter('')}>清除</button>}
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
@@ -3238,7 +3257,7 @@ function RequestsTab({month, employees}){
           <table>
             <thead><tr><th className="center">姓名</th><th className="center">員工類型</th><th className="center">類型</th><th className="center">假別</th><th className="center">起訖 / 加班日期</th><th className="center">時數</th><th className="center">代理人</th><th className="center">事由</th><th className="center">附件</th><th className="center">狀態</th><th className="center">審核人</th><th className="center">操作</th></tr></thead>
             <tbody>
-              {list.map(r=>(
+              {shownList.map(r=>(
                 <tr key={r.id}>
                   <td className="center"><b>{r.name}</b></td>
                   <td className="center">{(()=>{ const t = empTypeById[r.employeeId] || '—';
@@ -3262,7 +3281,7 @@ function RequestsTab({month, employees}){
                   </td>
                 </tr>
               ))}
-              {list.length===0 && <tr><td colSpan="12" className="hint" style={{textAlign:'center'}}>本月尚無申請單</td></tr>}
+              {shownList.length===0 && <tr><td colSpan="12" className="hint" style={{textAlign:'center'}}>{list.length===0 ? '本月尚無申請單' : '這位員工本月沒有符合條件的申請單'}</td></tr>}
             </tbody>
           </table>
         )}
