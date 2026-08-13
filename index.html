@@ -367,6 +367,12 @@
 const {useState, useEffect, useMemo, useRef} = React;
 // 時數／天數一律取小數一位，末尾的 .0 去掉
 function trim1(v){ const x = Math.round((Number(v)||0)*10)/10; return String(x); }
+// 假別下拉的剩餘額度標籤。iOS Safari 的原生選單寬度是系統決定的、CSS 改不到，
+// 文字一長就折行，所以只給一個單位：滿一天以上講天，不足一天才講小時。
+function remainText(hours){
+  const h = Number(hours) || 0;
+  return h >= 8 ? `（剩 ${trim1(h/8)} 天）` : `（剩 ${trim1(h)} 小時）`;
+}
 
 /* ⚠️ 部署 Code.gs 為網頁應用程式後，把網址貼在這裡 */
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzW7073VQtPGa9cIn-pBNdfLClDdkEn8eBGVzDSkv26ZZWiHGcD5wikhx7KL5l4mlsC/exec';
@@ -1632,9 +1638,21 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 <option value="">請選擇</option>
                 {LEAVE_TYPES.filter(t=> t!=='生理假' || session.employee?.gender !== '男').map(t=>{
                   let extra = '';
-                  if(t==='特休' && balances) extra = `（剩 ${trim1(balances.annualRemain)} 小時 / ${trim1(balances.annualRemain/8)} 天）`;
-                  if(t==='補休' && balances) extra = `（剩 ${trim1(balances.compRemain)} 小時 / ${trim1(balances.compRemain/8)} 天）`;
-                  if(t==='生理假' && menstrualStatus) extra = `（今年已用 ${menstrualStatus.usedHours} hr，剩 ${menstrualStatus.remainingFullPayHours} hr 全薪）`;
+                  if(t==='特休' && balances) extra = remainText(balances.annualRemain);
+                  if(t==='補休' && balances) extra = remainText(balances.compRemain);
+                  if(t==='生理假' && menstrualStatus) extra = `（剩 ${trim1(menstrualStatus.remainingFullPayHours)} 小時全薪）`;
+                  // 事假／病假／家庭照顧假比照特休，直接把剩餘寫在選項上，不必選了才在下方額度條看到。
+                  // 事假與家庭照顧假共用全年 14 日上限（性平法第 20 條），剩餘要取兩個限制的較小值，
+                  // 否則會顯示一個送出時反而被後端擋下來的數字。
+                  if(t!=='生理假' && quotas && quotas[t]){
+                    const q = quotas[t];
+                    let remain = (Number(q.上限)||0) - (Number(q.已用)||0);
+                    if(t==='事假' || t==='家庭照顧假'){
+                      const combined = quotas['家庭照顧假'] ? (Number(quotas['家庭照顧假'].併入事假合計)||0) : 0;
+                      remain = Math.min(remain, (Number(quotas['事假'].上限)||0) - combined);
+                    }
+                    extra = remainText(Math.max(0, remain));
+                  }
                   return <option key={t} value={t}>{t}{extra}</option>;
                 })}
               </select>
