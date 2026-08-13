@@ -712,7 +712,9 @@ function App(){
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState(null);
-  const [settingsCategory, setSettingsCategory] = useState('basic'); // 供其他頁面深連結到指定的設定分頁
+  const [settingsCategory, setSettingsCategory] = useState('basic');
+  const [applyBox, setApplyBox] = useState(null);   // 套用出缺勤時數的差異確認框
+  const [applyUndo, setApplyUndo] = useState(null); // 套用前的還原點，儲存或換月後清空
   useEffect(()=>{
     const brand = settings?.storeName || '';
     if(settings?.adminTitle) document.title = brand ? `${brand} - ${settings.adminTitle}` : settings.adminTitle;
@@ -816,32 +818,81 @@ function App(){
   }
   useEffect(()=>{ if(session) refreshMenstrualBaseline(); }, [session, month]);
 
+  // 「套用出缺勤時數」會用打卡計算結果覆蓋薪資表的時數欄位，包括手動填過的值。
+  // 為避免靜默蓋掉，改成兩段式：先算出差異給使用者確認，套用後再保留一份還原點供一鍵復原。
+  const APPLY_FIELDS = [
+    {key:'otWeekday134', label:'平日1.34'}, {key:'otWeekday167', label:'平日1.67'},
+    {key:'otRestDayHours', label:'休息日'}, {key:'otHolidayHours', label:'國定假日'},
+    {key:'otMandatoryRestHours', label:'例假日'},
+    {key:'personalLeave', label:'事假'}, {key:'sickLeave', label:'病假'},
+    {key:'familyCareLeave', label:'家庭照顧假'}, {key:'menstrualLeave', label:'生理假'},
+    {key:'disasterLeave', label:'災防假'},
+    {key:'lateMinutes', label:'遲到分鐘'}, {key:'lateCount', label:'遲到次數'},
+    {key:'earlyMinutes', label:'早退分鐘'}, {key:'earlyCount', label:'早退次數'},
+    {key:'presentDays', label:'出勤天數'}
+  ];
+  function summaryToEntry(s){
+    return {
+      otWeekday134: s.otWeekday134 || 0, otWeekday167: s.otWeekday167 || 0,
+      otRestDayHours: s.otRestDayHours || 0, otHolidayHours: s.otHolidayHours || 0,
+      otMandatoryRestHours: s.otMandatoryRestHours || 0,
+      personalLeave: s.personalLeave || 0, sickLeave: s.sickLeave || 0,
+      familyCareLeave: s.familyCareLeave || 0, menstrualLeave: s.menstrualLeave || 0,
+      disasterLeave: s.disasterLeave || 0,
+      lateMinutes: s.lateMinutes || 0, lateCount: s.lateCount || 0,
+      earlyMinutes: s.earlyLeaveMinutes || 0, earlyCount: s.earlyLeaveCount || 0,
+      presentDays: s.presentDays || 0
+    };
+  }
   async function applyAttendanceToPayroll(){
     try{
       const summary = await apiGet('getMonthlySummary', {month});
-      const map = {};
-      summary.forEach(s=>{ map[s.employeeId] = {menstrual: s.menstrualLeaveUsedBefore || 0, sick: s.sickLeaveUsedBefore || 0}; });
-      setMenstrualBaseline(map);
-      setPayrollEntries(prev => {
-        const next = {...prev};
-        summary.forEach(s=>{
-          const cur = next[s.employeeId] || emptyEntry();
-          next[s.employeeId] = {...emptyEntry(), ...cur,
-            otWeekday134: s.otWeekday134, otWeekday167: s.otWeekday167,
-            otRestDayHours: s.otRestDayHours, otHolidayHours: s.otHolidayHours, otMandatoryRestHours: s.otMandatoryRestHours,
-            personalLeave: s.personalLeave || 0, sickLeave: s.sickLeave || 0, disasterLeave: s.disasterLeave || 0,
-            familyCareLeave: s.familyCareLeave || 0,
-            menstrualLeave: s.menstrualLeave || 0,
-            lateMinutes: s.lateMinutes || 0, lateCount: s.lateCount || 0,
-            earlyMinutes: s.earlyLeaveMinutes || 0, earlyCount: s.earlyLeaveCount || 0,
-            presentDays: s.presentDays || 0};
+      const nameOf = {}; employees.forEach(e=>nameOf[e.id]=e.name);
+      const lockedOf = {};
+      const changes = [];
+      summary.forEach(s=>{
+        const cur = payrollEntries[s.employeeId] || emptyEntry();
+        if(cur.locked){ lockedOf[s.employeeId] = true; return; }
+        const nextVals = summaryToEntry(s);
+        APPLY_FIELDS.forEach(f=>{
+          const from = n(cur[f.key]), to = n(nextVals[f.key]);
+          if(from !== to) changes.push({empId:s.employeeId, name:nameOf[s.employeeId]||s.name, field:f.label, from, to, wasManual: from!==0});
         });
-        return next;
       });
-      setDirty(true);
-      alert('已套用出缺勤系統計算出的加班時數到目前月份，請確認後記得按「儲存薪資紀錄」。');
+      setApplyBox({
+        loading:false, summary, changes,
+        lockedNames: Object.keys(lockedOf).map(id=>nameOf[id]||id),
+        untouched: employees.length - new Set(changes.map(c=>c.empId)).size
+      });
     }catch(e){ alert(e.message); }
   }
+  function confirmApply(){
+    const box = applyBox; if(!box) return;
+    setApplyUndo({entries: JSON.parse(JSON.stringify(payrollEntries)), month, count: box.changes.length});
+    const map = {};
+    box.summary.forEach(s=>{ map[s.employeeId] = {menstrual: s.menstrualLeaveUsedBefore || 0, sick: s.sickLeaveUsedBefore || 0}; });
+    setMenstrualBaseline(map);
+    setPayrollEntries(prev => {
+      const next = {...prev};
+      box.summary.forEach(s=>{
+        const cur = next[s.employeeId] || emptyEntry();
+        if(cur.locked) return; // 已鎖定不覆蓋
+        next[s.employeeId] = {...emptyEntry(), ...cur, ...summaryToEntry(s)};
+      });
+      return next;
+    });
+    setDirty(true);
+    setApplyBox(null);
+  }
+  function undoApply(){
+    if(!applyUndo) return;
+    setPayrollEntries(applyUndo.entries);
+    setApplyUndo(null);
+    setDirty(true);
+  }
+
+  // 換月份時清掉還原點與確認框，避免把 A 月的值復原到 B 月
+  useEffect(()=>{ setApplyUndo(null); setApplyBox(null); }, [month]);
 
   const rows = useMemo(()=> employees.map(emp=>{
     const entry = payrollEntries[emp.id] || emptyEntry();
@@ -921,7 +972,7 @@ function App(){
           {tab==='annual' && <AnnualLeaveTab employees={employees}/>}
           {tab==='comp' && <CompLedgerTab employees={employees}/>}
           {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}/>}
-          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee} onReload={()=>reloadPayroll(month)} menstrualBaseline={menstrualBaseline}/>}
+          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onUndoApply={applyUndo?undoApply:null} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee} onReload={()=>reloadPayroll(month)} menstrualBaseline={menstrualBaseline}/>}
           {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month} settings={settings} menstrualBaseline={menstrualBaseline}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
           {tab==='register' && <PayrollRegisterTab/>}
@@ -935,6 +986,53 @@ function App(){
           {tab==='settings' && <SettingsTab onSaved={reloadSettings} key={settingsCategory} initialCategory={settingsCategory}/>}
         </div>
       </div>
+      {applyBox && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setApplyBox(null); }}>
+          <div className="modal" style={{width:560}}>
+            <h3 style={{marginTop:0}}><span className="material-icons">sync_alt</span> 套用出缺勤時數</h3>
+            {applyBox.changes.length===0 ? (
+              <div className="hint" style={{padding:'10px 0'}}>
+                打卡計算結果與目前薪資表的時數<b>完全相同</b>，沒有任何欄位需要變動。
+              </div>
+            ) : (
+              <>
+                <div className="hint" style={{marginBottom:8}}>
+                  將以 {month} 的打卡紀錄重新計算，以下
+                  <b> {new Set(applyBox.changes.map(c=>c.empId)).size} </b>人的
+                  <b> {applyBox.changes.length} </b>個欄位會變動：
+                </div>
+                <div style={{maxHeight:280, overflowY:'auto', border:'1px solid var(--line)', borderRadius:6}}>
+                  <table style={{fontSize:13}}>
+                    <thead><tr><th className="left">姓名</th><th className="left">欄位</th><th>變動</th></tr></thead>
+                    <tbody>
+                      {applyBox.changes.map((c,i)=>(
+                        <tr key={i}>
+                          <td className="left">{c.name}</td>
+                          <td className="left">{c.field}{c.wasManual && c.to===0 && <span className="badge warn" style={{marginLeft:6}}>手動值將被清掉</span>}</td>
+                          <td className="mono center">
+                            <span style={{color:'var(--muted)', textDecoration:'line-through'}}>{c.from}</span>
+                            {' → '}
+                            <b style={{color:'var(--brand)'}}>{c.to}</b>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="hint" style={{marginTop:8}}>
+                  其餘 {applyBox.untouched} 人無變化。
+                  {applyBox.lockedNames.length>0 && <> 已鎖定而略過：{applyBox.lockedNames.join('、')}。</>}
+                  套用後可用工具列的「復原套用」一鍵還原，儲存前都有效。
+                </div>
+              </>
+            )}
+            <div className="modal-actions">
+              <button className="ghost" onClick={()=>setApplyBox(null)}>取消</button>
+              {applyBox.changes.length>0 && <button onClick={confirmApply}>確認套用</button>}
+            </div>
+          </div>
+        </div>
+      )}
       <EmployeeEditModal editing={editingEmployee} setEditing={setEditingEmployee} isNew={isNewEmployee} saving={savingEmployee} onSave={saveEmployee} companies={companies} departments={departments} shifts={shifts} settings={settings} onGoSettings={cat=>{ setEditingEmployee(null); setSettingsCategory(cat); setTab('settings'); }}/>
     </div>
   );
@@ -1491,7 +1589,7 @@ function NumCell({value, onChange, disabled}){
 }
 
 /* ========================= 薪資計算 / 明細總表 ========================= */
-function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave, dirty, saving, onEditEmployee, onReload, menstrualBaseline}){
+function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoApply, onSave, dirty, saving, onEditEmployee, onReload, menstrualBaseline}){
   const [subTab, setSubTab] = useState('06');
   const [settleBox, setSettleBox] = useState(null); // {year, items, loading, saving}
   const [lockBox, setLockBox] = useState(null); // {items, loading, saving}
@@ -1638,6 +1736,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         <button className="ghost sm" onClick={scrollToStart} title="跳到最左邊"><span className="material-icons" style={{fontSize:16}}>first_page</span></button>
         <button className="ghost sm" onClick={scrollToEnd} title="跳到最右邊看總計"><span className="material-icons" style={{fontSize:16}}>last_page</span></button>
         <button className="ghost sm" onClick={onApply} disabled={allLocked}>套用出缺勤時數</button>
+        {onUndoApply && <button className="ghost sm" onClick={onUndoApply} title="回到套用前的數值，儲存後即失效"><span className="material-icons" style={{fontSize:14}}>undo</span>復原套用</button>}
         <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
         <button className="ghost sm" onClick={doExport}>匯出 CSV</button>
         <button onClick={onSave} disabled={saving || !dirty || allLocked}>{saving?'儲存中...':'儲存薪資紀錄'}</button>
