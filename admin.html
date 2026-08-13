@@ -170,12 +170,35 @@
   .login-card button{width:100%; justify-content:center; padding:11px 0; font-size:14px; margin-top:6px;}
   .login-card .err{color:var(--danger); font-size:12.5px; margin-top:10px; min-height:16px;}
 
+  /* 報表卡片的標題列：不要用 .toolbar，否則會被下面的列印規則整個隱藏 */
+  .card-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;}
+  .card-head .grow{flex:1;}
+  .print-only{display:none;}
+
   @media print{
+    @page{ margin:12mm; }
     .no-print{display:none !important;}
     .sidebar,.topbar,.toolbar{display:none !important;}
     body{background:#fff;}
-    .content{padding:0;}
-    .card{border:none;}
+    .content{padding:0; overflow:visible !important;}
+    .card{border:none; overflow:visible !important; padding:0; margin-bottom:22px;}
+    .print-only{display:block;}
+
+    /* thead 在畫面上是 position:sticky，列印時會脫離表格流被丟到文件最後
+       （原本三張表的表頭都跑到最後一頁），必須改回一般流。
+       table-header-group 可讓表頭在跨頁時自動重複。 */
+    thead{ position:static !important; display:table-header-group; }
+    tr{ page-break-inside:avoid; }
+    table{ page-break-inside:auto; }
+
+    /* 瀏覽器列印預設不印背景色，表頭與總計列會變全白而看不出層次，
+       改用明確的框線與灰階，並要求保留背景色 */
+    th, td{ border:1px solid #999 !important; }
+    th{ background:#e8e8e8 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    tr.total-row td{ background:#f0f0f0 !important; font-weight:700;
+                     -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    /* 凍結欄在列印時不需要，且 sticky 會造成錯位 */
+    .freeze-1, .freeze-2, .reg-freeze-1, .reg-freeze-2{ position:static !important; }
   }
 </style>
 </head>
@@ -2445,6 +2468,18 @@ function TransferTab({rows, month}){
     exportCSV(`匯款明細_${company}_${period}日_${month}.csv`, headers, data);
   }
 
+  // 列印／另存 PDF：多數瀏覽器會拿 document.title 當預設檔名，
+  // 列印前暫時換成「2026年06月份-匯款明細表-6號」，列印後還原。
+  function printTransfer(){
+    const [yy, mo] = month.split('-');
+    const prevTitle = document.title;
+    document.title = `${yy}年${mo}月份-匯款明細表-${Number(period)}號`;
+    setTimeout(()=>{
+      window.print();
+      setTimeout(()=>{ document.title = prevTitle; }, 300);
+    }, 60);
+  }
+
   const companyEntries = Object.entries(byCompany).map(([company, list])=>{
     const active = list.filter(r => (period==='06'?r.calc.pay06:r.calc.pay26) !== 0);
     const total = active.reduce((s,r)=>s+(period==='06'?r.calc.pay06:r.calc.pay26),0);
@@ -2460,17 +2495,24 @@ function TransferTab({rows, month}){
         </div>
         <span className="grow"></span>
         <span className="hint">依公司分組列出應匯款人員與帳號，金額為 0 者不列出。</span>
-        <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
+        <button className="ghost sm" onClick={printTransfer}>列印 / 存 PDF</button>
       </div>
 
       {companyEntries.length===0 && <div className="empty card">本期尚無需匯款資料</div>}
 
       {companyEntries.map(({company, active, total})=>(
         <div className="card" key={company} style={{overflowX:'auto'}}>
-          <div className="toolbar" style={{marginBottom:8}}>
-            <h3 style={{margin:0}}>{company} — {period}日 薪資轉帳明細表（{monthLabel(month)}）</h3>
+          {/* 用 .card-head 而非 .toolbar：列印樣式會把 .toolbar 整個隱藏，
+              先前公司標題印不出來就是這個原因 */}
+          <div className="card-head">
+            <h3 style={{margin:0}}>{company}</h3>
             <span className="grow"></span>
+            <span className="hint no-print">{monthLabel(month)}．{Number(period)}日發放．共 {active.length} 人</span>
             <button className="ghost sm no-print" onClick={()=>exportGroup(company, active)}>匯出 CSV</button>
+          </div>
+          {/* 列印專用的副標，畫面上不重複顯示 */}
+          <div className="print-only" style={{fontSize:12, color:'#555', margin:'0 0 8px'}}>
+            {monthLabel(month)}　{Number(period)}日 薪資轉帳明細表　（共 {active.length} 人）
           </div>
           <table style={{tableLayout:'fixed', width:'100%', minWidth:640}}>
             <colgroup>
