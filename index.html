@@ -146,6 +146,44 @@
   .balance-cell{ flex:1; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; text-align:center; }
   .balance-cell .num{ font-family:'Roboto Mono',monospace; font-size:21px; font-weight:700; color:var(--gold); }
   .balance-cell .lbl{ font-size:11px; color:var(--muted); margin-top:2px; }
+  .balance-cell .tag{ font-size:10px; color:var(--muted); opacity:.8; margin-bottom:3px; letter-spacing:.5px; }
+
+  /* 薪資條合計：這是整張條子最重要的數字，原本只是灰色小字，改成明確的結算列 */
+  .pl-grand{ display:flex; align-items:center; justify-content:space-between; gap:10px;
+             background:var(--panel); border:1px solid var(--gold); border-radius:12px;
+             padding:12px 14px; margin-top:12px; }
+  .pl-grand .lbl{ font-size:12.5px; color:var(--muted); }
+  .pl-grand .val{ font-family:'Roboto Mono',monospace; font-size:22px; font-weight:700; color:var(--gold); }
+
+  /* ===== 列印／輸出 PDF =====
+     畫面是深色主題，直接列印會整片黑底又浪費碳粉，
+     因此另外準備一份淺色的列印專用版面（畫面上不顯示，只在列印時出現）。
+     作法：列印時把所有元素 visibility 隱藏，只讓 #payslip-print 及其子孫可見，
+     並將它絕對定位到頁面左上角，避免受到 modal 定位的影響。 */
+  #payslip-print{ display:none; }
+  @media print{
+    @page{ margin:12mm; }
+    body *{ visibility:hidden !important; }
+    #payslip-print, #payslip-print *{ visibility:visible !important; }
+    #payslip-print{
+      display:block !important; position:absolute; left:0; top:0; width:100%;
+      max-width:180mm; margin:0 auto; /* 避免在寬紙張上左右拉太開，標籤與金額離太遠不好讀 */
+      background:#fff; color:#1a1a1a; font-size:12px;
+    }
+    #payslip-print .pp-title{ text-align:center; font-size:17px; font-weight:700; margin-bottom:2px; }
+    #payslip-print .pp-sub{ text-align:center; font-size:11px; color:#666; margin-bottom:12px; }
+    #payslip-print .pp-meta{ display:flex; flex-wrap:wrap; gap:4px 20px; font-size:11.5px;
+                             border-top:1px solid #333; border-bottom:1px solid #333; padding:7px 0; margin-bottom:10px; }
+    #payslip-print .pp-sec{ font-size:12px; font-weight:700; background:#eee; padding:4px 8px; margin:10px 0 4px; }
+    #payslip-print .pp-row{ display:flex; justify-content:space-between; padding:3px 8px; font-variant-numeric:tabular-nums; }
+    #payslip-print .pp-row.sub{ font-size:11px; color:#555; padding-left:22px; }
+    #payslip-print .pp-row.total{ font-weight:700; border-top:1px solid #999; margin-top:3px; padding-top:5px; }
+    #payslip-print .pp-pay{ display:flex; gap:10px; margin-top:14px; }
+    #payslip-print .pp-pay > div{ flex:1; border:1px solid #333; padding:8px; text-align:center; }
+    #payslip-print .pp-pay .amt{ font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; }
+    #payslip-print .pp-pay .cap{ font-size:10.5px; color:#555; }
+    #payslip-print .pp-foot{ margin-top:14px; font-size:10px; color:#777; text-align:center; }
+  }
 
   /* 即將推出 */
   .coming{ text-align:center; padding:70px 20px; color:var(--muted); }
@@ -1916,6 +1954,22 @@ function PayslipModal({onClose, showToast}){
   const [leaveDetail, setLeaveDetail] = useState(null);
   function toggleSection(key){ setExpanded(prev=>({...prev, [key]: !prev[key]})); }
 
+  // 輸出 PDF：用瀏覽器內建列印功能（手機選「儲存為 PDF」即可），不必額外載入套件。
+  // 多數瀏覽器會拿 document.title 當預設檔名，所以列印前先暫時改掉標題，列印完再改回來。
+  function exportPdf(){
+    if(!data || data.hasRecord===false) return;
+    const [yy, mo] = month.split('-');
+    const fileName = `${yy}年${mo}月份-${(data.employee.company||'').trim()}-${(data.employee.name||'').trim()}-薪資條`;
+    const prevTitle = document.title;
+    document.title = fileName;
+    // 等一次繪製，確保列印區塊已經上到畫面（Safari 需要）
+    setTimeout(()=>{
+      window.print();
+      // 列印對話框關閉後再還原；印表機對話框是同步阻塞，這裡用 setTimeout 保險
+      setTimeout(()=>{ document.title = prevTitle; }, 300);
+    }, 60);
+  }
+
   function load(m){
     setLoading(true);
     setLeaveDetail(null);
@@ -2012,9 +2066,18 @@ function PayslipModal({onClose, showToast}){
           </div>
         ) : (
           <>
+            {/* 兩筆發放金額原本只寫日期，看不出各是什麼；加上用途標示比較清楚 */}
             <div className="balance-row">
-              <div className="balance-cell"><div className="num">{money(data.calc.pay06)}</div><div className="lbl">{data.payDate06 ? data.payDate06.slice(5).replace('-','/') : '06日'}應付</div></div>
-              <div className="balance-cell"><div className="num">{money(data.calc.pay26)}</div><div className="lbl">{data.payDate26 ? data.payDate26.slice(5).replace('-','/') : '26日'}應付</div></div>
+              <div className="balance-cell">
+                <div className="tag">薪資</div>
+                <div className="num">{money(data.calc.pay06)}</div>
+                <div className="lbl">{data.payDate06 ? data.payDate06.replace(/^\d+-/,'').replace('-','/') : '06日'} 發放</div>
+              </div>
+              <div className="balance-cell">
+                <div className="tag">業務／獎金</div>
+                <div className="num">{money(data.calc.pay26)}</div>
+                <div className="lbl">{data.payDate26 ? data.payDate26.replace(/^\d+-/,'').replace('-','/') : '26日'} 發放</div>
+              </div>
             </div>
             <div className="card" style={{padding:14}}>
               <SectionHeader label="本薪" amount={money(calc.effBaseSalary)} sectionKey="base" hasDetail={allowanceItems.length>0} />
@@ -2100,10 +2163,85 @@ function PayslipModal({onClose, showToast}){
               </div>
             )}
 
-            <div className="hint" style={{marginTop:8, textAlign:'center'}}>合計 NT$ {money(calc.grandTotal)}</div>
+            {/* 合計是整張條子最重要的數字，原本只是底部灰色小字，改成明確的結算列 */}
+            <div className="pl-grand">
+              <span className="lbl">本月合計</span>
+              <span className="val">NT$ {money(calc.grandTotal)}</span>
+            </div>
+
+            {/* 列印／輸出 PDF 專用版面：畫面上隱藏，只有列印時顯示（淺色、完整展開，不受畫面收合狀態影響） */}
+            <div id="payslip-print">
+              <div className="pp-title">{emp.company || ''}</div>
+              <div className="pp-sub">薪資明細表</div>
+              <div className="pp-meta">
+                <span>姓名：{emp.name || ''}</span>
+                <span>部門：{emp.department || ''}</span>
+                <span>計薪月份：{my} 年 {Number(mm)} 月</span>
+                {emp.insuranceGrade>0 && <span>投保級距：{money(emp.insuranceGrade)}</span>}
+              </div>
+
+              <div className="pp-sec">應發項目</div>
+              <div className="pp-row"><span>本薪</span><span>{money(calc.effBaseSalary)}</span></div>
+              {allowanceItems.map(it=>(
+                <div className="pp-row sub" key={'p'+it.label}><span>{it.label}</span><span>{money(it.value)}</span></div>
+              ))}
+              {allowanceItems.length>0 && <div className="pp-row sub"><span style={{fontStyle:'italic'}}>（以上已含在本薪內，僅供對照，不另外加總）</span><span></span></div>}
+              {overtimeItems.length>0 && <div className="pp-row"><span>加班費</span><span>{money(calc.overtimePay)}</span></div>}
+              {overtimeItems.map(it=>(
+                <div className="pp-row sub" key={'po'+it.label}><span>{it.label}</span><span>{money(it.value)}</span></div>
+              ))}
+              {n(calc.bonusTotal)>0 && <div className="pp-row"><span>獎金合計</span><span>{money(calc.bonusTotal)}</span></div>}
+              {n(entry.annualLeaveSettlement)>0 && <div className="pp-row"><span>特休結算</span><span>{money(entry.annualLeaveSettlement)}</span></div>}
+              <div className="pp-row total"><span>應發合計</span><span>{money(calc.payableTotal)}</span></div>
+
+              <div className="pp-sec">應扣項目</div>
+              <div className="pp-row"><span>勞保費</span><span>{negMoney(calc.laborFee)}</span></div>
+              <div className="pp-row"><span>健保費{n(emp.dependentCount)>0 && `（含眷屬${Math.min(n(emp.dependentCount),3)}人）`}</span><span>{negMoney(calc.healthFee)}</span></div>
+              {leaveItems.length>0 && <div className="pp-row"><span>請假扣款</span><span>{negMoney(calc.leaveDeduct)}</span></div>}
+              {leaveItems.map(it=>(
+                <div className="pp-row sub" key={'pl'+it.label}><span>{it.label}</span><span>{negMoney(it.value)}</span></div>
+              ))}
+              {n(entry.otherDeduction)>0 && <div className="pp-row"><span>其他扣款</span><span>{negMoney(entry.otherDeduction)}</span></div>}
+              <div className="pp-row total"><span>應扣合計</span><span>{negMoney(calc.deductTotal)}</span></div>
+
+              {sales26Items.length>0 && (
+                <>
+                  <div className="pp-sec">業務／獎金項目（{data.payDate26 ? data.payDate26.replace(/^\d+-/,'').replace('-','/') : '26日'} 發放）</div>
+                  {sales26Items.map(it=>(
+                    <div className="pp-row" key={'ps'+it.label}>
+                      <span>{it.label}</span>
+                      <span>{it.value<0 ? negMoney(-it.value) : money(it.value)}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              <div className="pp-pay">
+                <div>
+                  <div className="cap">薪資　{data.payDate06 || ''} 發放</div>
+                  <div className="amt">NT$ {money(calc.pay06)}</div>
+                </div>
+                <div>
+                  <div className="cap">業務／獎金　{data.payDate26 || ''} 發放</div>
+                  <div className="amt">NT$ {money(calc.pay26)}</div>
+                </div>
+                <div>
+                  <div className="cap">合計</div>
+                  <div className="amt">NT$ {money(calc.grandTotal)}</div>
+                </div>
+              </div>
+              <div className="pp-foot">本薪資條由系統自動產生，僅供內部核對使用。如有疑問請洽管理部。</div>
+            </div>
           </>
         )}
-        <div className="modal-actions"><button className="stay" onClick={onClose} style={{flex:1}}>關閉</button></div>
+        <div className="modal-actions" style={{gap:8}}>
+          {data && data.hasRecord!==false && (
+            <button className="stay" onClick={exportPdf} style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6}}>
+              <span className="material-icons" style={{fontSize:18}}>picture_as_pdf</span>下載 PDF
+            </button>
+          )}
+          <button className="stay" onClick={onClose} style={{flex:1}}>關閉</button>
+        </div>
       </div>
       {pickerOpen && (
         <CustomMonthPicker
