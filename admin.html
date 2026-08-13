@@ -1543,6 +1543,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         <div style={{display:'flex', gap:6}}>
           <button className={subTab==='06'?'':'ghost'} onClick={()=>setSubTab('06')}>06日明細</button>
           <button className={subTab==='26'?'':'ghost'} onClick={()=>setSubTab('26')}>26日明細</button>
+          <button className={subTab==='all'?'':'ghost'} onClick={()=>setSubTab('all')}>整月總覽</button>
         </div>
         <span className="grow"></span>
         {allLocked ? (
@@ -1689,7 +1690,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         </tbody>
       </table>
       </div>
-      ) : (
+      ) : subTab==='26' ? (
       <div ref={scrollRef} style={{overflowX:'auto'}}>
       <table>
         <thead>
@@ -1719,8 +1720,62 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onSave,
         </tbody>
       </table>
       </div>
+      ) : (
+      /* 整月總覽：唯讀，把分開編輯的 06 日與 26 日兩段併成一張表方便閱讀，不提供編輯 */
+      <div style={{overflowX:'auto'}}>
+      <table>
+        <thead>
+          <tr>
+            <th className="freeze-1">姓名 / 部門</th>
+            <th>本薪</th>
+            <th className="col-add">加班費</th>
+            <th className="col-add">獎金</th>
+            <th className="col-add">應付小計</th>
+            <th className="col-deduct">請假扣款</th>
+            <th className="col-deduct">勞健保</th>
+            <th className="col-deduct">應扣小計</th>
+            <th className="col-result">06日應付</th>
+            <th className="col-result">26日應付</th>
+            <th className="col-result">整月合計</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({emp, entry, calc})=>(
+            <tr key={emp.id}>
+              <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料">
+                <b>{emp.name}</b>{entry.locked && <span className="material-icons" style={{fontSize:12, verticalAlign:'middle', marginLeft:2}} title="本月已鎖定">lock</span>}
+                <br/><span className="hint">{emp.department}</span>
+              </td>
+              <td className="mono">{money(calc.effBaseSalary)}</td>
+              <td className="mono">{money(calc.overtimePay)}</td>
+              <td className="mono">{money(calc.bonusTotal)}</td>
+              <td className="mono">{money(calc.payableTotal)}</td>
+              <td className="mono">{money(calc.leaveDeduct)}</td>
+              <td className="mono">{money(calc.laborFee + calc.healthFee)}</td>
+              <td className="mono">{money(calc.deductTotal)}</td>
+              <td className="mono">{money(calc.pay06)}</td>
+              <td className="mono">{money(calc.pay26)}</td>
+              <td className="col-result mono"><b>{money(calc.grandTotal)}</b></td>
+            </tr>
+          ))}
+          <tr className="total-row">
+            <td className="center freeze-1">合計</td>
+            <td className="mono">{money(totals.base)}</td>
+            <td className="mono">{money(totals.overtime)}</td>
+            <td className="mono">{money(totals.bonus)}</td>
+            <td className="mono">{money(totals.payable)}</td>
+            <td className="mono">{money(totals.leaveDeduct)}</td>
+            <td className="mono">{money(totals.labor + totals.health)}</td>
+            <td className="mono">{money(totals.deduct)}</td>
+            <td className="mono">{money(totals.pay06)}</td>
+            <td className="mono">{money(totals.pay26)}</td>
+            <td className="mono"><b>{money(totals.grand)}</b></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
       )}
-      <div className="hint" style={{marginTop:8}}>「06日明細」與「26日明細」是分開的兩張表，各自獨立編輯。26日相關的業務費用、業績獎金等欄位請切到「26日明細」頁籤編輯。編輯完成別忘了按右上角「儲存薪資紀錄」，否則重新整理或切換月份會遺失變更。</div>
+      <div className="hint" style={{marginTop:8}}>「06日明細」（依打卡出缺勤計算）與「26日明細」（業務獎金、代墊費用，人工輸入）是分開的兩張表，各自獨立編輯。「整月總覽」把兩段併起來顯示，唯讀、不能編輯。編輯完成別忘了按右上角「儲存薪資紀錄」，否則重新整理或切換月份會遺失變更。</div>
       {settleBox && (
         <div className="modal-bg">
           <div className="modal" style={{maxWidth:560}}>
