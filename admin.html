@@ -400,7 +400,7 @@ function emptyEntry(){
   return {
     otWeekday134:0, otWeekday167:0, otRestDayHours:0, otHolidayHours:0, otMandatoryRestHours:0,
     festivalBonus:0, yearEndBonus:0, otherBonus:0, performanceBonus:0,
-    personalLeave:0, sickLeave:0, menstrualLeave:0, disasterLeave:0, otherLeave:0,
+    personalLeave:0, sickLeave:0, menstrualLeave:0, disasterLeave:0, otherLeave:0, familyCareLeave:0,
     annualLeaveSettlement:0,
     businessExpense:0, salesPerformance:0, otherExpense26:0, salesBonus26:0, deduction26:0,
     otherDeduction:0, note:'',
@@ -512,7 +512,8 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
     const ins = findInsurance(emp.insuranceGrade);
     insStatus = getInsuranceStatusForMonth(emp.hireDate, emp.resignDate, month);
     laborFee = ins ? (insStatus.fullMonth ? ins.empLabor : Math.round(ins.empLabor * insStatus.laborDays / 30)) : 0;
-    const dependentCount = Math.min(n(emp.dependentCount), 3); // 眷屬保費同本人金額，超過3人以3人計
+    // 眷屬保費同本人金額，超過3人以3人計；再扣掉由政府補助而免繳的眷屬口數
+    const dependentCount = Math.max(0, Math.min(n(emp.dependentCount), 3) - n(emp.exemptDependentCount));
     healthFee = (ins && insStatus.activeAtMonthEnd) ? ins.empHealth * (1 + dependentCount) : 0;
   }
 
@@ -520,6 +521,7 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   let fullAttendanceDeductRatio = 0, fullAttendanceRatio = 1, adjustedFullAttendance = effFullAttendance;
   if(!isLocked){
     const s = settings || {};
+    // 家庭照顧假與生理假依性平法第21條第2項不得影響全勤獎金，不列入分子
     const leaveHours = n(entry.sickLeave) + n(entry.personalLeave);
     let deductRatio = leaveHours / 240;
 
@@ -569,6 +571,7 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const sickCapExceeded = (sickUnpaidHours + menstrualUnpaidHours) > 0;
 
   const leaveDeduct = hourly*1.0*n(entry.personalLeave)
+    + hourly*1.0*n(entry.familyCareLeave) // 不給工資，但不扣全勤
     + hourly*0.5*sickHalfPayHours + hourly*1.0*sickUnpaidHours
     + hourly*0.5*menstrualHalfPayHours + hourly*1.0*menstrualUnpaidHours
     + hourly*1.0*n(entry.disasterLeave) + hourly*1.0*n(entry.otherLeave);
@@ -736,7 +739,7 @@ function App(){
   function openNewEmployee(){
     setEditingEmployee({id:null, name:'', department:'', company:'', status:'在職', hireDate:'', insuranceGrade:0, baseSalary:0,
       mealAllowance:0, transportAllowance:0, positionAllowance:0, fullAttendanceBonus:0, bankName:'', bankAccount:'', note:'',
-      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false, employeeType:'正式員工',
+      companyId:'', departmentId:'', shiftId:'', phone:'', canBeDelegate:true, exemptFromAttendance:false, employeeType:'正式員工', exemptDependentCount:0,
       nationalId:'', householdAddress:'', dependentCount:0, resignDate:'', gender:'', transportAllowanceMode:'fixed', tenureBreakStart:'', tenureBreakEnd:''});
     setIsNewEmployee(true);
   }
@@ -827,6 +830,7 @@ function App(){
             otWeekday134: s.otWeekday134, otWeekday167: s.otWeekday167,
             otRestDayHours: s.otRestDayHours, otHolidayHours: s.otHolidayHours, otMandatoryRestHours: s.otMandatoryRestHours,
             personalLeave: s.personalLeave || 0, sickLeave: s.sickLeave || 0, disasterLeave: s.disasterLeave || 0,
+            familyCareLeave: s.familyCareLeave || 0,
             menstrualLeave: s.menstrualLeave || 0,
             lateMinutes: s.lateMinutes || 0, lateCount: s.lateCount || 0,
             earlyMinutes: s.earlyLeaveMinutes || 0, earlyCount: s.earlyLeaveCount || 0,
@@ -1055,7 +1059,16 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           <div className="field">
             <label>健保眷屬人數（不含本人）</label>
             <input type="number" min="0" max="3" value={editing.dependentCount} onChange={e=>setEditing({...editing, dependentCount:Number(e.target.value)})} />
-            <div className="hint" style={{marginTop:4}}>健保費＝一口金額 ×（本人 1 口 ＋ 眷屬口數），眷屬超過 3 口以 3 口計。健保繳費表上的「人數」是含本人的，這裡要填不含本人的眷屬數。</div>
+            <div className="hint" style={{marginTop:4}}>健保費＝一口金額 ×（本人 1 口 ＋ 應繳眷屬口數），眷屬超過 3 口以 3 口計。健保繳費表上的「人數」是含本人的，這裡要填不含本人的眷屬數。</div>
+          </div>
+          <div className="field">
+            <label>其中免繳保費的眷屬人數</label>
+            <input type="number" min="0" max="3" value={editing.exemptDependentCount || 0} onChange={e=>setEditing({...editing, exemptDependentCount:Number(e.target.value)})} />
+            <div className="hint" style={{marginTop:4}}>
+              眷屬中保費由政府補助、不需繳費的人數，例如<b>65 歲以上且設籍的縣市有補助</b>、或具低收入戶等身分。
+              這些眷屬仍在保，只是不必為他們繳費，所以從應繳口數扣除，<b>不要用少填眷屬人數的方式處理</b>（會讓投保人數失真）。
+              目前應繳 <b>{Math.max(0, Math.min(n(editing.dependentCount),3) - n(editing.exemptDependentCount)) + 1}</b> 口（本人 1 ＋ 眷屬 {Math.max(0, Math.min(n(editing.dependentCount),3) - n(editing.exemptDependentCount))}）。
+            </div>
             <div className="hint" style={{marginTop:4}}>眷屬保費同本人金額，超過3人一律以3人計算</div>
           </div>
           <div className="field"><label>本薪</label><input type="number" value={editing.baseSalary} onChange={e=>setEditing({...editing, baseSalary:Number(e.target.value)})} /></div>
@@ -1958,8 +1971,8 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
   useEffect(()=>{
     apiGet('getLeaveDetailForPayslip', {employeeId: emp.id, month}).then(setLeaveDetail).catch(()=>setLeaveDetail(null));
   }, [emp.id, month]);
-  const familyCareHours = Math.min(n(leaveDetail?.familyCareHours), n(entry.personalLeave));
-  const personalOnlyHours = Math.max(0, n(entry.personalLeave) - familyCareHours);
+  const familyCareHours = n(entry.familyCareLeave) || Math.min(n(leaveDetail?.familyCareHours), n(entry.personalLeave));
+  const personalOnlyHours = n(entry.familyCareLeave) ? n(entry.personalLeave) : Math.max(0, n(entry.personalLeave) - familyCareHours);
   const infoLeave = leaveDetail?.infoLeave || {};
   const infoLeaveRows = ['特休','婚假','喪假','公假','公傷病假','產假','產檢假','陪產假'].filter(t=>n(infoLeave[t])>0);
   return (
