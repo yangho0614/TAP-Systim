@@ -2456,11 +2456,20 @@ function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseli
 /* ========================= 匯款明細表 ========================= */
 function TransferTab({rows, month}){
   const [period, setPeriod] = useState('06');
+  const [holidays, setHolidays] = useState([]);
+  useEffect(()=>{ apiGet('getHolidays').then(setHolidays).catch(()=>{}); }, []);
   const byCompany = useMemo(()=>{
     const g = {};
     rows.forEach(r => { const key = r.emp.company||'其他'; (g[key] = g[key]||[]).push(r); });
     return g;
   }, [rows]);
+
+  // 薪資是「次月」發放（6 日發正常薪資、26 日發業務獎金），遇假日往前提早。
+  // 原本這裡只印「26日發放」，月份會被誤解成計薪月份，實際上 2026-06 是 2026-07-26 才發。
+  const holidaySet = {}; holidays.forEach(h=>{ if(h.type==='國定假日') holidaySet[h.date]=true; });
+  const [tpy, tpm] = month.split('-').map(Number);
+  const payDate = getActualPayDateJS(tpy, tpm + 1, period==='06' ? 6 : 26, holidaySet);
+  const payDateShort = payDate.replace(/^\d+-/,'').replace('-','/');
 
   function exportGroup(company, list){
     const headers = ['項次','姓名','銀行','帳號','金額','備註'];
@@ -2495,6 +2504,7 @@ function TransferTab({rows, month}){
         </div>
         <span className="grow"></span>
         <span className="hint">依公司分組列出應匯款人員與帳號，金額為 0 者不列出。</span>
+        <span className="badge" title="薪資為次月發放，遇假日往前提早">實際發放日 {payDate}</span>
         <button className="ghost sm" onClick={printTransfer}>列印 / 存 PDF</button>
       </div>
 
@@ -2507,12 +2517,12 @@ function TransferTab({rows, month}){
           <div className="card-head">
             <h3 style={{margin:0}}>{company}</h3>
             <span className="grow"></span>
-            <span className="hint no-print">{monthLabel(month)}．{Number(period)}日發放．共 {active.length} 人</span>
+            <span className="hint no-print">{monthLabel(month)}薪資．{Number(period)}日批次．發放日 {payDateShort}．共 {active.length} 人</span>
             <button className="ghost sm no-print" onClick={()=>exportGroup(company, active)}>匯出 CSV</button>
           </div>
           {/* 列印專用的副標，畫面上不重複顯示 */}
           <div className="print-only" style={{fontSize:12, color:'#555', margin:'0 0 8px'}}>
-            {monthLabel(month)}　{Number(period)}日 薪資轉帳明細表　（共 {active.length} 人）
+            {monthLabel(month)}薪資　{Number(period)}日批次　實際發放日：{payDate}　（共 {active.length} 人）
           </div>
           <table style={{tableLayout:'fixed', width:'100%', minWidth:640}}>
             <colgroup>
