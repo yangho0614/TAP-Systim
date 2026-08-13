@@ -293,15 +293,36 @@ async function parseApiResponse(res){
     throw new Error('伺服器回應格式錯誤：' + text.slice(0, 80));
   }
 }
-async function apiGet(action, params={}){
+/* 新後端（Cloudflare Workers）。
+   讀的是同一份 Google 試算表，只是換掉執行環境：GAS 每次請求要 2～15 秒，
+   新後端約 0.6 秒。下列 action 都已與 GAS 逐欄比對確認結果完全一致才切換。
+   寫入類與尚未搬移的查詢仍走 GAS。 */
+const API_URL = 'https://tap-api.mammyshop-tw.workers.dev';
+const NEW_BACKEND_ACTIONS = ['getAdminBootstrap'];
+
+async function callApiGet(base, action, params){
   const qs = new URLSearchParams({action, token: CURRENT_TOKEN||'', ...params}).toString();
-  const res = await fetchWithRetry(`${GAS_URL}?${qs}`);
+  const res = await fetchWithRetry(`${base}?${qs}`);
   const json = await parseApiResponse(res);
   if(json.status !== 'success'){
     if(isSessionError(json.message)) forceReLogin();
     throw new Error(json.message || '發生錯誤');
   }
   return json.data;
+}
+
+async function apiGet(action, params={}){
+  const useNew = NEW_BACKEND_ACTIONS.indexOf(action) !== -1;
+  if(!useNew) return callApiGet(GAS_URL, action, params);
+  try{
+    return await callApiGet(API_URL, action, params);
+  }catch(e){
+    // 新後端若有任何問題（部署異常、憑證過期、網路），自動改走 GAS。
+    // 最壞情況只是回到原本的速度，不會讓員工卡住無法作業。
+    if(isSessionError(e.message)) throw e; // 登入問題兩邊一樣，不必重試
+    console.warn('新後端失敗，改用 GAS：', e.message);
+    return callApiGet(GAS_URL, action, params);
+  }
 }
 async function apiPost(action, body={}){
   const res = await fetchWithRetry(GAS_URL, {method:'POST', body: JSON.stringify({action, token: CURRENT_TOKEN, ...body})});
