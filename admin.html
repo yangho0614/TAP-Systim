@@ -202,6 +202,7 @@
   }
 
   /* ===================== 出缺勤彙總 ===================== */
+  :root{--sum-namew:150px;}
   /* 欄位分組摺疊列 */
   .grp-bar{display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-bottom:8px;}
   .grp-chip{background:transparent; color:var(--muted); border:1px solid var(--line);
@@ -231,7 +232,10 @@
   /* 展開的逐筆假單。⚠️ 表頭與資料列是兩個獨立的 grid，軌道必須完全一致才會對齊；
      最後一欄用 auto 會讓兩邊依各自內容算出不同寬度，中間的 1fr 吸收差額就對不上。
      狀態放最前：最左邊形成一條顏色帶，待審核的幾筆往下掃就找得到。 */
-  .sum-tbl tr.detail-row > td{background:#EFEFEF; text-align:left; padding:12px 16px 14px 30px;}
+  /* 姓名欄固定寬，展開明細的 padding-left 吃同一個值，明細才會從姓名欄之後、與第一個資料欄齊頭 */
+  .sum-tbl th:first-child, .sum-tbl td.emp-cell{width:var(--sum-namew); min-width:var(--sum-namew);}
+  .sum-tbl tr.detail-row > td{background:#EFEFEF; text-align:left;
+                              padding:12px 16px 14px calc(var(--sum-namew) + 10px);}
   .lv-head, .lv-row{display:grid; grid-template-columns:5.4em 6.6em 5em minmax(0,1fr);
                     gap:10px; max-width:720px; padding-left:10px; padding-right:10px;}
   .lv-head{padding-bottom:6px; margin-bottom:4px; border-bottom:1px solid var(--line);
