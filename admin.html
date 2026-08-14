@@ -178,7 +178,10 @@
   .print-only{display:none;}
 
   @media print{
-    @page{ margin:12mm; }
+    /* 薪資印領清冊有 14 欄（12 個月＋項目＋全年合計），直式 A4 一定印不下 ——
+       實測會把 8 月之後與「全年合計」整片裁掉，而那是清冊最重要的一欄。
+       橫式並縮小邊界，讓整張表完整落在一頁寬度內。 */
+    @page{ size:A4 landscape; margin:8mm; }
     .no-print{display:none !important;}
     .sidebar,.topbar,.toolbar{display:none !important;}
     body{background:#fff;}
@@ -201,6 +204,17 @@
                      -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     /* 凍結欄在列印時不需要，且 sticky 會造成錯位 */
     .freeze-1, .freeze-2, .reg-freeze-1, .reg-freeze-2{ position:static !important; }
+
+    /* 印領清冊：畫面上為了好讀給了 minWidth:1500，列印時必須放掉，
+       否則表格比紙寬、右側會被裁切。字級與內距一併縮小以塞進一頁寬。 */
+    .reg-table{ min-width:0 !important; width:100% !important; table-layout:fixed; font-size:8.5px; }
+    .reg-table th, .reg-table td{ padding:2px 3px !important; word-break:break-all; }
+    .reg-table .reg-freeze-1{ width:112px; }
+    .reg-table .reg-freeze-2{ width:64px; }
+    /* 同一位員工的整塊資料不要被拆到兩頁 */
+    .reg-table tbody > tr{ page-break-inside:avoid; }
+    /* 未結算月份的「—」列印時用淺灰，跟真的 0 仍要分得出來 */
+    .reg-empty{ color:#999 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   }
 
   /* ===================== 操作流程 ===================== */
@@ -556,6 +570,22 @@ function fileToBase64(file){
   });
 }
 // 數字格式化到指定小數位，但小數是0就不顯示（例如22.0→22，17.5維持17.5）
+/* 列印（或另存 PDF）時的檔名。
+   瀏覽器把 document.title 當成預設檔名，所以列印前先換掉、列印完再換回來。
+   不做的話存出來會是「mammyshop 媽咪小站 - 後台管理 · 出缺勤與薪資系統.pdf」，
+   一堆檔案疊在下載資料夾裡完全分不出誰是誰。
+   afterprint 有些瀏覽器不觸發，所以再補一個 setTimeout 保險。 */
+function printWithFilename(name){
+  const original = document.title;
+  const restore = () => {
+    document.title = original;
+    window.removeEventListener('afterprint', restore);
+  };
+  document.title = String(name || original).replace(/[\\/:*?"<>|]/g, '-');
+  window.addEventListener('afterprint', restore);
+  setTimeout(()=>window.print(), 0);
+  setTimeout(restore, 3000);
+}
 function trimNum(v, decimals){
   const num = Number(v)||0;
   const fixed = num.toFixed(decimals);
@@ -2761,7 +2791,11 @@ function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseli
           <input type="checkbox" checked={hideZero} onChange={e=>setHideZero(e.target.checked)} style={{width:'auto'}} />
           隱藏金額為0的項目
         </label>
-        <button className="ghost sm" onClick={()=>window.print()}>列印薪資條</button>
+        <button className="ghost sm" onClick={()=>{
+          const [yy,mo] = month.split('-');
+          const who = selected==='all' ? '全部員工' : ((employees.find(e=>e.id===selected)||{}).name || '');
+          printWithFilename(`${yy}年${mo}月份-薪資條-${who}`);
+        }}>列印薪資條</button>
       </div>
       {list.length===0 && <div className="empty card">尚無員工資料</div>}
       {list.map(emp=>{
@@ -2886,7 +2920,13 @@ const REGISTER_ROW_DEFS = [
   {key:'leaveDeduct', label:'請假扣款'},
   {key:'otherDeduction', label:'其他扣款'},
   {key:'deductTotal', label:'應扣合計', bold:true},
-  {key:'netPay', label:'實發淨額', bold:true, highlight:true}
+  /* 6 日與 26 日分開列，讀表的人才驗算得出來：
+     6日實發 = 應發合計 − 應扣合計；實發總計 = 6日實發 + 26日應發。
+     原本只有一列「實發淨額」印的是 pay06+pay26，但表上只有 6 日的應發／應扣，
+     一減就對不上（差額正是 26 日那筆），對要保存 5 年供勞檢查核的文件是致命的。 */
+  {key:'pay06', label:'6日實發', bold:true},
+  {key:'pay26', label:'26日應發', bold:true},
+  {key:'netPay', label:'實發總計', bold:true, highlight:true}
 ];
 function PayrollRegisterTab(){
   const [year, setYear] = useState(String(new Date().getFullYear()));
@@ -2929,7 +2969,7 @@ function PayrollRegisterTab(){
         <button className="ghost sm" onClick={scrollToStart} title="跳到最左邊"><span className="material-icons" style={{fontSize:16}}>first_page</span></button>
         <button className="ghost sm" onClick={scrollToEnd} title="跳到最右邊看全年合計"><span className="material-icons" style={{fontSize:16}}>last_page</span></button>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
-        <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
+        <button className="ghost sm" onClick={()=>printWithFilename(`${year}年度-薪資印領清冊-${activeCompany||''}`)}>列印本頁</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>
         依勞基法第23條規定製作，記載工資總額、各項目金額、扣除項目金額與實發金額，須保存5年。每人每月留一欄供簽名或蓋章確認領取。
@@ -2938,7 +2978,7 @@ function PayrollRegisterTab(){
           <div className="card" style={{overflowX:'auto'}} ref={scrollRef}>
             <h3 style={{marginBottom:2}}>{activeCompany}</h3>
             <div className="hint" style={{marginBottom:10}}>{year}年度薪資印領清冊</div>
-            <table style={{minWidth:1500}}>
+            <table className="reg-table" style={{minWidth:1500}}>
               <tbody>
                 {list.map(emp=>{
                   const regRows = [
@@ -2947,26 +2987,20 @@ function PayrollRegisterTab(){
                     ...REGISTER_ROW_DEFS.map(def=>({type:'data', def})),
                     {type:'signature'}
                   ];
-                  const middleIdx = Math.floor(regRows.length/2);
                   return (
                     <React.Fragment key={emp.employeeId}>
                       {regRows.map((row,idx)=>{
-                        const freeze1Style = {
-                          borderTop: idx===0 ? '1px solid var(--line)' : 'none',
-                          borderBottom: idx===regRows.length-1 ? '1px solid var(--line)' : 'none'
-                        };
-                        const nameCell = (
-                          <td className="reg-freeze-1" style={freeze1Style}>
-                            {idx===middleIdx && (
-                              <>
-                                <div style={{fontWeight:700}}>{emp.name}</div>
-                                <div className="hint" style={{marginTop:4}}>{emp.department}</div>
-                                <div className="hint" style={{marginTop:4}}>身分證字號：{emp.nationalId || '未填寫'}</div>
-                                <div className="hint" style={{marginTop:2}}>戶籍地：{emp.householdAddress || '未填寫'}</div>
-                              </>
-                            )}
+                        /* 姓名欄用 rowSpan 真正合併成一格，只在該員工的第一列輸出。
+                           原本每一列都輸出一個 <td>、只有中間那列有內容，列印出來會變成
+                           一整排空的框框，看起來像沒填完的表格。 */
+                        const nameCell = idx===0 ? (
+                          <td className="reg-freeze-1" rowSpan={regRows.length}>
+                            <div style={{fontWeight:700}}>{emp.name}</div>
+                            <div className="hint" style={{marginTop:4}}>{emp.department}</div>
+                            <div className="hint" style={{marginTop:4}}>身分證字號：{emp.nationalId || '未填寫'}</div>
+                            <div className="hint" style={{marginTop:2}}>戶籍地：{emp.householdAddress || '未填寫'}</div>
                           </td>
-                        );
+                        ) : null;
                         if(row.type==='header'){
                           return (
                             <tr key="header">
