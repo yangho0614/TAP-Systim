@@ -84,7 +84,11 @@
               cursor:pointer; letter-spacing:.04em; }
   .build-tag:hover{ color:#00ADB5; text-decoration:underline; }
   .reg-freeze-1, .reg-freeze-2{ position:sticky; z-index:3; background:#F2F0E8; }
-  .reg-freeze-1{ left:0; min-width:150px; max-width:150px; white-space:normal; text-align:center; vertical-align:middle; border-top:none; border-bottom:none; }
+  /* ⚠️ 不要再加 border-top:none / border-bottom:none。
+     那是「姓名欄還沒合併」時代的殘留：當時每一列都輸出一格，要藏掉它們之間的橫線
+     才能看起來像一整格。改用 rowSpan 真正合併之後，這兩行反而讓整塊的上下邊界消失，
+     列印出來每位員工區塊的左上／左下角是開口的。 */
+  .reg-freeze-1{ left:0; min-width:150px; max-width:150px; white-space:normal; vertical-align:middle; }
   .reg-freeze-2{ left:150px; min-width:90px; border-right:2px solid var(--brand); }
   th.reg-freeze-2{ z-index:4; background:#EDEDED; }
   .col-add{background:#EAF6ED;}
