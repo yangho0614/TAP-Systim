@@ -1795,8 +1795,12 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
               })()}
 
               <div style={{marginTop:8}}>
+                {/* inline-flex + alignItems center：button 預設是 baseline 對齊，中文字在小字級下
+                    會偏上、看起來沒對齊；配合固定行高與上下 padding 讓文字真正垂直置中 */}
                 <button type="button" onClick={()=>setShowLeaveRules(v=>!v)}
-                  style={{background:'none', border:'none', padding:0, fontSize:12, opacity:.75, textDecoration:'underline', cursor:'pointer', color:'inherit'}}>
+                  style={{display:'inline-flex', alignItems:'center', gap:4, minHeight:28, padding:'4px 0',
+                          lineHeight:1, background:'none', border:'none', fontSize:12, opacity:.75,
+                          textDecoration:'underline', cursor:'pointer', color:'inherit'}}>
                   {showLeaveRules ? '收起請假規定' : '各假別請假規定一覽'}
                 </button>
                 {showLeaveRules && (
@@ -1824,9 +1828,10 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 )}
               </div>
             </div>
-            <div className="hint" style={{marginTop:4, marginBottom:10}}>班別時間 {shiftStart}~{shiftEnd}，請假時段需在此範圍內</div>
             <div className="field">
-              <label>開始時間</label>
+              {/* 班別時間的限制條件直接附在「開始時間」標籤上，讓規則跟它約束的欄位待在一起，
+                  不再獨立成一行浮在假別區塊與時間欄位之間 */}
+              <label>開始時間<span style={{fontWeight:400, opacity:.65, marginLeft:6}}>（班別時間 {shiftStart}~{shiftEnd}，請假時段需在此範圍內）</span></label>
               <button type="button" className="ghost-btn" style={{textAlign:'center', display:'flex', justifyContent:'center', alignItems:'center', gap:8, background:'#1B2027', color:'var(--text)', border:'1px solid var(--line)'}} onClick={()=>setPickerFor('start')}>
                 <span>{leaveBox.startDT ? formatDateTimeReadable(leaveBox.startDT) : '請選擇'}</span>
                 <span className="material-icons" style={{fontSize:18}}>event</span>
