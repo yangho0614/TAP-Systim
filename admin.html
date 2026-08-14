@@ -111,13 +111,15 @@
   .build-tag{ margin-top:8px; text-align:center; font-size:10.5px; color:#6D7278;
               cursor:pointer; letter-spacing:.04em; }
   .build-tag:hover{ color:#00ADB5; text-decoration:underline; }
-  .reg-freeze-1, .reg-freeze-2{ position:sticky; z-index:3; background:#F2F0E8; }
+  /* 只剩「項目」欄需要凍結（姓名欄已改成橫幅）。
+     ⚠️ 這裡的 left 偏移必須是 0：先前是 150px，用來讓開姓名欄；
+     姓名欄拿掉後那 150px 就變成最左邊一整欄空白，還把 1 月推到底下蓋住。 */
+  .reg-freeze-2{ position:sticky; left:0; z-index:3; background:#F2F0E8; }
   /* ⚠️ 不要再加 border-top:none / border-bottom:none。
      那是「姓名欄還沒合併」時代的殘留：當時每一列都輸出一格，要藏掉它們之間的橫線
      才能看起來像一整格。改用 rowSpan 真正合併之後，這兩行反而讓整塊的上下邊界消失，
      列印出來每位員工區塊的左上／左下角是開口的。 */
-  .reg-freeze-1{ left:0; min-width:150px; max-width:150px; white-space:normal; vertical-align:middle; }
-  .reg-freeze-2{ left:150px; min-width:90px; border-right:2px solid var(--brand); }
+  .reg-freeze-2{ min-width:96px; border-right:2px solid var(--brand); }
   th.reg-freeze-2{ z-index:4; background:#EDEDED; }
   .col-add{background:#EAF6ED;}
   .col-deduct{background:#FBEDEA;}
@@ -250,7 +252,7 @@
     tr.total-row td{ background:#f0f0f0 !important; font-weight:700;
                      -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     /* 凍結欄在列印時不需要，且 sticky 會造成錯位 */
-    .freeze-1, .freeze-2, .reg-freeze-1, .reg-freeze-2{ position:static !important; }
+    .freeze-1, .freeze-2, .reg-freeze-2{ position:static !important; }
 
     /* 印領清冊：畫面上為了好讀給了 minWidth:1500，列印時必須放掉，
        否則表格比紙寬、右側會被裁切。字級與內距一併縮小以塞進一頁寬。 */
@@ -258,7 +260,7 @@
     /* ⚠️ word-break:break-all 只能套在數字欄。套到員工資料格會把身分證號斷成
        「L1236 / 87827」、地址斷在詞中間，看起來像資料壞掉。 */
     .reg-table th, .reg-table td{ padding:2px 3px !important; }
-    .reg-table td:not(.reg-freeze-1){ word-break:break-all; }
+    .reg-table td:not(.reg-freeze-2):not(.reg-emp-bar){ word-break:break-all; }
     /* 欄寬用 mm 明確指定，確保簽名格達到 2×2cm。
        橫式 A4 可用寬 297−12=285mm：項目 22 ＋ 12 個月各 20（240）＋ 全年合計 20 ＝ 282mm。
        這也是為什麼員工資料必須改成橫幅 —— 留不下 40mm 給姓名欄。 */
