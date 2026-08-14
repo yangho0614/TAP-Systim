@@ -201,6 +201,15 @@
     .freeze-1, .freeze-2, .reg-freeze-1, .reg-freeze-2{ position:static !important; }
   }
 
+  /* ===================== 打卡紀錄作廢 ===================== */
+  /* 作廢的列整列淡化並加刪除線，一眼看得出「這筆保留但不算數」；資料仍完整可讀 */
+  .voided-row td{opacity:.5; text-decoration:line-through;}
+  .voided-row td:last-child, .voided-row .void-meta{text-decoration:none; opacity:1;}
+  .void-tag{display:inline-block; margin-left:6px; padding:1px 7px; border-radius:5px;
+            background:rgba(161,61,61,.14); color:var(--danger); font-size:11px;
+            font-weight:700; text-decoration:none;}
+  .void-meta{margin-top:3px; font-size:11px; color:var(--danger); opacity:.85;}
+
   /* ===================== 出缺勤彙總 ===================== */
   :root{--sum-namew:150px;}
   /* 欄位分組摺疊列 */
@@ -1569,9 +1578,15 @@ function RecordsTab({employees, month}){
   const [filterCompany, setFilterCompany] = useState('全部');
   const [filterName, setFilterName] = useState('全部');
   const [onlyAbnormal, setOnlyAbnormal] = useState(false);
+  // 已作廢的紀錄預設隱藏（它們不算數），勾選才撈出來查看與還原
+  const [showVoided, setShowVoided] = useState(false);
 
-  function load(){ setLoading(true); apiGet('getRecords', {month}).then(setRecords).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
-  useEffect(load, [month]);
+  function load(){
+    setLoading(true);
+    apiGet('getRecords', {month, includeVoided: showVoided ? 'true' : 'false'})
+      .then(setRecords).catch(e=>alert(e.message)).finally(()=>setLoading(false));
+  }
+  useEffect(load, [month, showVoided]);
 
   async function saveManual(){
     try{ await apiPost('addManualRecord', manual); setManual(null); load(); }catch(e){ alert(e.message); }
@@ -1579,15 +1594,23 @@ function RecordsTab({employees, month}){
   async function saveEdit(){
     try{ await apiPost('adjustRecord', editing); setEditing(null); load(); }catch(e){ alert(e.message); }
   }
-  async function removeRecord(id, info){
+  // 作廢而非刪除：原始資料完整保留，只是不再列入任何統計與薪資計算。
+  // 依勞基法第 30 條第 5 項出勤紀錄應保存 5 年，硬刪除等於銷毀憑證、勞檢時無法舉證。
+  async function voidRecordAsk(id, info){
     const who = info ? `${info.date}　${info.name}　${info.checkIn||'—'} / ${info.checkOut||'—'}\n\n` : '';
-    if(!confirm(
-      '刪除打卡紀錄\n\n' + who +
-      '出勤紀錄依勞動基準法第 30 條應保存 5 年，未依規定保存可處 9 萬至 45 萬元罰鍰。\n' +
-      '本系統為永久刪除，刪除後無法還原，也無法在勞檢或勞資爭議時舉證。\n\n' +
-      '確定仍要刪除嗎？'
-    )) return;
-    try{ await apiPost('deleteRecord', {id}); load(); }catch(e){ alert(e.message); }
+    const reason = prompt(
+      '作廢打卡紀錄\n\n' + who +
+      '作廢後這筆不再列入出缺勤統計與薪資計算，但原始資料會完整保留，\n' +
+      '並記錄操作者與時間，日後可還原（勞基法第 30 條要求出勤紀錄保存 5 年）。\n\n' +
+      '請填寫作廢原因：', '');
+    if(reason === null) return;               // 按取消
+    if(!reason.trim()){ alert('請填寫作廢原因，這是稽核軌跡的一部分'); return; }
+    try{ await apiPost('voidRecord', {id, reason: reason.trim()}); load(); }catch(e){ alert(e.message); }
+  }
+  async function restoreRecordAsk(id, info){
+    const who = info ? `${info.date}　${info.name}` : '這筆紀錄';
+    if(!confirm(`還原「${who}」？\n\n還原後會重新列入出缺勤統計與薪資計算。`)) return;
+    try{ await apiPost('restoreRecord', {id}); load(); }catch(e){ alert(e.message); }
   }
 
   const empMap = {}; employees.forEach(e=>{ empMap[e.id] = e; });
@@ -1628,6 +1651,9 @@ function RecordsTab({employees, month}){
         <label style={{display:'flex', alignItems:'center', gap:5, fontSize:13, color:'var(--ink)'}}>
           <input type="checkbox" checked={onlyAbnormal} onChange={e=>setOnlyAbnormal(e.target.checked)} style={{width:'auto'}} />只顯示異常記錄
         </label>
+        <label style={{display:'flex', alignItems:'center', gap:5, fontSize:13, color:'var(--ink)'}}>
+          <input type="checkbox" checked={showVoided} onChange={e=>setShowVoided(e.target.checked)} style={{width:'auto'}} />顯示已作廢
+        </label>
         <span className="grow"></span>
         <button className="ghost sm" onClick={()=>setManual({employeeId:'', name:'', companyFilter:'全部', date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
         <button className="ghost sm" onClick={load}>重新整理</button>
@@ -1645,8 +1671,8 @@ function RecordsTab({employees, month}){
               {filtered.map(r=>{
                 const emp = empMap[r.employeeId];
                 return (
-                <tr key={r.id}>
-                  <td className="center"><b>{r.name}</b></td>
+                <tr key={r.id} className={r.voided ? 'voided-row' : ''}>
+                  <td className="center"><b>{r.name}</b>{r.voided && <span className="void-tag">已作廢</span>}</td>
                   <td className="center">{emp ? (emp.company||'(未分類)') : '-'}</td>
                   <td className="center">{r.date}</td>
                   {punchCell(r.checkIn, r.checkInStatus)}
@@ -1654,9 +1680,18 @@ function RecordsTab({employees, month}){
                   {punchCell(r.outgo, r.outgoStatus)}
                   {punchCell(r.returnTime, r.returnStatus)}
                   <td className="center">{r.source}</td>
-                  <td className="left">{r.note}</td>
-                  <td><button className="ghost sm" onClick={()=>setEditing({id:r.id, checkIn:r.checkIn, checkOut:r.checkOut, note:r.note, lat:r.checkInLat||r.checkOutLat||'', lng:r.checkInLng||r.checkOutLng||''})}>修改</button>{' '}
-                      <button className="danger sm" onClick={()=>removeRecord(r.id, r)}>刪除</button></td>
+                  <td className="left">
+                    {r.note}
+                    {r.voided && <div className="void-meta">{r.voidedBy} 於 {r.voidedAt} 作廢{r.voidReason ? '：' + r.voidReason : ''}</div>}
+                  </td>
+                  <td>
+                    {r.voided ? (
+                      <button className="ghost sm" onClick={()=>restoreRecordAsk(r.id, r)}>還原</button>
+                    ) : (<>
+                      <button className="ghost sm" onClick={()=>setEditing({id:r.id, checkIn:r.checkIn, checkOut:r.checkOut, note:r.note, lat:r.checkInLat||r.checkOutLat||'', lng:r.checkInLng||r.checkOutLng||''})}>修改</button>{' '}
+                      <button className="danger sm" onClick={()=>voidRecordAsk(r.id, r)}>作廢</button>
+                    </>)}
+                  </td>
                 </tr>
                 );
               })}
