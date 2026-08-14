@@ -200,6 +200,52 @@
     /* 凍結欄在列印時不需要，且 sticky 會造成錯位 */
     .freeze-1, .freeze-2, .reg-freeze-1, .reg-freeze-2{ position:static !important; }
   }
+
+  /* ===================== 出缺勤彙總 ===================== */
+  /* 欄位分組摺疊列 */
+  .grp-bar{display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-bottom:8px;}
+  .grp-chip{background:transparent; color:var(--muted); border:1px solid var(--line);
+            border-radius:100px; padding:5px 12px; font-size:12px; font-weight:700;}
+  .grp-chip:hover{background:transparent; border-color:var(--muted); color:var(--ink);}
+  .grp-chip .grp-dot{width:7px; height:7px; border-radius:50%; background:currentColor; opacity:.3;}
+  .grp-chip.on{background:rgba(0,173,181,.10); border-color:rgba(0,173,181,.45); color:var(--brand);}
+  .grp-chip.on:hover{background:rgba(0,173,181,.16); color:var(--brand);}
+  .grp-chip.on .grp-dot{opacity:1;}
+  /* 分組表頭配色：出勤=品牌色、扣薪假=警示色、有薪假=紫、加班=琥珀 */
+  .sum-tbl th.grp-att{background:rgba(0,173,181,.12); color:#00767C;}
+  .sum-tbl th.grp-un{background:rgba(161,61,61,.10); color:var(--danger);}
+  .sum-tbl th.grp-pd{background:rgba(107,83,184,.10); color:#5a45a0;}
+  .sum-tbl th.grp-ot{background:rgba(160,106,16,.11); color:#8a5a0d;}
+  /* 0 用淡字而不是留白：留白分不清「沒請假」與「資料還沒帶進來」 */
+  .sum-tbl td.zero-dim{color:var(--muted); opacity:.42;}
+  .sum-tbl td.col-sum{font-weight:800;}
+  .sum-tbl tr.row-exp{cursor:pointer;}
+  .sum-tbl tr.row-exp:hover td{background:rgba(0,173,181,.05);}
+  .sum-tbl .exp-arrow{display:inline-block; margin-left:6px; color:var(--muted); transition:transform .15s;}
+  .sum-tbl .exp-arrow.open{transform:rotate(90deg);}
+  .sum-tbl .pend-badge{display:inline-block; margin-left:6px; padding:1px 7px; border-radius:5px;
+                       background:rgba(160,106,16,.14); color:#8a5a0d; font-size:11px; font-weight:700;}
+  .sum-tbl .occ-tag{display:inline-block; margin:1px 2px; padding:1px 7px; border-radius:5px;
+                    background:rgba(107,83,184,.12); color:#5a45a0; font-size:11.5px; font-weight:700;}
+
+  /* 展開的逐筆假單。⚠️ 表頭與資料列是兩個獨立的 grid，軌道必須完全一致才會對齊；
+     最後一欄用 auto 會讓兩邊依各自內容算出不同寬度，中間的 1fr 吸收差額就對不上。
+     狀態放最前：最左邊形成一條顏色帶，待審核的幾筆往下掃就找得到。 */
+  .sum-tbl tr.detail-row > td{background:#EFEFEF; text-align:left; padding:12px 16px 14px 30px;}
+  .lv-head, .lv-row{display:grid; grid-template-columns:5.4em 6.6em 5em minmax(0,1fr);
+                    gap:10px; max-width:720px; padding-left:10px; padding-right:10px;}
+  .lv-head{padding-bottom:6px; margin-bottom:4px; border-bottom:1px solid var(--line);
+           font-size:11px; font-weight:700; letter-spacing:.08em; color:var(--muted);}
+  .lv-list{display:flex; flex-direction:column; gap:2px;}
+  .lv-row{align-items:baseline; padding-top:7px; padding-bottom:7px; border-radius:7px; font-size:12.5px;}
+  .lv-row:nth-child(odd){background:var(--paper-2);}
+  .lv-st{justify-self:start; padding:1px 8px; border-radius:5px; font-size:11px; font-weight:700;
+         white-space:nowrap; background:rgba(0,173,181,.14); color:#00767C;}
+  .lv-st.wait{background:rgba(160,106,16,.16); color:#8a5a0d;}
+  .lv-ty{font-weight:700;}
+  .lv-hr{text-align:right; font-variant-numeric:tabular-nums; font-weight:700;}
+  .lv-when{color:var(--muted); font-variant-numeric:tabular-nums;}
+  .lv-when .lv-why{margin-left:6px; opacity:.8;}
 </style>
 </head>
 <body>
@@ -786,7 +832,8 @@ const NAV = [
   {group:'出缺勤', id:'requests', label:'假單審核', icon:'approval'},
   {group:'出缺勤', id:'annual', label:'特休設定', icon:'beach_access'},
   {group:'出缺勤', id:'comp', label:'加班補休明細表', icon:'swap_horiz'},
-  {group:'出缺勤', id:'attendance', label:'出缺勤彙總', icon:'fact_check'},
+  // icon 不可重複，否則側欄兩個項目長得一模一樣。'fact_check' 留給薪資印領清冊
+  {group:'出缺勤', id:'attendance', label:'出缺勤彙總', icon:'summarize'},
   {group:'薪資', id:'payroll', label:'薪資計算 / 明細', icon:'calculate'},
   {group:'薪資', id:'payslip', label:'薪資條', icon:'receipt_long'},
   {group:'薪資', id:'transfer', label:'匯款明細表', icon:'account_balance_wallet'},
@@ -1675,18 +1722,70 @@ function RecordsTab({employees, month}){
 }
 
 /* ========================= 出缺勤彙總 ========================= */
+// 偶發假別共用「其他有薪假」一欄：這些假一年可能只請一次，各給固定欄位會有 7 欄整年是 0
+const OCCASIONAL_LEAVES = ['婚假','喪假','公假','公傷病假','產假','產檢假','陪產假'];
+// 展開明細的一列。狀態放最前，最左邊形成一條顏色帶，待審核的幾筆往下掃就找得到
+function LeaveDetailRow({d}){
+  const pending = (d.status === '待審核' || d.status === '初核通過');
+  const sameDay = String(d.startTime).slice(0,10) === String(d.endTime).slice(0,10);
+  const when = sameDay
+    ? `${String(d.startTime).slice(5,10)}　${String(d.startTime).slice(11,16)}–${String(d.endTime).slice(11,16)}`
+    : `${String(d.startTime).slice(5,10)} ～ ${String(d.endTime).slice(5,10)}`;
+  return (
+    <div className="lv-row">
+      <span className={'lv-st' + (pending ? ' wait' : '')}>{d.status}</span>
+      <span className="lv-ty">{d.leaveType}</span>
+      <span className="lv-hr">{trimNum(d.hours,1)} 小時</span>
+      <span className="lv-when">{when}{d.reason ? <span className="lv-why">· {d.reason}</span> : null}</span>
+    </div>
+  );
+}
+
 function AttendanceTab({month, onApply}){
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [makeupBox, setMakeupBox] = useState(null); // {employeeId, name, dates}
+  // 欄位分組摺疊：預設展開出勤與兩組請假、收起加班，一屏看得完不必橫向捲
+  const [openG, setOpenG] = useState({att:true, unpaid:true, paid:true, ot:false});
+  const [openRow, setOpenRow] = useState({});
+  const g = k => !!openG[k];
+  const toggleG = k => setOpenG(o=>({...o, [k]:!o[k]}));
+  const toggleRow = id => setOpenRow(o=>({...o, [id]:!o[id]}));
+  // 扣薪假／有薪假分開統計：兩者性質不同（一個扣薪影響全勤、一個不扣），
+  // 合成單一「請假合計」會看不出嚴重性，且扣薪假小計要能直接對薪資表的請假扣款
+  function unpaidSum(e){ return r1(n(e.personalLeave)+n(e.sickLeave)+n(e.familyCareLeave)+n(e.menstrualLeave)+n(e.disasterLeave)); }
+  function occasional(e){
+    const t = e.leaveByType || {};
+    return OCCASIONAL_LEAVES.filter(k=>n(t[k])>0).map(k=>({type:k, hours:n(t[k])}));
+  }
+  function paidSum(e){
+    const t = e.leaveByType || {};
+    return r1(n(t['特休']) + n(t['補休']) + occasional(e).reduce((s,x)=>s+x.hours,0));
+  }
+  function r1(v){ return Math.round((Number(v)||0)*10)/10; }
+  // 0 用淡字而不是留白：留白會讓人分不清「沒請假」和「資料還沒帶進來」
+  const Z = ({v, cls}) => <td className={'center ' + (cls||'') + (n(v)===0 ? ' zero-dim' : '')}>{trimNum(v,1)}</td>;
 
   function load(){ setLoading(true); apiGet('getMonthlySummary', {month}).then(setSummary).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
   useEffect(load, [month]);
 
   function doExportCSV(){
-    const headers = ['姓名','出勤日數','遲到次數','遲到分鐘','早退次數','早退分鐘','平日1.34倍(hr)','平日1.67倍(hr)','單日超時日數','單日超時日期','休息日出勤(hr)','國定假日出勤(hr)','例假日出勤(hr)','總工時(hr)','平日加班上限是否超過','定位異常日數'];
-    const rows = summary.map(e=>[e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,e.otWeekday134,e.otWeekday167,e.dailyOtExceedDays.length,e.dailyOtExceedDays.join('、'),e.otRestDayHours,e.otHolidayHours,e.otMandatoryRestHours,e.workedHoursTotal,e.otCapExceeded?'是':'否',e.flaggedDays]);
+    // CSV 一律匯出全部欄位（含收合起來的群組），畫面上的摺疊只是為了控制寬度，不該影響匯出內容
+    const headers = ['姓名','出勤日數','遲到次數','遲到分鐘','早退次數','早退分鐘',
+      '事假(hr)','病假(hr)','家庭照顧假(hr)','生理假(hr)','災防假(hr)','扣薪假小計(hr)',
+      '特休(hr)','補休(hr)','其他有薪假(hr)','其他有薪假明細','有薪假小計(hr)','待審核筆數','待審核時數(hr)',
+      '平日1.34倍(hr)','平日1.67倍(hr)','單日超時日數','單日超時日期','休息日出勤(hr)','國定假日出勤(hr)','例假日出勤(hr)','總工時(hr)','平日加班上限是否超過','定位異常日數'];
+    const rows = summary.map(e=>{
+      const t = e.leaveByType || {};
+      const occ = occasional(e);
+      return [e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,
+        e.personalLeave,e.sickLeave,e.familyCareLeave,e.menstrualLeave,e.disasterLeave,unpaidSum(e),
+        n(t['特休']),n(t['補休']),occ.reduce((s,x)=>s+x.hours,0),occ.map(x=>x.type+' '+x.hours).join('、'),paidSum(e),
+        e.pendingLeaveCount||0,e.pendingLeaveHours||0,
+        e.otWeekday134,e.otWeekday167,e.dailyOtExceedDays.length,e.dailyOtExceedDays.join('、'),
+        e.otRestDayHours,e.otHolidayHours,e.otMandatoryRestHours,e.workedHoursTotal,e.otCapExceeded?'是':'否',e.flaggedDays];
+    });
     exportCSV(`出缺勤彙總_${month}.csv`, headers, rows);
   }
   async function doApply(){
@@ -1701,37 +1800,96 @@ function AttendanceTab({month, onApply}){
         <button className="ghost sm" onClick={doExportCSV}>匯出 CSV</button>
         <button onClick={doApply} disabled={applying}>{applying?'套用中...':'套用出缺勤時數到薪資計算'}</button>
       </div>
+      <div className="grp-bar">
+        {[{k:'att',t:'出勤'},{k:'unpaid',t:'扣薪假'},{k:'paid',t:'有薪假'},{k:'ot',t:'加班'}].map(x=>(
+          <button key={x.k} type="button" className={'grp-chip' + (g(x.k)?' on':'')} onClick={()=>toggleG(x.k)}>
+            <span className="grp-dot"></span>{x.t}
+          </button>
+        ))}
+        <span className="hint" style={{marginLeft:'auto', fontSize:11.5}}>點姓名展開該員工當月逐筆假單</span>
+      </div>
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
-            <thead><tr><th className="center">姓名</th><th className="center">出勤日數</th><th className="center">遲到次數</th><th className="center">遲到分鐘</th><th className="center">早退次數</th><th className="center">早退分鐘</th><th className="center">平日1.34倍(hr)</th><th className="center">平日1.67倍(hr)</th><th className="center">單日超時</th><th className="center">休息日(hr)</th><th className="center">國定假日(hr)</th><th className="center">例假日(hr)</th><th className="center">總工時(hr)</th><th className="center">定位異常</th></tr></thead>
+          <table className="sum-tbl">
+            <thead>
+              <tr>
+                <th className="center" rowSpan="2">姓名</th>
+                {g('att') && <th className="center grp-att" colSpan="5">出勤</th>}
+                {g('unpaid') && <th className="center grp-un" colSpan="6">扣薪假（小時）</th>}
+                {g('paid') && <th className="center grp-pd" colSpan="4">有薪假（小時）</th>}
+                {g('ot') && <th className="center grp-ot" colSpan="7">加班（小時）</th>}
+              </tr>
+              <tr>
+                {g('att') && <><th className="center">出勤日數</th><th className="center">遲到次數</th><th className="center">遲到分鐘</th><th className="center">早退次數</th><th className="center">早退分鐘</th></>}
+                {g('unpaid') && <><th className="center">事假</th><th className="center">病假</th><th className="center">家庭照顧</th><th className="center">生理</th><th className="center">災防</th><th className="center">小計</th></>}
+                {g('paid') && <><th className="center">特休</th><th className="center">補休</th><th className="center">其他有薪假</th><th className="center">小計</th></>}
+                {g('ot') && <><th className="center">平日1.34</th><th className="center">平日1.67</th><th className="center">單日超時</th><th className="center">休息日</th><th className="center">國定假日</th><th className="center">例假日</th><th className="center">總工時</th></>}
+              </tr>
+            </thead>
             <tbody>
-              {summary.map(e=>(
-                <tr key={e.employeeId}>
-                  <td className="center"><b>{e.name}</b></td>
-                  <td className="center">{e.presentDays}</td><td className="center">{e.lateCount}</td><td className="center">{e.lateMinutes}</td>
-                  <td className="center">{e.earlyLeaveCount}</td><td className="center">{e.earlyLeaveMinutes}</td>
-                  <td className={'center ' + (e.otCapExceeded?'flag':'')}>{e.otWeekday134}</td>
-                  <td className={'center ' + (e.otCapExceeded?'flag':'')}>{e.otWeekday167}</td>
-                  <td className={'center ' + (e.dailyOtWarning?'flag':'')} title={e.dailyOtExceedDays.join('、')}>
-                    {e.dailyOtWarning ? <span className="material-icons" style={{fontSize:15, verticalAlign:'middle'}}>warning</span> : '-'}
-                    {e.dailyOtWarning ? ` ${e.dailyOtExceedDays.length} 日` : ''}
-                  </td>
-                  <td className={'center ' + (e.otRestDayHours>0 ? (e.otCapExceeded?'flag':'') : '')}>{e.otRestDayHours}</td>
-                  <td className="center">{e.otHolidayHours}</td>
-                  <td className={'center ' + (e.otMandatoryRestHours>0?'flag':'')}>
-                    {e.otMandatoryRestHours}
-                    {e.mandatoryRestDates.length>0 && (
-                      <button className="ghost sm" style={{marginLeft:6, padding:'2px 6px', fontSize:11}} onClick={()=>setMakeupBox({employeeId:e.employeeId, name:e.name, dates:e.mandatoryRestDates, unresolvedDates:e.mandatoryRestUnresolvedDates})}>
-                        {e.mandatoryRestWarning ? '待補假' : '已補假'}
-                      </button>
+              {summary.map(e=>{
+                const t = e.leaveByType || {};
+                const occ = occasional(e);
+                const detail = e.leaveDetail || [];
+                const open = !!openRow[e.employeeId];
+                const colCount = 1 + (g('att')?5:0) + (g('unpaid')?6:0) + (g('paid')?4:0) + (g('ot')?7:0);
+                return (
+                  <React.Fragment key={e.employeeId}>
+                    <tr className={detail.length ? 'row-exp' : ''} onClick={detail.length ? (()=>toggleRow(e.employeeId)) : undefined}>
+                      <td className="center emp-cell">
+                        <b>{e.name}</b>
+                        {detail.length > 0 && <span className={'exp-arrow' + (open?' open':'')}>›</span>}
+                        {e.pendingLeaveCount > 0 && <span className="pend-badge" title={`待審核 ${trimNum(e.pendingLeaveHours,1)} 小時，未計入下方合計`}>待審 {e.pendingLeaveCount}</span>}
+                      </td>
+                      {g('att') && <>
+                        <Z v={e.presentDays} /><Z v={e.lateCount} /><Z v={e.lateMinutes} /><Z v={e.earlyLeaveCount} /><Z v={e.earlyLeaveMinutes} />
+                      </>}
+                      {g('unpaid') && <>
+                        <Z v={e.personalLeave} /><Z v={e.sickLeave} /><Z v={e.familyCareLeave} /><Z v={e.menstrualLeave} /><Z v={e.disasterLeave} />
+                        <Z v={unpaidSum(e)} cls="col-sum" />
+                      </>}
+                      {g('paid') && <>
+                        <Z v={t['特休']} /><Z v={t['補休']} />
+                        <td className={'center ' + (occ.length?'':'zero-dim')}>
+                          {occ.length ? occ.map(x=><span key={x.type} className="occ-tag">{x.type} {trimNum(x.hours,1)}</span>) : '0'}
+                        </td>
+                        <Z v={paidSum(e)} cls="col-sum" />
+                      </>}
+                      {g('ot') && <>
+                        <td className={'center ' + (e.otCapExceeded?'flag':'') + (n(e.otWeekday134)===0?' zero-dim':'')}>{trimNum(e.otWeekday134,1)}</td>
+                        <td className={'center ' + (e.otCapExceeded?'flag':'') + (n(e.otWeekday167)===0?' zero-dim':'')}>{trimNum(e.otWeekday167,1)}</td>
+                        <td className={'center ' + (e.dailyOtWarning?'flag':'zero-dim')} title={e.dailyOtExceedDays.join('、')}>
+                          {e.dailyOtWarning ? <><span className="material-icons" style={{fontSize:15, verticalAlign:'middle'}}>warning</span>{` ${e.dailyOtExceedDays.length} 日`}</> : '0'}
+                        </td>
+                        <td className={'center ' + (e.otRestDayHours>0 ? (e.otCapExceeded?'flag':'') : 'zero-dim')}>{trimNum(e.otRestDayHours,1)}</td>
+                        <Z v={e.otHolidayHours} />
+                        <td className={'center ' + (e.otMandatoryRestHours>0?'flag':'zero-dim')} onClick={ev=>ev.stopPropagation()}>
+                          {trimNum(e.otMandatoryRestHours,1)}
+                          {e.mandatoryRestDates.length>0 && (
+                            <button className="ghost sm" style={{marginLeft:6, padding:'2px 6px', fontSize:11}} onClick={()=>setMakeupBox({employeeId:e.employeeId, name:e.name, dates:e.mandatoryRestDates, unresolvedDates:e.mandatoryRestUnresolvedDates})}>
+                              {e.mandatoryRestWarning ? '待補假' : '已補假'}
+                            </button>
+                          )}
+                        </td>
+                        <Z v={e.workedHoursTotal} />
+                      </>}
+                    </tr>
+                    {open && detail.length > 0 && (
+                      <tr className="detail-row">
+                        <td colSpan={colCount}>
+                          <div className="lv-head">
+                            <span>狀態</span><span>假別</span><span className="lv-hr">時數</span><span>日期／時段</span>
+                          </div>
+                          <div className="lv-list">
+                            {detail.map(d=><LeaveDetailRow key={d.requestId} d={d} />)}
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  </td>
-                  <td className="center">{e.workedHoursTotal}</td>
-                  <td className={'center ' + (e.flaggedDays>0?'flag':'')}>{e.flaggedDays}</td>
-                </tr>
-              ))}
-              {summary.length===0 && <tr><td colSpan="14" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
+                  </React.Fragment>
+                );
+              })}
+              {summary.length===0 && <tr><td colSpan="23" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
             </tbody>
           </table>
         )}
