@@ -201,6 +201,75 @@
     .freeze-1, .freeze-2, .reg-freeze-1, .reg-freeze-2{ position:static !important; }
   }
 
+  /* ===================== 操作流程 ===================== */
+  .guide{max-width:900px;}
+  .guide-lead{color:var(--muted); margin-bottom:22px;}
+  .guide-lead b{color:var(--ink);}
+  .guide-legend{display:flex; flex-wrap:wrap; gap:16px; margin-top:9px; font-size:12.5px;}
+  .guide-legend span{display:inline-flex; align-items:center; gap:6px;}
+  .guide-legend i{width:10px; height:10px; border-radius:50%; display:inline-block;}
+  .guide-legend .k-do{background:var(--brand);}
+  .guide-legend .k-auto{background:#a06a10;}
+  .guide-legend .k-pay{background:#2f7d4f;}
+
+  /* 時間軸：左欄日期、右欄卡片，中間一條縱線串起節點 */
+  .tl-step{display:grid; grid-template-columns:104px 1fr; gap:20px; position:relative;}
+  .tl-step::before{content:""; position:absolute; left:117px; top:0; bottom:0; width:2px; background:var(--line);}
+  .tl-step:first-child::before{top:26px;}
+  .tl-step:last-child::before{bottom:auto; height:26px;}
+  .tl-step::after{content:""; position:absolute; left:112px; top:22px; width:12px; height:12px;
+                  border-radius:50%; background:var(--paper); border:2px solid var(--brand); z-index:1;}
+  .tl-step.auto::after{background:#a06a10; border-color:#a06a10;}
+  .tl-step.pay::after{background:#2f7d4f; border-color:#2f7d4f;}
+  .tl-when{text-align:right; padding-top:16px;}
+  .tl-when .d{font-size:18px; font-weight:800; line-height:1.2;}
+  .tl-when .s{font-size:11.5px; color:var(--muted); font-weight:700;}
+  .tl-body{padding:12px 0 22px 14px;}
+  .tl-head{display:flex; align-items:center; flex-wrap:wrap; gap:9px; margin-bottom:10px;}
+  .tl-head h3{margin:0; font-size:15.5px;}
+  .tl-head .ghost{margin-left:auto;}
+  .tl-tag{padding:2px 9px; border-radius:6px; font-size:11px; font-weight:700; white-space:nowrap;}
+  .tl-tag.auto{background:rgba(160,106,16,.13); color:#8a5a0d;}
+  .tl-tag.pay{background:rgba(47,125,79,.13); color:#256641;}
+  .tl-content > p{margin:0 0 9px; color:var(--muted); font-size:14px;}
+  .tl-content > p b{color:var(--ink);}
+  ol.tl-acts{margin:0; padding-left:19px; font-size:14px; color:var(--muted);}
+  ol.tl-acts li{margin-bottom:5px;}
+  ol.tl-acts li::marker{color:var(--brand); font-weight:700;}
+  ol.tl-acts b{color:var(--ink);}
+  .tl-warn{margin-top:11px; padding:9px 12px; border-radius:8px; font-size:12.5px; line-height:1.7;
+           background:rgba(161,61,61,.08); color:var(--muted); border-left:3px solid var(--danger);}
+  .tl-warn b{color:var(--danger);}
+  .tl-out{display:flex; flex-wrap:wrap; gap:7px; margin-top:11px; padding-top:11px; border-top:1px dashed var(--line);}
+  .tl-out .lbl{font-size:11.5px; font-weight:700; color:var(--muted); letter-spacing:.06em; align-self:center;}
+  .tl-pill{padding:3px 10px; border-radius:6px; font-size:12px; font-weight:700;
+           background:rgba(107,83,184,.11); color:#5a45a0;}
+
+  .guide-h{margin:26px 0 10px; font-size:13px; letter-spacing:.1em; color:var(--muted);}
+  .guide-formula{padding:6px 20px;}
+  .guide-formula .fr{display:grid; grid-template-columns:8em 1fr; gap:10px 16px; align-items:baseline;
+                     font-size:13.5px; padding:10px 0;}
+  .guide-formula .fr + .fr{border-top:1px solid var(--line);}
+  .guide-formula .k{font-weight:700; color:var(--muted); font-size:12px; letter-spacing:.05em;}
+  .guide-formula .v{color:var(--muted);}
+  .guide-formula .v b{color:var(--ink);}
+  .guide-formula em{font-style:normal; font-weight:700;}
+  .guide-formula em.p{color:#2f7d4f;}
+  .guide-formula em.m{color:var(--danger);}
+  .guide-note{padding:16px 20px;}
+  .guide-note p{margin:0; color:var(--muted); font-size:14px;}
+  .guide-note p + p{margin-top:9px;}
+  .guide-note b{color:var(--ink);}
+
+  @media(max-width:640px){
+    .tl-step{grid-template-columns:1fr; gap:0;}
+    .tl-step::before{left:9px;}
+    .tl-step::after{left:4px; top:20px;}
+    .tl-when{text-align:left; padding:14px 0 0 30px;}
+    .tl-body{padding-left:30px;}
+    .guide-formula .fr{grid-template-columns:1fr; gap:2px;}
+  }
+
   /* ===================== 打卡紀錄作廢 ===================== */
   /* 作廢的列整列淡化並加刪除線，一眼看得出「這筆保留但不算數」；資料仍完整可讀 */
   .voided-row td{opacity:.5; text-decoration:line-through;}
@@ -840,6 +909,7 @@ function LoginScreen({onLoggedIn, storeName}){
 /* ========================= App ========================= */
 const NAV = [
   {group:'總覽', id:'dashboard', label:'Dashboard', icon:'dashboard'},
+  {group:'總覽', id:'guide', label:'操作流程', icon:'menu_book'},
   {group:'出缺勤', id:'employees', label:'員工資料', icon:'people'},
   {group:'出缺勤', id:'records', label:'打卡紀錄 / 補登', icon:'schedule'},
   {group:'出缺勤', id:'requests', label:'假單審核', icon:'approval'},
@@ -1189,6 +1259,7 @@ function App(){
         </div>
         <div className="content">
           {tab==='dashboard' && <DashboardTab setTab={setTab}/>}
+          {tab==='guide' && <GuideTab setTab={setTab}/>}
           {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees} onEdit={openEditEmployee} onNew={openNewEmployee} accountBox={accountBox} setAccountBox={setAccountBox} createAccountSubmit={createAccountSubmit}/>}
           {tab==='records' && <RecordsTab employees={employees} month={month}/>}
           {tab==='requests' && <RequestsTab month={month} employees={employees}/>}
@@ -3662,6 +3733,125 @@ function AnnualLeaveTab({employees}){
     </div>
   );
 }
+/* ========================= 操作流程 =========================
+   每月薪資結算的節點說明。放在後台而不是外部文件的原因：
+   換一台電腦、換一個人接手都還在，而且每個步驟可以直接點到對應頁籤。
+   內容依實際程式碼流程整理（提醒信由 sendPayrollReminderMail 於每月 1、15、21 日 09:00 觸發）。 */
+const GUIDE_STEPS = [
+  {
+    when:'平時', sub:'整個月', kind:'do', title:'打卡與假單累積', go:'requests', goText:'假單審核',
+    acts:[
+      '員工每日打卡，異常（遲到、早退、定位超出範圍）系統自動標記',
+      '請假走**兩段簽核**：主管初核 → 管理者複核，兩關都過才算「已核准」',
+      '加班可申請**換補休**，核准後自動轉入補休帳並記到期日'
+    ],
+    warn:'只有**已核准**的假會進入薪資計算。月底前務必把待審的單批完——出缺勤彙總的姓名旁若有「待審 N」標籤，代表那幾筆還沒算進去。'
+  },
+  {
+    when:'1 日', sub:'09:00 寄信提醒', kind:'auto', title:'核對出缺勤，套用時數', go:'attendance', goText:'出缺勤彙總',
+    acts:[
+      '切到上個月，逐列檢查**紅字警示**：平日加班超過月上限 46 小時、例假日出勤尚未完成補假登記、定位異常',
+      '展開姓名核對逐筆假單，確認沒有漏批的',
+      '按**「套用出缺勤時數到薪資計算」**——會先列出差異讓你確認，套用後仍可一鍵復原'
+    ],
+    warn:'套用會**覆蓋**薪資表裡手動填過的時數欄位。系統做成兩段式就是為了讓你先看見差異；若已手動調整過，請確認差異清單再按下去。'
+  },
+  {
+    when:'1–5 日', sub:'結算作業', kind:'do', title:'計算薪資並儲存', go:'payroll', goText:'薪資計算 / 明細',
+    acts:[
+      '確認本薪、津貼、獎金；加班費與請假扣款由系統依時數自動算出',
+      '勞健保依投保級距自動帶入，離職／到職當月按比例計算',
+      '有離職者先做**特休結算**（未休完依法折發工資），金額會進「特休結算」欄',
+      '按**「儲存薪資紀錄」**'
+    ],
+    out:['員工前台可看薪資條'],
+    note:'儲存後員工立刻看得到，不必等鎖定。'
+  },
+  {
+    when:'6 日', sub:'發放', kind:'pay', title:'發放 6 日薪資', go:'transfer', goText:'匯款明細表',
+    note:'金額為 pay06 ＝ 應發合計 − 應扣合計（本薪、津貼、獎金、加班費、全勤，扣除勞健保與請假扣款）。',
+    out:['匯款明細表','薪資條']
+  },
+  {
+    when:'15–20 日', sub:'15 日 09:00 寄信提醒', kind:'auto', title:'補入 26 日項目', go:'payroll', goText:'薪資計算 / 明細',
+    note:'這些項目月初通常還結不出來，所以獨立成第二次發放：',
+    acts:['業務獎金、業績獎金','代墊費用、其他費用','26 日應扣項目'],
+    note2:'填完一樣按「儲存薪資紀錄」。'
+  },
+  {
+    when:'21 日', sub:'09:00 寄信提醒', kind:'auto', title:'鎖定月份，結案', go:'payroll', goText:'薪資計算 / 明細',
+    note:'鎖定會把當月的**薪資結構凍結成快照**——本薪、投保級距、勞健保金額全部寫死在該月紀錄裡。',
+    warn:'沒鎖定的話，**日後調薪或調整投保級距會回頭改到歷史薪資條**，帳就對不回去了。鎖定前系統會給你一份預覽，可逐人微調勞健保金額；鎖定後仍可解鎖修改。',
+    out:['薪資印領清冊']
+  },
+  {
+    when:'26 日', sub:'發放', kind:'pay', title:'發放 26 日款項', go:'transfer', goText:'匯款明細表',
+    note:'金額為 pay26 ＝ 業務獎金 ＋ 業績獎金 ＋ 代墊費用 ＋ 其他費用 − 26 日應扣。'
+  }
+];
+// 內文用 **粗體** 標記重點，這裡轉成 <b>。不引外部 markdown 套件，只處理這一種語法。
+function boldize(text){
+  return String(text).split('**').map((seg, i)=> i%2 ? <b key={i}>{seg}</b> : <span key={i}>{seg}</span>);
+}
+function GuideTab({setTab}){
+  return (
+    <div className="guide">
+      <div className="guide-lead">
+        系統會在每月 <b>1、15、21 日早上 9 點</b>寄信提醒，所以不用記日期。以下是每個節點該做什麼、在哪一頁做、做完產出什麼。
+        <div className="guide-legend">
+          <span><i className="k-do"></i>你要操作</span>
+          <span><i className="k-auto"></i>系統自動提醒</span>
+          <span><i className="k-pay"></i>發放日</span>
+        </div>
+      </div>
+
+      <div className="tl">
+        {GUIDE_STEPS.map((s, i)=>(
+          <div className={'tl-step ' + s.kind} key={i}>
+            <div className="tl-when"><div className="d">{s.when}</div><div className="s">{s.sub}</div></div>
+            <div className="tl-body">
+              <div className="card">
+                <div className="tl-head">
+                  <h3>{s.title}</h3>
+                  {s.kind==='auto' && <span className="tl-tag auto">自動提醒</span>}
+                  {s.kind==='pay' && <span className="tl-tag pay">發放日</span>}
+                  {s.go && <button className="ghost sm" onClick={()=>setTab(s.go)}>前往 {s.goText} →</button>}
+                </div>
+                <div className="tl-content">
+                  {s.note && <p>{boldize(s.note)}</p>}
+                  {s.acts && <ol className="tl-acts">{s.acts.map((a,j)=><li key={j}>{boldize(a)}</li>)}</ol>}
+                  {s.note2 && <p style={{marginTop:9}}>{boldize(s.note2)}</p>}
+                  {s.warn && <div className="tl-warn">{boldize(s.warn)}</div>}
+                  {s.out && (
+                    <div className="tl-out">
+                      <span className="lbl">產出</span>
+                      {s.out.map(o=><span className="tl-pill" key={o}>{o}</span>)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="guide-h">金額怎麼組成</h3>
+      <div className="card guide-formula">
+        <div className="fr"><span className="k">應發合計</span><span className="v"><b>本薪</b>（已含伙食津貼、交通津貼、職務加給、全勤獎金）<em className="p">＋</em> 獎金 <em className="p">＋</em> 特休結算 <em className="p">＋</em> 加班費 <em className="p">＋</em> 全勤調整</span></div>
+        <div className="fr"><span className="k">應扣合計</span><span className="v">勞保費 <em className="p">＋</em> 健保費 <em className="p">＋</em> 請假扣款 <em className="p">＋</em> 其他扣款</span></div>
+        <div className="fr"><span className="k">6 日實發</span><span className="v"><b>應發合計 <em className="m">−</em> 應扣合計</b></span></div>
+        <div className="fr"><span className="k">26 日實發</span><span className="v"><b>業務獎金 <em className="p">＋</em> 業績獎金 <em className="p">＋</em> 代墊費用 <em className="p">＋</em> 其他費用 <em className="m">−</em> 26 日應扣</b></span></div>
+      </div>
+
+      <h3 className="guide-h">請假扣款與全勤</h3>
+      <div className="card guide-note">
+        <p>事假、家庭照顧假<b>全額扣</b>；病假與生理假<b>扣半薪</b>，兩者共用年度 30 日上限，超過部分全額扣；災防假依公司政策不支薪但<b>不影響全勤與考績</b>。特休、補休、婚喪假、公假、公傷病假<b>不扣薪</b>。</p>
+        <p>全勤獎金的扣減只看<b>病假與事假</b>的時數比例。生理假、家庭照顧假、婚喪假、公假、公傷病假依性別平等工作法第 21 條<b>不得影響全勤</b>，不列入扣減。</p>
+      </div>
+    </div>
+  );
+}
+
 function DashboardTab({setTab}){
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
