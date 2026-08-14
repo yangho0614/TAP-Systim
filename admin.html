@@ -562,7 +562,9 @@ async function parseApiResponse(res){
    新後端約 0.6 秒。下列 action 都已與 GAS 逐欄比對確認結果完全一致才切換。
    寫入類與尚未搬移的查詢仍走 GAS。 */
 const API_URL = 'https://tap-api.mammyshop-tw.workers.dev';
-const NEW_BACKEND_ACTIONS = ['getAdminBootstrap'];
+// 2026-08-14 新增三支：已用 tools/parity-check.js 對 4 個月份逐欄比對，GAS 與 Worker 完全相同。
+// 任何一支出錯都會自動退回 GAS（見下方 apiGet），要整個關掉就把這個陣列清空成 []。
+const NEW_BACKEND_ACTIONS = ['getAdminBootstrap', 'getMonthlySummary', 'getRecords', 'getSettings'];
 
 async function callApiGet(base, action, params){
   const qs = new URLSearchParams({action, token: CURRENT_TOKEN||'', ...params}).toString();
