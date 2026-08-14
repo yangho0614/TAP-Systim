@@ -3041,6 +3041,155 @@ function TransferTab({rows, month}){
 }
 
 /* ========================= 薪資印領清冊(全年度) ========================= */
+/* ============ 印領清冊：SVG 精確排版列印 ============
+   為什麼不用 HTML 列印：HTML 的版面是「瀏覽器算出來的」，同一份檔案在不同瀏覽器、
+   不同縮放、不同印表機驅動下結果可能不同 —— 實測就遇過「第一頁左緣被裁掉約 8px」
+   這種只在特定情境出現、加大頁面邊界也無效的問題，來回試印很難收斂。
+
+   改用 SVG：每個文字與線條都寫死座標（單位直接用 mm），瀏覽器只負責顯示、
+   不參與排版計算，所以「看到什麼就印出什麼」。文字仍是真的文字（可選取、可搜尋、
+   任何解析度都清晰），不是圖片。 */
+const REG_PAGE = { w:297, h:210, m:6 };          // A4 橫式（mm）
+const REG_COL  = { label:22, month:20, ytd:20 }; // 欄寬：項目／每月／全年合計
+const REG_SIG_H = 20;                             // 簽名格高度，至少 2cm 才蓋得下印章
+
+function regEsc(t){
+  return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+// 產生一位員工的一頁 SVG
+function regEmployeeSvg(emp, company, year){
+  const P = REG_PAGE, C = REG_COL;
+  const x0 = P.m, tableW = C.label + C.month*12 + C.ytd;
+  const rows = REGISTER_ROW_DEFS;
+  // 版面高度分配：抬頭 → 員工橫幅 → 表頭 → 說明 → 資料列 → 簽名格
+  const yHead = P.m + 4.2, yLaw = yHead + 3.4, yBar = yLaw + 3.0;
+  const barH = 6.2, hdrH = 5.6, capH = 4.6;
+  const yTable = yBar + barH;
+  const bodyTop = yTable + hdrH + capH;
+  const avail = P.h - P.m - REG_SIG_H - bodyTop;
+  const rowH = Math.min(6.2, avail / rows.length);
+  const colX = i => x0 + C.label + C.month*i;          // 第 i 個月的左緣
+  const ytdX = x0 + C.label + C.month*12;
+  const bottom = bodyTop + rowH*rows.length;
+
+  const L = [];   // 線條
+  const T = [];   // 文字
+  const R = [];   // 色塊
+  const line = (a,b,c,d,col,w)=>L.push(`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="${col}" stroke-width="${w||0.15}"/>`);
+  const text = (x,y,t,o={})=>T.push(
+    `<text x="${x}" y="${y}" font-size="${o.size||2.5}" fill="${o.fill||'#1a1d21'}"`+
+    ` text-anchor="${o.anchor||'start'}"${o.weight?` font-weight="${o.weight}"`:''}>${regEsc(t)}</text>`);
+  const rect = (x,y,w,h,f)=>R.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}"/>`);
+
+  // ── 抬頭 ──
+  text(x0, yHead, company, {size:3.6, weight:700});
+  text(x0 + company.length*3.7 + 2.5, yHead, `${year} 年度薪資印領清冊`, {size:2.4, fill:'#5c646e'});
+  text(x0, yLaw, '依勞基法第 23 條規定製作，記載工資總額、各項目金額、扣除項目金額與實發金額，須保存 5 年。每人每月留一欄供簽名或蓋章確認領取。',
+       {size:1.9, fill:'#5c646e'});
+
+  // ── 員工橫幅 ──
+  rect(x0, yBar, tableW, barH, '#F2F0E8');
+  text(x0+2, yBar+4.2, emp.name, {size:3.0, weight:700});
+  let bx = x0 + 2 + emp.name.length*3.1 + 3;
+  text(bx, yBar+4.2, '身分證字號', {size:1.8, fill:'#7a828a'});  bx += 9.5;
+  text(bx, yBar+4.2, emp.nationalId || '未填寫', {size:2.1});    bx += (emp.nationalId||'未填寫').length*1.25 + 5;
+  text(bx, yBar+4.2, '戶籍地', {size:1.8, fill:'#7a828a'});      bx += 6.2;
+  text(bx, yBar+4.2, emp.householdAddress || '未填寫', {size:2.1});
+
+  // ── 表頭 ──
+  rect(x0, yTable, tableW, hdrH, '#EDEDED');
+  text(x0+2, yTable+3.8, '項目', {size:2.3, weight:700, fill:'#3b4148'});
+  for(let i=0;i<12;i++){
+    const settled = emp.monthly[i] && emp.monthly[i].hasEntry !== false;
+    text(colX(i)+C.month/2, yTable+3.8, (i+1)+'月',
+         {size:2.3, weight:700, anchor:'middle', fill: settled?'#3b4148':'#b0b6bc'});
+  }
+  text(ytdX+C.ytd/2, yTable+3.8, '全年合計', {size:2.3, weight:700, anchor:'middle', fill:'#3b4148'});
+
+  // ── 說明列 ──
+  text(x0+C.label+2, yTable+hdrH+3.2, '以下為本薪內含明細，僅供對照，不另外加總', {size:2.0, fill:'#5c646e'});
+
+  // ── 資料列 ──
+  rows.forEach((def, ri)=>{
+    const y = bodyTop + rowH*ri, yc = y + rowH*0.7;
+    if(def.kind==='add') rect(x0, y, tableW, rowH, 'rgba(47,125,79,.05)');
+    if(def.kind==='cut') rect(x0, y, tableW, rowH, 'rgba(161,61,61,.05)');
+    if(def.kind==='grand') rect(x0, y, tableW, rowH, 'rgba(0,173,181,.10)');
+    if(def.kind==='add'||def.kind==='cut')
+      rect(x0, y, 0.7, rowH, def.kind==='add' ? '#2f7d4f' : '#a13d3d');
+    const strong = def.bold || def.kind==='grand';
+    const fill = def.kind==='grand' ? '#00767C' : (def.indent ? '#5c646e' : '#1a1d21');
+    const size = def.indent ? 2.0 : (def.kind==='grand' ? 2.5 : 2.3);
+    text(x0 + (def.indent ? 5.5 : 2.2), yc, def.label,
+         {size, weight: strong?700:400, fill});
+    const fmt = v => {
+      const n0 = Number(v)||0;
+      const t = n0.toLocaleString('en-US');
+      return def.kind==='cut' && n0!==0 ? '−'+t : t;
+    };
+    emp.monthly.forEach((mo, i)=>{
+      const empty = mo.hasEntry === false;
+      const v = empty ? '—' : fmt(mo[def.key]);
+      const zero = !empty && (Number(mo[def.key])||0)===0;
+      text(colX(i)+C.month-1.6, yc, v,
+           {size, anchor:'end', weight: strong?700:400,
+            fill: empty ? '#c3c8cd' : (zero ? '#a8aeb5' : fill)});
+    });
+    const yv = emp.yearTotal[def.key];
+    text(ytdX+C.ytd-1.6, yc, fmt(yv),
+         {size, anchor:'end', weight:700,
+          fill: (Number(yv)||0)===0 ? '#a8aeb5' : fill});
+  });
+
+  // ── 簽名格 ──
+  const ySig = bottom;
+  text(x0+2.2, ySig+REG_SIG_H/2+1, '簽名／蓋章', {size:2.2, fill:'#5c646e'});
+
+  // ── 框線（最後畫，蓋在色塊上）──
+  const G='#DCDCDC', D='#9AA1A8', B='#00ADB5';
+  for(let ri=0; ri<=rows.length; ri++){
+    const y = bodyTop + rowH*ri;
+    const def = rows[ri], prev = rows[ri-1];
+    let col=G, w=0.15;
+    if(def && def.sum){ col=D; w=0.22; }
+    if((def && def.kind==='grand') || (prev && prev.kind==='grand')){ col=B; w=0.25; }
+    line(x0, y, x0+tableW, y, col, w);
+  }
+  line(x0, yTable, x0+tableW, yTable, D, 0.22);
+  line(x0, yTable+hdrH, x0+tableW, yTable+hdrH, D, 0.22);
+  line(x0, ySig+REG_SIG_H, x0+tableW, ySig+REG_SIG_H, D, 0.22);
+  line(x0, yBar, x0+tableW, yBar, D, 0.22);
+  for(let i=0;i<=12;i++) line(colX(i), yTable, colX(i), ySig+REG_SIG_H, i===0?D:G, i===0?0.22:0.15);
+  line(ytdX, yTable, ytdX, ySig+REG_SIG_H, D, 0.22);
+  line(x0, yTable, x0, ySig+REG_SIG_H, D, 0.22);
+  line(x0+tableW, yTable, x0+tableW, ySig+REG_SIG_H, D, 0.22);
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${P.w}mm" height="${P.h}mm"`+
+    ` viewBox="0 0 ${P.w} ${P.h}" class="reg-page">`+
+    `<style>text{font-family:'Noto Sans TC','PingFang TC',sans-serif}</style>`+
+    R.join('') + L.join('') + T.join('') + `</svg>`;
+}
+
+// 開新視窗列印。刻意不在原頁面列印 —— 新視窗只有 SVG，完全不受後台 CSS 影響
+function printRegisterSvg(list, company, year){
+  const pages = list.map(emp=>regEmployeeSvg(emp, company, year)).join('');
+  const title = `${year}年度-薪資印領清冊-${company||''}`.replace(/[\\/:*?"<>|]/g,'-');
+  const w = window.open('', '_blank');
+  if(!w){ alert('瀏覽器封鎖了彈出視窗，請允許後再試一次'); return; }
+  w.document.write(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${regEsc(title)}</title><style>`+
+    `@page{size:A4 landscape;margin:0}`+
+    `html,body{margin:0;padding:0;background:#fff}`+
+    `.reg-page{display:block;page-break-after:always;break-after:page}`+
+    `.reg-page:last-child{page-break-after:auto;break-after:auto}`+
+    `@media screen{body{background:#e9ecef;padding:16px}`+
+    `.reg-page{margin:0 auto 16px;box-shadow:0 2px 12px rgba(0,0,0,.18);background:#fff}}`+
+    `</style></head><body>${pages}</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>{ w.print(); }, 400);
+}
+
 const REGISTER_ROW_DEFS = [
   /* kind 決定左側色條與正負號：
        add  加項（綠條）
@@ -3114,7 +3263,8 @@ function PayrollRegisterTab(){
         <button className="ghost sm" onClick={scrollToStart} title="跳到最左邊"><span className="material-icons" style={{fontSize:16}}>first_page</span></button>
         <button className="ghost sm" onClick={scrollToEnd} title="跳到最右邊看全年合計"><span className="material-icons" style={{fontSize:16}}>last_page</span></button>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
-        <button className="ghost sm" onClick={()=>printWithFilename(`${year}年度-薪資印領清冊-${activeCompany||''}`)}>列印本頁</button>
+        <button onClick={()=>printRegisterSvg(list, activeCompany, year)} disabled={!list.length}
+          title="以固定座標繪製，列印結果與畫面完全一致，不受瀏覽器排版影響">列印 / 另存 PDF</button>
       </div>
       {loading ? <div className="hint">載入中...</div> : !data || companies.length===0 ? <div className="empty card">尚無資料</div> : (
           /* 每位員工一張獨立卡片。列印本來就是一人一頁，畫面卻擠成連續的一張大表，
