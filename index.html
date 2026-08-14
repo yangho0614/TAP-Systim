@@ -356,6 +356,17 @@
     .profile{ padding-top:14px; }
     .big-btn{ font-size:21px; padding:22px 0; }
   }
+
+  /* 地圖上的公司名稱標籤。地圖底圖有深有淺（道路、水域、POI 色塊都不同），
+     單靠白字在淺色路面上會糊掉，所以加一圈深色描邊確保任何底色都讀得到。
+     Google Maps 的 label 是直接畫在地圖 canvas 上的 div，只能用 text-shadow 做描邊。 */
+  .map-pin-label{
+    text-shadow:
+      0 0 3px rgba(34,40,49,.95), 0 1px 2px rgba(34,40,49,.95),
+      1px 0 2px rgba(34,40,49,.85), -1px 0 2px rgba(34,40,49,.85);
+    letter-spacing:.02em;
+    white-space:nowrap;
+  }
 </style>
 </head>
 <body>
@@ -1273,7 +1284,7 @@ function ChangePasswordModal({onClose, showToast, forced}){
 
 /* ========================= 打卡頁 ========================= */
 /* ========================= 打卡位置地圖 ========================= */
-function PunchMap({companyLat, companyLng, radius, deviceLat, deviceLng}){
+function PunchMap({companyLat, companyLng, radius, deviceLat, deviceLng, companyName}){
   const mapDivRef = useRef(null);
   const mapObjRef = useRef(null);
   const [error, setError] = useState(null);
@@ -1298,14 +1309,44 @@ function PunchMap({companyLat, companyLng, radius, deviceLat, deviceLng}){
       });
       mapObjRef.current = map;
       if(hasCompany){
+        const companyPos = {lat:Number(companyLat), lng:Number(companyLng)};
         new google.maps.Marker({
-          position:{lat:Number(companyLat), lng:Number(companyLng)}, map, title:'公司位置',
-          icon:{path:google.maps.SymbolPath.CIRCLE, scale:8, fillColor:'#00ADB5', fillOpacity:1, strokeColor:'#EEEEEE', strokeWeight:2}
+          position:companyPos, map, title:companyName || '公司位置',
+          icon:{
+            path:google.maps.SymbolPath.CIRCLE, scale:8,
+            fillColor:'#00ADB5', fillOpacity:1, strokeColor:'#EEEEEE', strokeWeight:2,
+            // labelOrigin 的單位是「符號座標」，會再乘上 scale；-2.6 約等於把文字推到圖示上方 21px。
+            // 不設的話 label 會壓在圓點正中央，字被圖示蓋住看不清楚。
+            labelOrigin: new google.maps.Point(0, -2.6)
+          },
+          // 公司名稱直接標在圖釘上方，員工一眼確認自己看的是哪個據點的圍籬，
+          // 不用去點那顆小圓點才知道（手機上很難按準）
+          label: companyName ? {
+            text: companyName, color:'#FFFFFF', fontSize:'12px', fontWeight:'700', className:'map-pin-label'
+          } : undefined
         });
-        new google.maps.Circle({
-          center:{lat:Number(companyLat), lng:Number(companyLng)}, radius:Number(radius||200), map,
+        const circle = new google.maps.Circle({
+          center:companyPos, radius:Number(radius||200), map,
           fillColor:'#00ADB5', fillOpacity:0.12, strokeColor:'#00ADB5', strokeOpacity:0.6, strokeWeight:1.5
         });
+        // 用圍籬本身的範圍決定縮放，而不是寫死 zoom:17。
+        // 寫死的話半徑一改（系統設定可調）畫面就不對——半徑大就爆出畫面、半徑小就過遠。
+        const bounds = circle.getBounds();
+        if(deviceLat && deviceLng) bounds.extend({lat:deviceLat, lng:deviceLng}); // 人在圍籬外時也要看得到自己
+        // ⚠️ padding 必須依容器高度按比例算，不能寫死像素：
+        // 地圖是滿版鋪底，上方的今日打卡狀態面板與下方的時鐘＋打卡按鈕面板都蓋在它上面，
+        // 實際看得到的只有中間那條。手機與桌機的面板高度佔比差很多，固定像素在小螢幕會
+        // 把圓圈推到面板底下（就是原本圓圈下緣被時鐘吃掉的原因）。
+        const h = mapDivRef.current.offsetHeight || 640;
+        const w = mapDivRef.current.offsetWidth || 360;
+        map.fitBounds(bounds, {
+          top: Math.round(h * 0.22),      // 上方狀態面板
+          bottom: Math.round(h * 0.46),   // 下方時鐘與打卡按鈕面板（較高）
+          left: Math.round(w * 0.08),
+          right: Math.round(w * 0.08)
+        });
+        // 圍籬很小時 fitBounds 會放到最大，街景細節反而干擾判讀，設個上限
+        google.maps.event.addListenerOnce(map, 'idle', ()=>{ if(map.getZoom() > 17) map.setZoom(17); });
       }
       if(deviceLat && deviceLng){
         new google.maps.Marker({
@@ -1316,7 +1357,7 @@ function PunchMap({companyLat, companyLng, radius, deviceLat, deviceLng}){
       setLoading(false);
     }).catch(e=>{ if(!cancelled){ setError(e.message); setLoading(false); } });
     return ()=>{ cancelled = true; };
-  }, [companyLat, companyLng, radius, deviceLat, deviceLng]);
+  }, [companyLat, companyLng, radius, deviceLat, deviceLng, companyName]);
 
   if(error){
     return (
@@ -1416,7 +1457,7 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
         </div>
       )}
       <div className="punch-hero" style={{position:'relative', overflow:'hidden', minHeight:640, background:'var(--bg-1)'}}>
-        <PunchMap companyLat={settings?.lat} companyLng={settings?.lng} radius={settings?.radius} deviceLat={deviceLoc?.lat} deviceLng={deviceLoc?.lng} />
+        <PunchMap companyLat={settings?.lat} companyLng={settings?.lng} radius={settings?.radius} deviceLat={deviceLoc?.lat} deviceLng={deviceLoc?.lng} companyName={session?.employee?.company} />
 
         <div style={{position:'absolute', left:8, right:8, top:8, background:'rgba(57,62,70,0.8)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)', border:'1px solid var(--line)', borderRadius:14, padding:'12px 14px', boxShadow:'0 8px 20px rgba(0,0,0,.4)'}}>
           <div className="status-grid" style={{marginTop:0}}>
