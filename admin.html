@@ -294,7 +294,8 @@
     .reg-table .sig-cell{ height:20mm !important; }
     /* 列印完全比照畫面配色（碳粉不是考量）。
        瀏覽器預設不印背景色，所以整張表強制開啟 print-color-adjust。 */
-    .reg-card{ margin-bottom:0 !important; border:none !important; box-shadow:none !important; }
+    .reg-card{ margin-bottom:0 !important; border:none !important; box-shadow:none !important;
+               overflow:visible !important; overflow-x:visible !important; }
     .reg-card, .reg-card *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
     .reg-row.k-add > td{ background:rgba(47,125,79,.05) !important; }
     .reg-row.k-cut > td{ background:rgba(161,61,61,.05) !important; }
@@ -683,6 +684,12 @@ function fileToBase64(file){
    一堆檔案疊在下載資料夾裡完全分不出誰是誰。
    afterprint 有些瀏覽器不觸發，所以再補一個 setTimeout 保險。 */
 function printWithFilename(name){
+  /* ⚠️ 列印前一定要把所有橫向捲動容器歸零。
+     清冊的每張卡片是 overflow-x:auto 的捲動容器，畫面上若曾往右捲過，
+     列印時第一頁會整片往左位移、左邊被切掉（「優」字只剩一半、「項目」變「頁目」）。 */
+  document.querySelectorAll('.reg-card, .card, [style*="overflow"]').forEach(el=>{
+    if(el.scrollLeft) el.scrollLeft = 0;
+  });
   const original = document.title;
   const restore = () => {
     document.title = original;
