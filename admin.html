@@ -106,13 +106,17 @@
   .reg-row td.reg-freeze-2{ padding-left:12px; }
   .reg-row.reg-ind td.reg-freeze-2{ padding-left:26px; color:var(--muted); font-size:11px; }
   .reg-row.reg-ind > td{ font-size:11px; color:var(--muted); }
-  .reg-row.reg-sum > td{ font-weight:700; border-top:1.5px solid #c9ced4; }
+  /* 框線只用兩種粗細：一般格線 1px、分組強調線 2px。
+     不用 1.5px —— 在非整數裝置像素比的螢幕上會被捨入成 1px 或 2px，同一條線
+     左右段看起來粗細不一。 */
+  .reg-row.reg-sum > td{ font-weight:700; border-top:2px solid #b9c0c7; }
   /* 整張表最重要的數字，原本只是粗體，翻頁核對時要逐行找 */
   .reg-row.k-grand > td{ font-weight:800; background:rgba(0,173,181,.10); color:#00767C;
                          border-top:2px solid var(--brand); border-bottom:2px solid var(--brand); }
   /* 真的 0 淡化：滿版黑字會搶走注意力。但不能留白 —— 留白會讓人以為漏填 */
   .reg-table td.reg-zero{ color:#A8AEB5; }
   /* 全年合計獨立於各月，用較重的分隔線切開 */
+  .reg-table th, .reg-table td{ border:1px solid #DCDCDC; }
   .reg-table .reg-ytd{ border-left:2px solid #9aa1a8 !important; font-weight:700; }
   .build-tag{ margin-top:8px; text-align:center; font-size:10.5px; color:#6D7278;
               cursor:pointer; letter-spacing:.04em; }
@@ -257,7 +261,7 @@
     th{ background:#e8e8e8 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     /* 框線比照畫面的淺灰，不用列印專用的深灰 #999（那是為了黑白列印可辨識） */
     .reg-table th, .reg-table td{ border:1px solid #DCDCDC !important; }
-    .reg-table .reg-row.reg-sum > td{ border-top:1.5px solid #c9ced4 !important; }
+    .reg-table .reg-row.reg-sum > td{ border-top:2px solid #b9c0c7 !important; }
     .reg-table .reg-row.k-grand > td{ border-top:2px solid #00ADB5 !important;
                                       border-bottom:2px solid #00ADB5 !important; }
     .reg-table .reg-ytd{ border-left:2px solid #9aa1a8 !important; }
