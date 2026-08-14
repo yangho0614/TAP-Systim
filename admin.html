@@ -71,6 +71,9 @@
   tr.total-row .freeze-1, tr.total-row .freeze-2{ background:#EDEDED; }
   /* 尚未結算月份的儲存格：淡灰破折號，跟真的 0 明顯不同 */
   .reg-empty{ color:#B8BDC4 !important; font-weight:400 !important; }
+  .build-tag{ margin-top:8px; text-align:center; font-size:10.5px; color:#6D7278;
+              cursor:pointer; letter-spacing:.04em; }
+  .build-tag:hover{ color:#00ADB5; text-decoration:underline; }
   .reg-freeze-1, .reg-freeze-2{ position:sticky; z-index:3; background:#F2F0E8; }
   .reg-freeze-1{ left:0; min-width:150px; max-width:150px; white-space:normal; text-align:center; vertical-align:middle; border-top:none; border-bottom:none; }
   .reg-freeze-2{ left:150px; min-width:90px; border-right:2px solid var(--brand); }
@@ -1273,6 +1276,14 @@ function App(){
           <button className="ghost sm" style={{background:'transparent', color:'#EEEEEE', borderColor:'#454B55', justifyContent:'center'}} onClick={()=>{ if(confirm('確定要登出嗎？')) logout(); }} title="登出">
             <span className="material-icons" style={{fontSize:16}}>logout</span>{!sidebarCollapsed && '登出'}
           </button>
+          {/* 版本識別。瀏覽器偶爾會抓著舊的 admin.html 不放，肉眼分不出手上是不是最新版；
+              回報問題時附上這串，就能確認版本對不對（點一下可強制重載並清掉編譯快取）。 */}
+          {!sidebarCollapsed && (
+            <div className="build-tag" title="點一下強制重新載入最新版"
+              onClick={()=>{ try{ localStorage.removeItem('tap_admin_compiled'); }catch(e){} location.reload(true); }}>
+              版本 {window.__APP_BUILD || '?'}
+            </div>
+          )}
         </div>
       </div>
       <div className="main">
@@ -4704,6 +4715,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
   var CACHE_KEY = 'tap_admin_compiled';
   function hashStr(s){ var h = 5381, i = s.length; while(i) h = (h * 33) ^ s.charCodeAt(--i); return (h >>> 0).toString(36); }
   var srcHash = hashStr(APP_SRC);
+  // 版本識別：顯示在側欄底部。瀏覽器有時會抓著舊的 admin.html 不放（快取機制本身沒問題，
+  // 是連 HTML 都是舊的，所以雜湊也跟著是舊的），肉眼分不出手上是不是最新版。
+  // 把雜湊印出來，回報問題時報這串就知道版本對不對。
+  window.__APP_BUILD = srcHash;
   function readCompiledCache(){
     try{
       var raw = localStorage.getItem(CACHE_KEY);
