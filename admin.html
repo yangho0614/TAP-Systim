@@ -71,6 +71,15 @@
   tr.total-row .freeze-1, tr.total-row .freeze-2{ background:#EDEDED; }
   /* 尚未結算月份的儲存格：淡灰破折號，跟真的 0 明顯不同 */
   .reg-empty{ color:#B8BDC4 !important; font-weight:400 !important; }
+  /* 印領清冊的員工資料格：靠左對齊、標籤與內容分行。
+     置中對齊配上中文換行會斷在莫名其妙的位置，看起來很不專業。 */
+  .reg-emp{ text-align:left; padding:6px 8px; line-height:1.5; }
+  .reg-emp-name{ font-size:14px; font-weight:700; letter-spacing:.02em; }
+  .reg-emp-dept{ font-size:11px; color:var(--muted); margin-top:1px; }
+  .reg-emp-field{ margin-top:7px; }
+  .reg-emp-field .k{ display:block; font-size:9.5px; color:var(--muted); letter-spacing:.08em; }
+  .reg-emp-field .v{ display:block; font-size:11px; margin-top:1px; word-break:break-word; }
+  .reg-emp-field .v.nowrap{ white-space:nowrap; font-variant-numeric:tabular-nums; }
   .build-tag{ margin-top:8px; text-align:center; font-size:10.5px; color:#6D7278;
               cursor:pointer; letter-spacing:.04em; }
   .build-tag:hover{ color:#00ADB5; text-decoration:underline; }
@@ -211,11 +220,23 @@
     /* 印領清冊：畫面上為了好讀給了 minWidth:1500，列印時必須放掉，
        否則表格比紙寬、右側會被裁切。字級與內距一併縮小以塞進一頁寬。 */
     .reg-table{ min-width:0 !important; width:100% !important; table-layout:fixed; font-size:8.5px; }
-    .reg-table th, .reg-table td{ padding:2px 3px !important; word-break:break-all; }
-    .reg-table .reg-freeze-1{ width:112px; }
+    /* ⚠️ word-break:break-all 只能套在數字欄。套到員工資料格會把身分證號斷成
+       「L1236 / 87827」、地址斷在詞中間，看起來像資料壞掉。 */
+    .reg-table th, .reg-table td{ padding:2px 3px !important; }
+    .reg-table td:not(.reg-freeze-1){ word-break:break-all; }
+    .reg-table .reg-freeze-1{ width:132px; vertical-align:middle; }
+    .reg-table .reg-emp{ padding:4px 6px; line-height:1.45; }
+    .reg-table .reg-emp-name{ font-size:11.5px; }
+    .reg-table .reg-emp-dept{ font-size:8.5px; }
+    .reg-table .reg-emp-field{ margin-top:5px; }
+    .reg-table .reg-emp-field .k{ font-size:7.5px; }
+    .reg-table .reg-emp-field .v{ font-size:8.5px; }
     .reg-table .reg-freeze-2{ width:64px; }
-    /* 同一位員工的整塊資料不要被拆到兩頁 */
+    /* 每位員工從新的一頁開始（第一位除外，否則會多出一張空白頁）。
+       一個人的資料絕不能被切成兩頁，這是印領清冊當作簽收憑證的前提。 */
     .reg-table tbody > tr{ page-break-inside:avoid; }
+    .reg-table tbody > tr.emp-start{ page-break-before:always; }
+    .reg-table tbody > tr.emp-start:first-child{ page-break-before:auto; }
     /* 未結算月份的「—」列印時用淺灰，跟真的 0 仍要分得出來 */
     .reg-empty{ color:#999 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   }
@@ -3006,15 +3027,29 @@ function PayrollRegisterTab(){
                            一整排空的框框，看起來像沒填完的表格。 */
                         const nameCell = idx===0 ? (
                           <td className="reg-freeze-1" rowSpan={regRows.length}>
-                            <div style={{fontWeight:700}}>{emp.name}</div>
-                            <div className="hint" style={{marginTop:4}}>{emp.department}</div>
-                            <div className="hint" style={{marginTop:4}}>身分證字號：{emp.nationalId || '未填寫'}</div>
-                            <div className="hint" style={{marginTop:2}}>戶籍地：{emp.householdAddress || '未填寫'}</div>
+                            <div className="reg-emp">
+                              <div className="reg-emp-name">{emp.name}</div>
+                              <div className="reg-emp-dept">{emp.department || ''}</div>
+                              <div className="reg-emp-field">
+                                <span className="k">身分證字號</span>
+                                {/* 身分證號不能折行：列印 CSS 的 word-break 會把它斷成
+                                    「L1236 / 87827」兩行，看起來像資料錯誤 */}
+                                <span className="v nowrap">{emp.nationalId || '未填寫'}</span>
+                              </div>
+                              <div className="reg-emp-field">
+                                <span className="k">戶籍地</span>
+                                <span className="v">{emp.householdAddress || '未填寫'}</span>
+                              </div>
+                            </div>
                           </td>
                         ) : null;
                         if(row.type==='header'){
                           return (
-                            <tr key="header">
+                            /* emp-start：列印時每位員工從新的一頁開始（見 @media print）。
+                               一人一頁的好處是每個人簽自己那張、發放時不會看到同事的薪資；
+                               更重要的是保證「一個人的資料不會被切成兩頁」——
+                               靠「剛好放不下」自然分頁是不可靠的，字級一改就會切開。 */
+                            <tr key="header" className="emp-start">
                               {nameCell}
                               <th className="left reg-freeze-2" style={{minWidth:90}}>項目</th>
                               {/* 尚未結算的月份標題也淡化，一眼看得出這一整欄都還沒發生 */}
