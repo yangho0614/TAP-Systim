@@ -83,6 +83,31 @@
                      letter-spacing:.06em; margin-right:5px; }
   /* 簽名／蓋章：印章直徑常見 1.5～2cm，格子小於印章就蓋不進去 */
   .sig-cell{ height:20mm; min-width:20mm; }
+
+  /* 每位員工一張卡片，畫面上的區塊 = 印出來的一頁 */
+  .reg-card{ margin-bottom:18px; padding:0; }
+  .reg-card:last-child{ margin-bottom:0; }
+
+  /* 加項綠條、減項紅條。原本所有項目平鋪，只靠「合計」列的粗體分段，
+     讀的人要自己記住哪幾行是要減的。 */
+  .reg-table td.reg-freeze-2{ position:relative; }
+  .reg-row.k-add td.reg-freeze-2::before,
+  .reg-row.k-cut td.reg-freeze-2::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:3px; }
+  .reg-row.k-add td.reg-freeze-2::before{ background:#2f7d4f; opacity:.5; }
+  .reg-row.k-cut td.reg-freeze-2::before{ background:var(--danger); opacity:.5; }
+  .reg-row.k-add > td{ background:rgba(47,125,79,.05); }
+  .reg-row.k-cut > td{ background:rgba(161,61,61,.05); }
+  .reg-row td.reg-freeze-2{ padding-left:12px; }
+  .reg-row.reg-ind td.reg-freeze-2{ padding-left:26px; color:var(--muted); font-size:11px; }
+  .reg-row.reg-ind > td{ font-size:11px; color:var(--muted); }
+  .reg-row.reg-sum > td{ font-weight:700; border-top:1.5px solid #c9ced4; }
+  /* 整張表最重要的數字，原本只是粗體，翻頁核對時要逐行找 */
+  .reg-row.k-grand > td{ font-weight:800; background:rgba(0,173,181,.10); color:#00767C;
+                         border-top:2px solid var(--brand); border-bottom:2px solid var(--brand); }
+  /* 真的 0 淡化：滿版黑字會搶走注意力。但不能留白 —— 留白會讓人以為漏填 */
+  .reg-table td.reg-zero{ color:#A8AEB5; }
+  /* 全年合計獨立於各月，用較重的分隔線切開 */
+  .reg-table .reg-ytd{ border-left:2px solid #9aa1a8 !important; font-weight:700; }
   .build-tag{ margin-top:8px; text-align:center; font-size:10.5px; color:#6D7278;
               cursor:pointer; letter-spacing:.04em; }
   .build-tag:hover{ color:#00ADB5; text-decoration:underline; }
@@ -242,6 +267,11 @@
     .reg-table td:not(.reg-freeze-2):not(.reg-emp-bar),
     .reg-table th:not(.reg-freeze-2){ width:20mm; }
     .reg-table .sig-cell{ height:20mm !important; }
+    /* 列印時色條的底色不需要，會吃碳粉；左側的色條本身保留（僅 3px） */
+    .reg-card{ margin-bottom:0 !important; border:none !important; box-shadow:none !important; }
+    .reg-row.k-add > td, .reg-row.k-cut > td{ background:transparent !important; }
+    .reg-row.k-grand > td{ background:#eef7f8 !important;
+                           -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     .reg-table .reg-emp-bar{ padding:5px 8px !important; }
     .reg-table .reg-emp-bar .nm{ font-size:11.5px; }
     .reg-table .reg-emp-bar .dp{ font-size:8.5px; }
@@ -251,8 +281,9 @@
     /* 每位員工從新的一頁開始（第一位除外，否則會多出一張空白頁）。
        一個人的資料絕不能被切成兩頁，這是印領清冊當作簽收憑證的前提。 */
     .reg-table tbody > tr{ page-break-inside:avoid; }
-    .reg-table tbody > tr.emp-start{ page-break-before:always; }
-    .reg-table tbody > tr.emp-start:first-child{ page-break-before:auto; }
+    /* 分頁改在卡片層級：每張卡片是獨立的 table，第一張不加分頁避免多出空白頁 */
+    .reg-card{ page-break-before:always; page-break-inside:avoid; }
+    .reg-card:first-of-type{ page-break-before:auto; }
     /* 未結算月份的「—」列印時用淺灰，跟真的 0 仍要分得出來 */
     .reg-empty{ color:#999 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   }
@@ -2954,31 +2985,36 @@ function TransferTab({rows, month}){
 
 /* ========================= 薪資印領清冊(全年度) ========================= */
 const REGISTER_ROW_DEFS = [
-  {key:'base', label:'本薪', anchor:true},
-  {key:'mealAllowance', label:'伙食津貼', indent:true},
-  {key:'transportAllowance', label:'交通津貼', indent:true},
-  {key:'positionAllowance', label:'職務加給', indent:true},
-  {key:'fullAttendanceBonus', label:'全勤獎金', indent:true},
-  {key:'overtimePay', label:'加班費'},
-  {key:'bonusTotal', label:'獎金'},
-  {key:'annualLeaveSettlement', label:'特休結算'},
-  {key:'payableTotal', label:'應發合計', bold:true},
-  {key:'laborFee', label:'勞保費'},
-  {key:'healthFee', label:'健保費'},
-  {key:'leaveDeduct', label:'請假扣款'},
-  {key:'otherDeduction', label:'其他扣款'},
-  {key:'deductTotal', label:'應扣合計', bold:true},
+  /* kind 決定左側色條與正負號：
+       add  加項（綠條）
+       cut  減項（紅條，金額前加負號）
+       grand 實發總計（加框強調）
+     原本所有項目平鋪，只靠「合計」列的粗體分段，讀的人要自己記住哪幾行要減；
+     沒有負號時「應發 42,168、勞保 758」看起來像兩筆收入。 */
+  {key:'base', label:'本薪', kind:'add', anchor:true},
+  {key:'mealAllowance', label:'伙食津貼', kind:'add', indent:true},
+  {key:'transportAllowance', label:'交通津貼', kind:'add', indent:true},
+  {key:'positionAllowance', label:'職務加給', kind:'add', indent:true},
+  {key:'fullAttendanceBonus', label:'全勤獎金', kind:'add', indent:true},
+  {key:'overtimePay', label:'加班費', kind:'add'},
+  {key:'bonusTotal', label:'獎金', kind:'add'},
+  {key:'annualLeaveSettlement', label:'特休結算', kind:'add'},
+  {key:'payableTotal', label:'應發合計', kind:'add', bold:true, sum:true},
+  {key:'laborFee', label:'勞保費', kind:'cut'},
+  {key:'healthFee', label:'健保費', kind:'cut'},
+  {key:'leaveDeduct', label:'請假扣款', kind:'cut'},
+  {key:'otherDeduction', label:'其他扣款', kind:'cut'},
+  {key:'deductTotal', label:'應扣合計', kind:'cut', bold:true, sum:true},
   /* 26 日發放的項目逐項列出，不併成一筆「26日應發」——
      清冊是簽收憑證，員工要看得出這筆錢的名目。
-     不另設「6日實發」列：那等於「應發合計 − 應扣合計」，讀表的人自己減得出來，
-     多一列反而讓版面變長。整份的算式是：
-        應發合計 − 應扣合計 ＋ 26 日各項 − 26日扣款 ＝ 實發總計 */
-  {key:'businessExpense', label:'業務費用', indent:true},
-  {key:'salesPerformance', label:'業績獎金', indent:true},
-  {key:'salesBonus26', label:'其他獎金', indent:true},
-  {key:'otherExpense26', label:'其他費用', indent:true},
-  {key:'deduction26', label:'其他扣款', indent:true},
-  {key:'netPay', label:'實發總計', bold:true, highlight:true}
+     不另設「6日實發」列：那等於「應發合計 − 應扣合計」，讀表的人自己減得出來。
+     整份的算式是：應發合計 − 應扣合計 ＋ 26 日各項 − 26日扣款 ＝ 實發總計 */
+  {key:'businessExpense', label:'業務費用', kind:'add', indent:true},
+  {key:'salesPerformance', label:'業績獎金', kind:'add', indent:true},
+  {key:'salesBonus26', label:'其他獎金', kind:'add', indent:true},
+  {key:'otherExpense26', label:'其他費用', kind:'add', indent:true},
+  {key:'deduction26', label:'其他扣款', kind:'cut', indent:true},
+  {key:'netPay', label:'實發總計', kind:'grand', bold:true}
 ];
 function PayrollRegisterTab(){
   const [year, setYear] = useState(String(new Date().getFullYear()));
@@ -3027,12 +3063,16 @@ function PayrollRegisterTab(){
         依勞基法第23條規定製作，記載工資總額、各項目金額、扣除項目金額與實發金額，須保存5年。每人每月留一欄供簽名或蓋章確認領取。
       </div>
       {loading ? <div className="hint">載入中...</div> : !data || companies.length===0 ? <div className="empty card">尚無資料</div> : (
-          <div className="card" style={{overflowX:'auto'}} ref={scrollRef}>
+          /* 每位員工一張獨立卡片。列印本來就是一人一頁，畫面卻擠成連續的一張大表，
+             兩邊的心智模型不一致；分成卡片之後，畫面上看到的區塊就等於印出來的頁。 */
+          <div ref={scrollRef}>
             <h3 style={{marginBottom:2}}>{activeCompany}</h3>
-            <div className="hint" style={{marginBottom:10}}>{year}年度薪資印領清冊</div>
-            <table className="reg-table" style={{minWidth:1500}}>
+            <div className="hint" style={{marginBottom:14}}>{year}年度薪資印領清冊</div>
+            {list.map(emp=>(
+              <div className="card reg-card" key={emp.employeeId} style={{overflowX:'auto'}}>
+                <table className="reg-table" style={{minWidth:1500}}>
               <tbody>
-                {list.map(emp=>{
+                {[emp].map(emp=>{
                   const regRows = [
                     {type:'emp'},
                     {type:'header'},
@@ -3054,7 +3094,6 @@ function PayrollRegisterTab(){
                             <tr key="emp" className="emp-start">
                               <td className="reg-emp-bar" colSpan={14}>
                                 <span className="nm">{emp.name}</span>
-                                <span className="dp">{emp.department || ''}</span>
                                 <span className="f"><b>身分證字號</b>{emp.nationalId || '未填寫'}</span>
                                 <span className="f"><b>戶籍地</b>{emp.householdAddress || '未填寫'}</span>
                               </td>
@@ -3075,7 +3114,7 @@ function PayrollRegisterTab(){
                                 const settled = emp.monthly[m-1] && emp.monthly[m-1].hasEntry !== false;
                                 return <th key={m} className={settled?'':'reg-empty'}>{m}月</th>;
                               })}
-                              <th>全年合計</th>
+                              <th className="reg-ytd">全年合計</th>
                             </tr>
                           );
                         }
@@ -3096,25 +3135,37 @@ function PayrollRegisterTab(){
                               {/* 簽名／蓋章每格至少 2×2cm：印章直徑常見 1.5～2cm，
                                      格子小於印章就蓋不進去。寬度由 colgroup 控制，這裡定高度。 */}
                               {Array.from({length:12},(_,i)=><td key={i} className="sig-cell"></td>)}
-                              <td></td>
+                              <td className="reg-ytd sig-cell"></td>
                             </tr>
                           );
                         }
                         const def = row.def;
+                        /* 減項的金額前面加負號。清冊是給人驗算的，符號本身就是資訊 ——
+                           沒有負號時「應發 42,168、勞保 758」看起來像兩筆收入。0 不加負號。 */
+                        const fmt = v => (def.kind==='cut' && n(v) !== 0) ? '−' + money(v) : money(v);
+                        /* 真的 0 淡化：這張表有大量 0，滿版黑字會搶走注意力。
+                           但不能留白 —— 留白會讓人以為漏填。 */
+                        const zc = v => n(v)===0 ? ' reg-zero' : '';
+                        const rowCls = [
+                          'reg-row',
+                          def.kind ? 'k-'+def.kind : '',
+                          def.indent ? 'reg-ind' : '',
+                          def.sum ? 'reg-sum' : ''
+                        ].filter(Boolean).join(' ');
                         return (
-                          <tr key={def.key}>
+                          <tr key={def.key} className={rowCls}>
                             {nameCell}
-                            <td className="left reg-freeze-2" style={def.indent?{paddingLeft:14, fontSize:11, color:'var(--muted)'}:{fontWeight:def.bold?700:(def.anchor?600:400)}}>{def.label}</td>
+                            <td className="left reg-freeze-2">{def.label}</td>
                             {emp.monthly.map(mo=>(
                               /* 尚未結算的月份顯示「—」而不是 0。印領清冊記載的是「實際發放」的
                                  工資（勞基法第 23 條），0 代表「有發薪、金額為零」，是不實記載 */
                               mo.hasEntry === false ? (
                                 <td key={mo.month} className="reg-empty" title="本月尚無薪資紀錄，未列入全年合計">—</td>
                               ) : (
-                                <td key={mo.month} className={def.highlight?'num-pos':''} style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}}>{money(mo[def.key])}</td>
+                                <td key={mo.month} className={zc(mo[def.key])}>{fmt(mo[def.key])}</td>
                               )
                             ))}
-                            <td style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}} className={def.highlight?'num-pos':''}>{money(emp.yearTotal[def.key])}</td>
+                            <td className={'reg-ytd' + zc(emp.yearTotal[def.key])}>{fmt(emp.yearTotal[def.key])}</td>
                           </tr>
                         );
                       })}
@@ -3122,7 +3173,9 @@ function PayrollRegisterTab(){
                   );
                 })}
               </tbody>
-            </table>
+                </table>
+              </div>
+            ))}
           </div>
       )}
     </div>
