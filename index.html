@@ -374,6 +374,18 @@
 const {useState, useEffect, useMemo, useRef} = React;
 // 時數／日數一律取小數一位，末尾的 .0 去掉
 function trim1(v){ const x = Math.round((Number(v)||0)*10)/10; return String(x); }
+// 日期後面補上星期，例如 2026-08-17 08:30 → 2026-08-17(一) 08:30。
+// 與 admin.html 的同名函式為同一份實作，前後台顯示格式要一致。
+// 審核假單時「星期幾」是判斷的關鍵資訊（排班、連假、例假日），只給日期看不出來。
+const DOW_SHORT = ['日','一','二','三','四','五','六'];
+function withWeekday(dateTimeStr){
+  const s = String(dateTimeStr||'');
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+  if(!m) return s;
+  const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+  if(isNaN(d.getTime())) return s;
+  return `${m[1]}-${m[2]}-${m[3]}(${DOW_SHORT[d.getDay()]})${m[4]}`;
+}
 // 假別下拉的剩餘額度標籤。iOS Safari 的原生選單寬度是系統決定的、CSS 改不到，
 // 文字一長就折行，所以只給一個單位：滿一日以上講日，不足一日才講小時。
 function remainText(hours){
@@ -1660,8 +1672,8 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   }
 
   function reqSummary(r){
-    if(r.type==='請假') return `${r.leaveType}　${r.startTime} ~ ${r.endTime}　${r.hours}小時${r.delegateName?'　代理人：'+r.delegateName:''}`;
-    return `加班日期 ${String(r.startTime).split(' ')[0]}　${r.hours}小時`;
+    if(r.type==='請假') return `${r.leaveType}　${withWeekday(r.startTime)} ~ ${withWeekday(r.endTime)}　${r.hours}小時${r.delegateName?'　代理人：'+r.delegateName:''}`;
+    return `加班日期 ${withWeekday(String(r.startTime).split(' ')[0])}　${r.hours}小時`;
   }
 
   return (
