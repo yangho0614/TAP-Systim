@@ -71,15 +71,18 @@
   tr.total-row .freeze-1, tr.total-row .freeze-2{ background:#EDEDED; }
   /* 尚未結算月份的儲存格：淡灰破折號，跟真的 0 明顯不同 */
   .reg-empty{ color:#B8BDC4 !important; font-weight:400 !important; }
-  /* 印領清冊的員工資料格：靠左對齊、標籤與內容分行。
-     置中對齊配上中文換行會斷在莫名其妙的位置，看起來很不專業。 */
-  .reg-emp{ text-align:left; padding:6px 8px; line-height:1.5; }
-  .reg-emp-name{ font-size:14px; font-weight:700; letter-spacing:.02em; }
-  .reg-emp-dept{ font-size:11px; color:var(--muted); margin-top:1px; }
-  .reg-emp-field{ margin-top:7px; }
-  .reg-emp-field .k{ display:block; font-size:9.5px; color:var(--muted); letter-spacing:.08em; }
-  .reg-emp-field .v{ display:block; font-size:11px; margin-top:1px; word-break:break-word; }
-  .reg-emp-field .v.nowrap{ white-space:nowrap; font-variant-numeric:tabular-nums; }
+  /* 員工資料橫幅：跨整個表寬的一列，取代原本佔掉 40mm 的左側欄位。
+     資訊橫向排列，該有的都在，卻不吃掉數字欄的寬度。 */
+  .reg-emp-bar{ background:#F2F0E8; text-align:left !important; padding:8px 12px !important;
+                white-space:normal; }
+  .reg-emp-bar .nm{ font-size:15px; font-weight:700; letter-spacing:.02em; margin-right:10px; }
+  .reg-emp-bar .dp{ font-size:11.5px; color:var(--muted); margin-right:18px; }
+  .reg-emp-bar .f{ font-size:11px; color:var(--ink); margin-right:18px; white-space:nowrap;
+                   font-variant-numeric:tabular-nums; }
+  .reg-emp-bar .f b{ color:var(--muted); font-weight:700; font-size:9.5px;
+                     letter-spacing:.06em; margin-right:5px; }
+  /* 簽名／蓋章：印章直徑常見 1.5～2cm，格子小於印章就蓋不進去 */
+  .sig-cell{ height:20mm; min-width:20mm; }
   .build-tag{ margin-top:8px; text-align:center; font-size:10.5px; color:#6D7278;
               cursor:pointer; letter-spacing:.04em; }
   .build-tag:hover{ color:#00ADB5; text-decoration:underline; }
@@ -197,7 +200,10 @@
     /* 薪資印領清冊有 14 欄（12 個月＋項目＋全年合計），直式 A4 一定印不下 ——
        實測會把 8 月之後與「全年合計」整片裁掉，而那是清冊最重要的一欄。
        橫式並縮小邊界，讓整張表完整落在一頁寬度內。 */
-    @page{ size:A4 landscape; margin:8mm; }
+    /* 邊界壓到 6mm：可用寬 297−12 = 285mm，剛好容納
+       項目 22 ＋ 12 個月各 20（240）＋ 全年合計 20 ＝ 282mm。
+       用 8mm 的話只剩 281mm，簽名格就達不到 2cm。 */
+    @page{ size:A4 landscape; margin:6mm; }
     .no-print{display:none !important;}
     .sidebar,.topbar,.toolbar{display:none !important;}
     body{background:#fff;}
@@ -228,13 +234,19 @@
        「L1236 / 87827」、地址斷在詞中間，看起來像資料壞掉。 */
     .reg-table th, .reg-table td{ padding:2px 3px !important; }
     .reg-table td:not(.reg-freeze-1){ word-break:break-all; }
-    .reg-table .reg-freeze-1{ width:132px; vertical-align:middle; }
-    .reg-table .reg-emp{ padding:4px 6px; line-height:1.45; }
-    .reg-table .reg-emp-name{ font-size:11.5px; }
-    .reg-table .reg-emp-dept{ font-size:8.5px; }
-    .reg-table .reg-emp-field{ margin-top:5px; }
-    .reg-table .reg-emp-field .k{ font-size:7.5px; }
-    .reg-table .reg-emp-field .v{ font-size:8.5px; }
+    /* 欄寬用 mm 明確指定，確保簽名格達到 2×2cm。
+       橫式 A4 可用寬 297−12=285mm：項目 22 ＋ 12 個月各 20（240）＋ 全年合計 20 ＝ 282mm。
+       這也是為什麼員工資料必須改成橫幅 —— 留不下 40mm 給姓名欄。 */
+    .reg-table{ table-layout:fixed; }
+    .reg-table .reg-freeze-2{ width:22mm !important; min-width:0 !important; }
+    .reg-table td:not(.reg-freeze-2):not(.reg-emp-bar),
+    .reg-table th:not(.reg-freeze-2){ width:20mm; }
+    .reg-table .sig-cell{ height:20mm !important; }
+    .reg-table .reg-emp-bar{ padding:5px 8px !important; }
+    .reg-table .reg-emp-bar .nm{ font-size:11.5px; }
+    .reg-table .reg-emp-bar .dp{ font-size:8.5px; }
+    .reg-table .reg-emp-bar .f{ font-size:8.5px; }
+    .reg-table .reg-emp-bar .f b{ font-size:7.5px; }
     .reg-table .reg-freeze-2{ width:64px; }
     /* 每位員工從新的一頁開始（第一位除外，否則會多出一張空白頁）。
        一個人的資料絕不能被切成兩頁，這是印領清冊當作簽收憑證的前提。 */
@@ -3022,6 +3034,7 @@ function PayrollRegisterTab(){
               <tbody>
                 {list.map(emp=>{
                   const regRows = [
+                    {type:'emp'},
                     {type:'header'},
                     {type:'caption'},
                     ...REGISTER_ROW_DEFS.map(def=>({type:'data', def})),
@@ -3030,34 +3043,31 @@ function PayrollRegisterTab(){
                   return (
                     <React.Fragment key={emp.employeeId}>
                       {regRows.map((row,idx)=>{
-                        /* 姓名欄用 rowSpan 真正合併成一格，只在該員工的第一列輸出。
-                           原本每一列都輸出一個 <td>、只有中間那列有內容，列印出來會變成
-                           一整排空的框框，看起來像沒填完的表格。 */
-                        const nameCell = idx===0 ? (
-                          <td className="reg-freeze-1" rowSpan={regRows.length}>
-                            <div className="reg-emp">
-                              <div className="reg-emp-name">{emp.name}</div>
-                              <div className="reg-emp-dept">{emp.department || ''}</div>
-                              <div className="reg-emp-field">
-                                <span className="k">身分證字號</span>
-                                {/* 身分證號不能折行：列印 CSS 的 word-break 會把它斷成
-                                    「L1236 / 87827」兩行，看起來像資料錯誤 */}
-                                <span className="v nowrap">{emp.nationalId || '未填寫'}</span>
-                              </div>
-                              <div className="reg-emp-field">
-                                <span className="k">戶籍地</span>
-                                <span className="v">{emp.householdAddress || '未填寫'}</span>
-                              </div>
-                            </div>
-                          </td>
-                        ) : null;
+                        /* 員工資料改成橫幅（見下方 type==='emp' 的那一列），不再佔用左側整欄。
+                           原本那格約 40mm 寬卻只有中間幾行字，而簽名欄要求每格至少 2×2cm ——
+                           橫式 A4 可用寬度 285mm，12 個月各 20mm 就要 240mm，
+                           再加項目欄與全年合計已經 282mm，留不下 40mm 給姓名欄。 */
+                        const nameCell = null;
+                        if(row.type==='emp'){
+                          return (
+                            /* emp-start：列印時每位員工從新的一頁開始 */
+                            <tr key="emp" className="emp-start">
+                              <td className="reg-emp-bar" colSpan={14}>
+                                <span className="nm">{emp.name}</span>
+                                <span className="dp">{emp.department || ''}</span>
+                                <span className="f"><b>身分證字號</b>{emp.nationalId || '未填寫'}</span>
+                                <span className="f"><b>戶籍地</b>{emp.householdAddress || '未填寫'}</span>
+                              </td>
+                            </tr>
+                          );
+                        }
                         if(row.type==='header'){
                           return (
                             /* emp-start：列印時每位員工從新的一頁開始（見 @media print）。
                                一人一頁的好處是每個人簽自己那張、發放時不會看到同事的薪資；
                                更重要的是保證「一個人的資料不會被切成兩頁」——
                                靠「剛好放不下」自然分頁是不可靠的，字級一改就會切開。 */
-                            <tr key="header" className="emp-start">
+                            <tr key="header">
                               {nameCell}
                               <th className="left reg-freeze-2" style={{minWidth:90}}>項目</th>
                               {/* 尚未結算的月份標題也淡化，一眼看得出這一整欄都還沒發生 */}
@@ -3083,7 +3093,9 @@ function PayrollRegisterTab(){
                             <tr key="signature">
                               {nameCell}
                               <td className="left reg-freeze-2">簽名/蓋章</td>
-                              {Array.from({length:12},(_,i)=><td key={i} style={{height:34}}></td>)}
+                              {/* 簽名／蓋章每格至少 2×2cm：印章直徑常見 1.5～2cm，
+                                     格子小於印章就蓋不進去。寬度由 colgroup 控制，這裡定高度。 */}
+                              {Array.from({length:12},(_,i)=><td key={i} className="sig-cell"></td>)}
                               <td></td>
                             </tr>
                           );
