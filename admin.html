@@ -86,6 +86,12 @@
 
   /* 每位員工一張卡片，畫面上的區塊 = 印出來的一頁 */
   .reg-card{ margin-bottom:18px; padding:0; }
+  /* 抬頭放在每張卡片裡：列印時每一頁都要看得出是哪家公司、哪個年度的清冊 */
+  .reg-head{ padding:10px 14px 8px; border-bottom:1px solid var(--line); }
+  .reg-head-title{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .reg-head-title b{ font-size:15px; font-weight:700; }
+  .reg-head-title span{ font-size:12px; color:var(--muted); }
+  .reg-head-law{ margin-top:3px; font-size:10.5px; color:var(--muted); line-height:1.6; }
   .reg-card:last-child{ margin-bottom:0; }
 
   /* 加項綠條、減項紅條。原本所有項目平鋪，只靠「合計」列的粗體分段，
@@ -249,6 +255,13 @@
        改用明確的框線與灰階，並要求保留背景色 */
     th, td{ border:1px solid #999 !important; }
     th{ background:#e8e8e8 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    /* 框線比照畫面的淺灰，不用列印專用的深灰 #999（那是為了黑白列印可辨識） */
+    .reg-table th, .reg-table td{ border:1px solid #DCDCDC !important; }
+    .reg-table .reg-row.reg-sum > td{ border-top:1.5px solid #c9ced4 !important; }
+    .reg-table .reg-row.k-grand > td{ border-top:2px solid #00ADB5 !important;
+                                      border-bottom:2px solid #00ADB5 !important; }
+    .reg-table .reg-ytd{ border-left:2px solid #9aa1a8 !important; }
+    .reg-table .reg-freeze-2{ border-right:2px solid #00ADB5 !important; }
     tr.total-row td{ background:#f0f0f0 !important; font-weight:700;
                      -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     /* 凍結欄在列印時不需要，且 sticky 會造成錯位 */
@@ -275,17 +288,26 @@
     .reg-table td:not(.reg-freeze-2):not(.reg-emp-bar),
     .reg-table th:not(.reg-freeze-2){ width:20mm; }
     .reg-table .sig-cell{ height:20mm !important; }
-    /* 列印時色條的底色不需要，會吃碳粉；左側的色條本身保留（僅 3px） */
+    /* 列印完全比照畫面配色（碳粉不是考量）。
+       瀏覽器預設不印背景色，所以整張表強制開啟 print-color-adjust。 */
     .reg-card{ margin-bottom:0 !important; border:none !important; box-shadow:none !important; }
-    .reg-row.k-add > td, .reg-row.k-cut > td{ background:transparent !important; }
-    .reg-row.k-grand > td{ background:#eef7f8 !important;
-                           -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .reg-card, .reg-card *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    .reg-row.k-add > td{ background:rgba(47,125,79,.05) !important; }
+    .reg-row.k-cut > td{ background:rgba(161,61,61,.05) !important; }
+    .reg-row.k-grand > td{ background:rgba(0,173,181,.10) !important; color:#00767C !important; }
+    .reg-emp-bar{ background:#F2F0E8 !important; }
+    .reg-freeze-2{ background:#F2F0E8 !important; }
+    .reg-table td.reg-zero{ color:#A8AEB5 !important; }
+    .reg-table .reg-empty{ color:#B8BDC4 !important; }
+    .reg-head{ padding:0 0 5px !important; border-bottom:1px solid #999; margin-bottom:4px; }
+    .reg-head-title b{ font-size:11.5px; }
+    .reg-head-title span{ font-size:9px; }
+    .reg-head-law{ font-size:7.5px; margin-top:2px; }
     .reg-table .reg-emp-bar{ padding:5px 8px !important; }
     .reg-table .reg-emp-bar .nm{ font-size:11.5px; }
     .reg-table .reg-emp-bar .dp{ font-size:8.5px; }
     .reg-table .reg-emp-bar .f{ font-size:8.5px; }
     .reg-table .reg-emp-bar .f b{ font-size:7.5px; }
-    .reg-table .reg-freeze-2{ width:64px; }
     /* 每位員工從新的一頁開始（第一位除外，否則會多出一張空白頁）。
        一個人的資料絕不能被切成兩頁，這是印領清冊當作簽收憑證的前提。 */
     .reg-table tbody > tr{ page-break-inside:avoid; }
@@ -3069,17 +3091,23 @@ function PayrollRegisterTab(){
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
         <button className="ghost sm" onClick={()=>printWithFilename(`${year}年度-薪資印領清冊-${activeCompany||''}`)}>列印本頁</button>
       </div>
-      <div className="hint" style={{marginBottom:12}}>
-        依勞基法第23條規定製作，記載工資總額、各項目金額、扣除項目金額與實發金額，須保存5年。每人每月留一欄供簽名或蓋章確認領取。
-      </div>
       {loading ? <div className="hint">載入中...</div> : !data || companies.length===0 ? <div className="empty card">尚無資料</div> : (
           /* 每位員工一張獨立卡片。列印本來就是一人一頁，畫面卻擠成連續的一張大表，
-             兩邊的心智模型不一致；分成卡片之後，畫面上看到的區塊就等於印出來的頁。 */
+             兩邊的心智模型不一致；分成卡片之後，畫面上看到的區塊就等於印出來的頁。
+             ⚠️ 公司名與法源說明必須放在「每一張卡片裡」，不能只放在最上面一次 ——
+             那樣列印時它會自己佔掉第一頁，而後面每一頁都看不出是哪家公司的清冊。 */
           <div ref={scrollRef}>
-            <h3 style={{marginBottom:2}}>{activeCompany}</h3>
-            <div className="hint" style={{marginBottom:14}}>{year}年度薪資印領清冊</div>
             {list.map(emp=>(
               <div className="card reg-card" key={emp.employeeId} style={{overflowX:'auto'}}>
+                <div className="reg-head">
+                  <div className="reg-head-title">
+                    <b>{activeCompany}</b>
+                    <span>{year} 年度薪資印領清冊</span>
+                  </div>
+                  <div className="reg-head-law">
+                    依勞基法第 23 條規定製作，記載工資總額、各項目金額、扣除項目金額與實發金額，須保存 5 年。每人每月留一欄供簽名或蓋章確認領取。
+                  </div>
+                </div>
                 <table className="reg-table" style={{minWidth:1500}}>
               <tbody>
                 {[emp].map(emp=>{
