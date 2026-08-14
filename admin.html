@@ -69,6 +69,8 @@
   .freeze-2{ left:85px; min-width:80px; border-right:2px solid var(--brand); }
   th.freeze-1, th.freeze-2{ z-index:4; background:#EDEDED; }
   tr.total-row .freeze-1, tr.total-row .freeze-2{ background:#EDEDED; }
+  /* 尚未結算月份的儲存格：淡灰破折號，跟真的 0 明顯不同 */
+  .reg-empty{ color:#B8BDC4 !important; font-weight:400 !important; }
   .reg-freeze-1, .reg-freeze-2{ position:sticky; z-index:3; background:#F2F0E8; }
   .reg-freeze-1{ left:0; min-width:150px; max-width:150px; white-space:normal; text-align:center; vertical-align:middle; border-top:none; border-bottom:none; }
   .reg-freeze-2{ left:150px; min-width:90px; border-right:2px solid var(--brand); }
@@ -2970,7 +2972,11 @@ function PayrollRegisterTab(){
                             <tr key="header">
                               {nameCell}
                               <th className="left reg-freeze-2" style={{minWidth:90}}>項目</th>
-                              {Array.from({length:12},(_,i)=>i+1).map(m=><th key={m}>{m}月</th>)}
+                              {/* 尚未結算的月份標題也淡化，一眼看得出這一整欄都還沒發生 */}
+                              {Array.from({length:12},(_,i)=>i+1).map(m=>{
+                                const settled = emp.monthly[m-1] && emp.monthly[m-1].hasEntry !== false;
+                                return <th key={m} className={settled?'':'reg-empty'}>{m}月</th>;
+                              })}
                               <th>全年合計</th>
                             </tr>
                           );
@@ -3000,7 +3006,13 @@ function PayrollRegisterTab(){
                             {nameCell}
                             <td className="left reg-freeze-2" style={def.indent?{paddingLeft:14, fontSize:11, color:'var(--muted)'}:{fontWeight:def.bold?700:(def.anchor?600:400)}}>{def.label}</td>
                             {emp.monthly.map(mo=>(
-                              <td key={mo.month} className={def.highlight?'num-pos':''} style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}}>{money(mo[def.key])}</td>
+                              /* 尚未結算的月份顯示「—」而不是 0。印領清冊記載的是「實際發放」的
+                                 工資（勞基法第 23 條），0 代表「有發薪、金額為零」，是不實記載 */
+                              mo.hasEntry === false ? (
+                                <td key={mo.month} className="reg-empty" title="本月尚無薪資紀錄，未列入全年合計">—</td>
+                              ) : (
+                                <td key={mo.month} className={def.highlight?'num-pos':''} style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}}>{money(mo[def.key])}</td>
+                              )
                             ))}
                             <td style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}} className={def.highlight?'num-pos':''}>{money(emp.yearTotal[def.key])}</td>
                           </tr>
