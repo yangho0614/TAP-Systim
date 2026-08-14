@@ -2492,7 +2492,9 @@ function App(){
     apiGet('getMyProfile').then(data=>{
       setSession(prev=>{
         if(!prev) return prev;
-        const next = {...prev, employee: data.employee, isManager: data.isManager};
+        // mustChangePassword 以後端回報的為準：登入後快取在 localStorage 的舊值可能已經過時
+        const next = {...prev, employee: data.employee, isManager: data.isManager,
+          mustChangePassword: data.mustChangePassword === true};
         try{ localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(next)); }catch(e){}
         return next;
       });
@@ -2596,7 +2598,11 @@ function App(){
       {/* 管理者建立帳號或重設密碼後，員工首次登入必須先自行變更密碼才能使用系統 */}
       {session?.mustChangePassword && !pwOpen && (
         <ChangePasswordModal forced showToast={showToast}
-          onClose={()=>setSession(prev=>({...prev, mustChangePassword:false}))} />
+          onClose={()=>setSession(prev=>{
+            const next = {...prev, mustChangePassword:false};
+            try{ localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(next)); }catch(e){}
+            return next;
+          })} />
       )}
       {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
     </div>
