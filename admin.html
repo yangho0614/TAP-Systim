@@ -1181,7 +1181,11 @@ function App(){
           {tab==='requests' && <RequestsTab month={month} employees={employees}/>}
           {tab==='annual' && <AnnualLeaveTab employees={employees}/>}
           {tab==='comp' && <CompLedgerTab employees={employees}/>}
-          {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}/>}
+          {/* allLocked 一起傳進去：這顆「套用」跟薪資頁那顆是同一支函式，
+              按鈕的可用狀態也該一致，否則在彙總頁按下去只會跳出「沒有任何欄位需要變動」，
+              讓人誤以為資料有問題，其實是該月已鎖定、本來就不會被覆蓋 */}
+          {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}
+            allLocked={rows.length>0 && rows.every(({entry})=>entry.locked)}/>}
           {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onUndoApply={applyUndo?undoApply:null} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee} onReload={()=>reloadPayroll(month)} menstrualBaseline={menstrualBaseline}/>}
           {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month} settings={settings} menstrualBaseline={menstrualBaseline}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
@@ -1741,7 +1745,7 @@ function LeaveDetailRow({d}){
   );
 }
 
-function AttendanceTab({month, onApply}){
+function AttendanceTab({month, onApply, allLocked}){
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -1798,7 +1802,11 @@ function AttendanceTab({month, onApply}){
       <div className="toolbar">
         <span className="grow"></span>
         <button className="ghost sm" onClick={doExportCSV}>匯出 CSV</button>
-        <button onClick={doApply} disabled={applying}>{applying?'套用中...':'套用出缺勤時數到薪資計算'}</button>
+        <button onClick={doApply} disabled={applying || allLocked}
+          title={allLocked ? '本月薪資已鎖定，時數不會被覆蓋。要修改請先到「薪資計算 / 明細」解鎖' : ''}>
+          {applying?'套用中...':'套用出缺勤時數到薪資計算'}
+        </button>
+        {allLocked && <span className="hint" style={{fontSize:11.5}}>本月已鎖定</span>}
       </div>
       <div className="grp-bar">
         {[{k:'att',t:'出勤'},{k:'unpaid',t:'扣薪假'},{k:'paid',t:'有薪假'},{k:'ot',t:'加班'}].map(x=>(
