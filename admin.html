@@ -69,9 +69,67 @@
   .freeze-2{ left:85px; min-width:80px; border-right:2px solid var(--brand); }
   th.freeze-1, th.freeze-2{ z-index:4; background:#EDEDED; }
   tr.total-row .freeze-1, tr.total-row .freeze-2{ background:#EDEDED; }
-  .reg-freeze-1, .reg-freeze-2{ position:sticky; z-index:3; background:#F2F0E8; }
-  .reg-freeze-1{ left:0; min-width:150px; max-width:150px; white-space:normal; text-align:center; vertical-align:middle; border-top:none; border-bottom:none; }
-  .reg-freeze-2{ left:150px; min-width:90px; border-right:2px solid var(--brand); }
+  /* 尚未結算月份的儲存格：淡灰破折號，跟真的 0 明顯不同 */
+  .reg-empty{ color:#B8BDC4 !important; font-weight:400 !important; }
+  /* 員工資料橫幅：跨整個表寬的一列，取代原本佔掉 40mm 的左側欄位。
+     資訊橫向排列，該有的都在，卻不吃掉數字欄的寬度。 */
+  .reg-emp-bar{ background:#F2F0E8; text-align:left !important; padding:8px 12px !important;
+                white-space:normal; }
+  .reg-emp-bar .nm{ font-size:15px; font-weight:700; letter-spacing:.02em; margin-right:10px; }
+  .reg-emp-bar .dp{ font-size:11.5px; color:var(--muted); margin-right:18px; }
+  .reg-emp-bar .f{ font-size:11px; color:var(--ink); margin-right:18px; white-space:nowrap;
+                   font-variant-numeric:tabular-nums; }
+  .reg-emp-bar .f b{ color:var(--muted); font-weight:700; font-size:9.5px;
+                     letter-spacing:.06em; margin-right:5px; }
+  /* 簽名／蓋章：印章直徑常見 1.5～2cm，格子小於印章就蓋不進去 */
+  .sig-cell{ height:20mm; min-width:20mm; }
+
+  /* 每位員工一張卡片，畫面上的區塊 = 印出來的一頁 */
+  .reg-card{ margin-bottom:18px; padding:0; }
+  /* 抬頭放在每張卡片裡：列印時每一頁都要看得出是哪家公司、哪個年度的清冊 */
+  .reg-head{ padding:10px 14px 8px; border-bottom:1px solid var(--line); }
+  .reg-head-title{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .reg-head-title b{ font-size:15px; font-weight:700; }
+  .reg-head-title span{ font-size:12px; color:var(--muted); }
+  .reg-head-law{ margin-top:3px; font-size:10.5px; color:var(--muted); line-height:1.6; }
+  .reg-card:last-child{ margin-bottom:0; }
+
+  /* 加項綠條、減項紅條。原本所有項目平鋪，只靠「合計」列的粗體分段，
+     讀的人要自己記住哪幾行是要減的。 */
+  .reg-table td.reg-freeze-2{ position:relative; }
+  .reg-row.k-add td.reg-freeze-2::before,
+  .reg-row.k-cut td.reg-freeze-2::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:3px; }
+  .reg-row.k-add td.reg-freeze-2::before{ background:#2f7d4f; opacity:.5; }
+  .reg-row.k-cut td.reg-freeze-2::before{ background:var(--danger); opacity:.5; }
+  .reg-row.k-add > td{ background:rgba(47,125,79,.05); }
+  .reg-row.k-cut > td{ background:rgba(161,61,61,.05); }
+  .reg-row td.reg-freeze-2{ padding-left:12px; }
+  .reg-row.reg-ind td.reg-freeze-2{ padding-left:32px; color:var(--muted); font-size:11px; }
+  .reg-row.reg-ind > td{ font-size:11px; color:var(--muted); }
+  /* 框線一律 1px，層次只用「顏色深淺」表現。
+     先前一般格線 1px 淺灰、分區線 2px 亮青，粗細落差太大，畫面很跳；
+     同一張表裡出現多種線寬本來就不容易收乾淨。 */
+  .reg-row.reg-sum > td{ font-weight:700; border-top:1px solid #9AA1A8; }
+  /* 整張表最重要的數字，原本只是粗體，翻頁核對時要逐行找 */
+  .reg-row.k-grand > td{ font-weight:800; background:rgba(0,173,181,.10); color:#00767C;
+                         border-top:1px solid var(--brand); border-bottom:1px solid var(--brand); }
+  /* 真的 0 淡化：滿版黑字會搶走注意力。但不能留白 —— 留白會讓人以為漏填 */
+  .reg-table td.reg-zero{ color:#A8AEB5; }
+  /* 全年合計獨立於各月，用較重的分隔線切開 */
+  .reg-table th, .reg-table td{ border:1px solid #DCDCDC; }
+  .reg-table .reg-ytd{ border-left:1px solid #9AA1A8 !important; font-weight:700; }
+  .build-tag{ margin-top:8px; text-align:center; font-size:10.5px; color:#6D7278;
+              cursor:pointer; letter-spacing:.04em; }
+  .build-tag:hover{ color:#00ADB5; text-decoration:underline; }
+  /* 只剩「項目」欄需要凍結（姓名欄已改成橫幅）。
+     ⚠️ 這裡的 left 偏移必須是 0：先前是 150px，用來讓開姓名欄；
+     姓名欄拿掉後那 150px 就變成最左邊一整欄空白，還把 1 月推到底下蓋住。 */
+  .reg-freeze-2{ position:sticky; left:0; z-index:3; background:#F2F0E8; }
+  /* ⚠️ 不要再加 border-top:none / border-bottom:none。
+     那是「姓名欄還沒合併」時代的殘留：當時每一列都輸出一格，要藏掉它們之間的橫線
+     才能看起來像一整格。改用 rowSpan 真正合併之後，這兩行反而讓整塊的上下邊界消失，
+     列印出來每位員工區塊的左上／左下角是開口的。 */
+  .reg-freeze-2{ min-width:96px; border-right:1px solid #9AA1A8; }
   th.reg-freeze-2{ z-index:4; background:#EDEDED; }
   .col-add{background:#EAF6ED;}
   .col-deduct{background:#FBEDEA;}
@@ -176,11 +234,24 @@
   .print-only{display:none;}
 
   @media print{
-    @page{ margin:12mm; }
+    /* 薪資印領清冊有 14 欄（12 個月＋項目＋全年合計），直式 A4 一定印不下 ——
+       實測會把 8 月之後與「全年合計」整片裁掉，而那是清冊最重要的一欄。
+       橫式並縮小邊界，讓整張表完整落在一頁寬度內。 */
+    /* 邊界壓到 6mm：可用寬 297−12 = 285mm，剛好容納
+       項目 22 ＋ 12 個月各 20（240）＋ 全年合計 20 ＝ 282mm。
+       用 8mm 的話只剩 281mm，簽名格就達不到 2cm。 */
+    @page{ size:A4 landscape; margin:6mm; }
     .no-print{display:none !important;}
     .sidebar,.topbar,.toolbar{display:none !important;}
     body{background:#fff;}
-    .content{padding:0; overflow:visible !important;}
+    /* ⚠️ 左邊必須留 4mm 緩衝，否則列印的「第一頁」左緣會被裁掉約 8px ——
+       實測（無頭 Chrome，獨立測試檔）：第一頁固定被切，第二頁之後完全正常；
+       在第一張卡片前插一頁封面，原本被切的那張移到第 2 頁就恢復正常。
+       加大 @page margin 沒有用（20mm 也照切），因為裁切是跟著「內容框」而不是頁面邊界。
+       所以改成讓內容本身往右退 4mm，被吃掉的就是空白而不是文字。
+       後面幾頁只是多 4mm 內縮，看不出差別。 */
+    .content{padding:0 0 0 4mm; overflow:visible !important; overflow-x:visible !important;}
+    html, body{ overflow:visible !important; }
     .card{border:none; overflow:visible !important; padding:0; margin-bottom:22px;}
     .print-only{display:block;}
 
@@ -195,11 +266,204 @@
        改用明確的框線與灰階，並要求保留背景色 */
     th, td{ border:1px solid #999 !important; }
     th{ background:#e8e8e8 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    /* 框線比照畫面的淺灰，不用列印專用的深灰 #999（那是為了黑白列印可辨識） */
+    .reg-table th, .reg-table td{ border:1px solid #DCDCDC !important; }
+    .reg-table .reg-row.reg-sum > td{ border-top:1px solid #9AA1A8 !important; }
+    .reg-table .reg-row.k-grand > td{ border-top:1px solid #00ADB5 !important;
+                                      border-bottom:1px solid #00ADB5 !important; }
+    .reg-table .reg-ytd{ border-left:1px solid #9AA1A8 !important; }
+    .reg-table .reg-freeze-2{ border-right:1px solid #9AA1A8 !important; }
     tr.total-row td{ background:#f0f0f0 !important; font-weight:700;
                      -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     /* 凍結欄在列印時不需要，且 sticky 會造成錯位 */
-    .freeze-1, .freeze-2, .reg-freeze-1, .reg-freeze-2{ position:static !important; }
+    .freeze-1, .freeze-2, .reg-freeze-2{ position:static !important; }
+
+    /* 印領清冊：畫面上為了好讀給了 minWidth:1500，列印時必須放掉，
+       否則表格比紙寬、右側會被裁切。字級與內距一併縮小以塞進一頁寬。 */
+    .reg-table{ min-width:0 !important; width:100% !important; table-layout:fixed; font-size:8.5px; }
+    /* ⚠️ 縮排列在螢幕上是 font-size:11px，特異性比 .reg-table 的 8.5px 高，
+       列印時會變成「內含明細比本薪還大」——整個反過來。這裡必須明確壓回去。 */
+    .reg-table .reg-row.reg-ind > td{ font-size:7.5px !important; }
+    .reg-table .reg-row > td{ font-size:8.5px; }
+    .reg-table .reg-row.k-grand > td{ font-size:9.5px !important; }
+    .reg-table .reg-row.reg-sum > td{ font-size:9px !important; }
+    /* ⚠️ word-break:break-all 只能套在數字欄。套到員工資料格會把身分證號斷成
+       「L1236 / 87827」、地址斷在詞中間，看起來像資料壞掉。 */
+    .reg-table th, .reg-table td{ padding:2px 3px !important; }
+    /* ⚠️ 上面那行的 !important 會把標籤欄的縮排一起蓋掉，列印出來
+       「伙食津貼」會跟「本薪」齊頭，看不出是內含明細。這裡要補回來。 */
+    .reg-table .reg-row > td.reg-freeze-2{ padding-left:10px !important; }
+    .reg-table .reg-row.reg-ind > td.reg-freeze-2{ padding-left:24px !important; }
+    .reg-table tr > td.reg-freeze-2, .reg-table tr > th.reg-freeze-2{ padding-left:10px !important; }
+    .reg-table td:not(.reg-freeze-2):not(.reg-emp-bar){ word-break:break-all; }
+    /* 欄寬用 mm 明確指定，確保簽名格達到 2×2cm。
+       橫式 A4 可用寬 297−12=285mm：項目 22 ＋ 12 個月各 20（240）＋ 全年合計 20 ＝ 282mm。
+       這也是為什麼員工資料必須改成橫幅 —— 留不下 40mm 給姓名欄。 */
+    .reg-table{ table-layout:fixed; }
+    .reg-table .reg-freeze-2{ width:22mm !important; min-width:0 !important; }
+    .reg-table td:not(.reg-freeze-2):not(.reg-emp-bar),
+    .reg-table th:not(.reg-freeze-2){ width:20mm; }
+    .reg-table .sig-cell{ height:20mm !important; }
+    /* 列印完全比照畫面配色（碳粉不是考量）。
+       瀏覽器預設不印背景色，所以整張表強制開啟 print-color-adjust。 */
+    .reg-card{ margin-bottom:0 !important; border:none !important; box-shadow:none !important;
+               overflow:visible !important; overflow-x:visible !important; }
+    .reg-card, .reg-card *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    .reg-row.k-add > td{ background:rgba(47,125,79,.05) !important; }
+    .reg-row.k-cut > td{ background:rgba(161,61,61,.05) !important; }
+    .reg-row.k-grand > td{ background:rgba(0,173,181,.10) !important; color:#00767C !important; }
+    .reg-emp-bar{ background:#F2F0E8 !important; }
+    .reg-freeze-2{ background:#F2F0E8 !important; }
+    .reg-table td.reg-zero{ color:#A8AEB5 !important; }
+    .reg-table .reg-empty{ color:#B8BDC4 !important; }
+    .reg-head{ padding:0 0 5px !important; border-bottom:1px solid #999; margin-bottom:4px; }
+    .reg-head-title b{ font-size:11.5px; }
+    .reg-head-title span{ font-size:9px; }
+    .reg-head-law{ font-size:7.5px; margin-top:2px; }
+    .reg-table .reg-emp-bar{ padding:5px 8px !important; }
+    .reg-table .reg-emp-bar .nm{ font-size:11.5px; }
+    .reg-table .reg-emp-bar .dp{ font-size:8.5px; }
+    .reg-table .reg-emp-bar .f{ font-size:8.5px; }
+    .reg-table .reg-emp-bar .f b{ font-size:7.5px; }
+    /* 每位員工從新的一頁開始（第一位除外，否則會多出一張空白頁）。
+       一個人的資料絕不能被切成兩頁，這是印領清冊當作簽收憑證的前提。 */
+    .reg-table tbody > tr{ page-break-inside:avoid; }
+    /* 分頁改在卡片層級。⚠️ 用「相鄰兄弟」而不是 :first-of-type ——
+       卡片前面還有 <h3> 與說明文字兩個 div，第一張卡片不是「第一個 div」，
+       :first-of-type 比對不到，結果連第一張也加了分頁，印出一整頁空白。 */
+    .reg-card{ page-break-inside:avoid; }
+    .reg-card + .reg-card{ page-break-before:always; }
+    /* 未結算月份的「—」列印時用淺灰，跟真的 0 仍要分得出來 */
+    .reg-empty{ color:#999 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   }
+
+  /* ===================== 操作流程 ===================== */
+  .guide{max-width:900px;}
+  .guide-lead{color:var(--muted); margin-bottom:22px;}
+  .guide-lead b{color:var(--ink);}
+  .guide-legend{display:flex; flex-wrap:wrap; gap:16px; margin-top:9px; font-size:12.5px;}
+  .guide-legend span{display:inline-flex; align-items:center; gap:6px;}
+  .guide-legend i{width:10px; height:10px; border-radius:50%; display:inline-block;}
+  .guide-legend .k-do{background:var(--brand);}
+  .guide-legend .k-auto{background:#a06a10;}
+  .guide-legend .k-pay{background:#2f7d4f;}
+
+  /* 時間軸：左欄日期、右欄卡片，中間一條縱線串起節點 */
+  .tl-step{display:grid; grid-template-columns:104px 1fr; gap:20px; position:relative;}
+  .tl-step::before{content:""; position:absolute; left:117px; top:0; bottom:0; width:2px; background:var(--line);}
+  .tl-step:first-child::before{top:26px;}
+  .tl-step:last-child::before{bottom:auto; height:26px;}
+  .tl-step::after{content:""; position:absolute; left:112px; top:22px; width:12px; height:12px;
+                  border-radius:50%; background:var(--paper); border:2px solid var(--brand); z-index:1;}
+  .tl-step.auto::after{background:#a06a10; border-color:#a06a10;}
+  .tl-step.pay::after{background:#2f7d4f; border-color:#2f7d4f;}
+  .tl-when{text-align:right; padding-top:16px;}
+  .tl-when .d{font-size:18px; font-weight:800; line-height:1.2;}
+  .tl-when .s{font-size:11.5px; color:var(--muted); font-weight:700;}
+  .tl-body{padding:12px 0 22px 14px;}
+  .tl-head{display:flex; align-items:center; flex-wrap:wrap; gap:9px; margin-bottom:10px;}
+  .tl-head h3{margin:0; font-size:15.5px;}
+  .tl-head .ghost{margin-left:auto;}
+  .tl-tag{padding:2px 9px; border-radius:6px; font-size:11px; font-weight:700; white-space:nowrap;}
+  .tl-tag.auto{background:rgba(160,106,16,.13); color:#8a5a0d;}
+  .tl-tag.pay{background:rgba(47,125,79,.13); color:#256641;}
+  .tl-content > p{margin:0 0 9px; color:var(--muted); font-size:14px;}
+  .tl-content > p b{color:var(--ink);}
+  ol.tl-acts{margin:0; padding-left:19px; font-size:14px; color:var(--muted);}
+  ol.tl-acts li{margin-bottom:5px;}
+  ol.tl-acts li::marker{color:var(--brand); font-weight:700;}
+  ol.tl-acts b{color:var(--ink);}
+  .tl-warn{margin-top:11px; padding:9px 12px; border-radius:8px; font-size:12.5px; line-height:1.7;
+           background:rgba(161,61,61,.08); color:var(--muted); border-left:3px solid var(--danger);}
+  .tl-warn b{color:var(--danger);}
+  .tl-out{display:flex; flex-wrap:wrap; gap:7px; margin-top:11px; padding-top:11px; border-top:1px dashed var(--line);}
+  .tl-out .lbl{font-size:11.5px; font-weight:700; color:var(--muted); letter-spacing:.06em; align-self:center;}
+  .tl-pill{padding:3px 10px; border-radius:6px; font-size:12px; font-weight:700;
+           background:rgba(107,83,184,.11); color:#5a45a0;}
+
+  .guide-h{margin:26px 0 10px; font-size:13px; letter-spacing:.1em; color:var(--muted);}
+  .guide-formula{padding:6px 20px;}
+  .guide-formula .fr{display:grid; grid-template-columns:8em 1fr; gap:10px 16px; align-items:baseline;
+                     font-size:13.5px; padding:10px 0;}
+  .guide-formula .fr + .fr{border-top:1px solid var(--line);}
+  .guide-formula .k{font-weight:700; color:var(--muted); font-size:12px; letter-spacing:.05em;}
+  .guide-formula .v{color:var(--muted);}
+  .guide-formula .v b{color:var(--ink);}
+  .guide-formula em{font-style:normal; font-weight:700;}
+  .guide-formula em.p{color:#2f7d4f;}
+  .guide-formula em.m{color:var(--danger);}
+  .guide-note{padding:16px 20px;}
+  .guide-note p{margin:0; color:var(--muted); font-size:14px;}
+  .guide-note p + p{margin-top:9px;}
+  .guide-note b{color:var(--ink);}
+
+  @media(max-width:640px){
+    .tl-step{grid-template-columns:1fr; gap:0;}
+    .tl-step::before{left:9px;}
+    .tl-step::after{left:4px; top:20px;}
+    .tl-when{text-align:left; padding:14px 0 0 30px;}
+    .tl-body{padding-left:30px;}
+    .guide-formula .fr{grid-template-columns:1fr; gap:2px;}
+  }
+
+  /* ===================== 打卡紀錄作廢 ===================== */
+  /* 作廢的列整列淡化並加刪除線，一眼看得出「這筆保留但不算數」；資料仍完整可讀 */
+  .voided-row td{opacity:.5; text-decoration:line-through;}
+  .voided-row td:last-child, .voided-row .void-meta{text-decoration:none; opacity:1;}
+  .void-tag{display:inline-block; margin-left:6px; padding:1px 7px; border-radius:5px;
+            background:rgba(161,61,61,.14); color:var(--danger); font-size:11px;
+            font-weight:700; text-decoration:none;}
+  .void-meta{margin-top:3px; font-size:11px; color:var(--danger); opacity:.85;}
+
+  /* ===================== 出缺勤彙總 ===================== */
+  :root{--sum-namew:150px;}
+  /* 欄位分組摺疊列 */
+  .grp-bar{display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-bottom:8px;}
+  .grp-chip{background:transparent; color:var(--muted); border:1px solid var(--line);
+            border-radius:100px; padding:5px 12px; font-size:12px; font-weight:700;}
+  .grp-chip:hover{background:transparent; border-color:var(--muted); color:var(--ink);}
+  .grp-chip .grp-dot{width:7px; height:7px; border-radius:50%; background:currentColor; opacity:.3;}
+  .grp-chip.on{background:rgba(0,173,181,.10); border-color:rgba(0,173,181,.45); color:var(--brand);}
+  .grp-chip.on:hover{background:rgba(0,173,181,.16); color:var(--brand);}
+  .grp-chip.on .grp-dot{opacity:1;}
+  /* 分組表頭配色：出勤=品牌色、扣薪假=警示色、有薪假=紫、加班=琥珀 */
+  .sum-tbl th.grp-att{background:rgba(0,173,181,.12); color:#00767C;}
+  .sum-tbl th.grp-un{background:rgba(161,61,61,.10); color:var(--danger);}
+  .sum-tbl th.grp-pd{background:rgba(107,83,184,.10); color:#5a45a0;}
+  .sum-tbl th.grp-ot{background:rgba(160,106,16,.11); color:#8a5a0d;}
+  /* 0 用淡字而不是留白：留白分不清「沒請假」與「資料還沒帶進來」 */
+  .sum-tbl td.zero-dim{color:var(--muted); opacity:.42;}
+  .sum-tbl td.col-sum{font-weight:800;}
+  .sum-tbl tr.row-exp{cursor:pointer;}
+  .sum-tbl tr.row-exp:hover td{background:rgba(0,173,181,.05);}
+  .sum-tbl .exp-arrow{display:inline-block; margin-left:6px; color:var(--muted); transition:transform .15s;}
+  .sum-tbl .exp-arrow.open{transform:rotate(90deg);}
+  .sum-tbl .pend-badge{display:inline-block; margin-left:6px; padding:1px 7px; border-radius:5px;
+                       background:rgba(160,106,16,.14); color:#8a5a0d; font-size:11px; font-weight:700;}
+  .sum-tbl .occ-tag{display:inline-block; margin:1px 2px; padding:1px 7px; border-radius:5px;
+                    background:rgba(107,83,184,.12); color:#5a45a0; font-size:11.5px; font-weight:700;}
+
+  /* 展開的逐筆假單。⚠️ 表頭與資料列是兩個獨立的 grid，軌道必須完全一致才會對齊；
+     最後一欄用 auto 會讓兩邊依各自內容算出不同寬度，中間的 1fr 吸收差額就對不上。
+     狀態放最前：最左邊形成一條顏色帶，待審核的幾筆往下掃就找得到。 */
+  /* 姓名欄固定寬，展開明細的 padding-left 吃同一個值，明細才會從姓名欄之後、與第一個資料欄齊頭 */
+  .sum-tbl th:first-child, .sum-tbl td.emp-cell{width:var(--sum-namew); min-width:var(--sum-namew);}
+  .sum-tbl tr.detail-row > td{background:#EFEFEF; text-align:left;
+                              padding:12px 16px 14px calc(var(--sum-namew) + 10px);}
+  .lv-head, .lv-row{display:grid; grid-template-columns:5.4em 6.6em 5em minmax(0,1fr);
+                    gap:10px; max-width:720px; padding-left:10px; padding-right:10px;}
+  .lv-head{padding-bottom:6px; margin-bottom:4px; border-bottom:1px solid var(--line);
+           font-size:11px; font-weight:700; letter-spacing:.08em; color:var(--muted);}
+  .lv-list{display:flex; flex-direction:column; gap:2px;}
+  .lv-row{align-items:baseline; padding-top:7px; padding-bottom:7px; border-radius:7px; font-size:12.5px;}
+  .lv-row:nth-child(odd){background:var(--paper-2);}
+  .lv-st{justify-self:start; padding:1px 8px; border-radius:5px; font-size:11px; font-weight:700;
+         white-space:nowrap; background:rgba(0,173,181,.14); color:#00767C;}
+  .lv-st.wait{background:rgba(160,106,16,.16); color:#8a5a0d;}
+  .lv-ty{font-weight:700;}
+  .lv-hr{text-align:right; font-variant-numeric:tabular-nums; font-weight:700;}
+  .lv-when{color:var(--muted); font-variant-numeric:tabular-nums;}
+  .lv-when .lv-why{margin-left:6px; opacity:.8;}
 </style>
 </head>
 <body>
@@ -426,6 +690,30 @@ function fileToBase64(file){
   });
 }
 // 數字格式化到指定小數位，但小數是0就不顯示（例如22.0→22，17.5維持17.5）
+/* 列印（或另存 PDF）時的檔名。
+   瀏覽器把 document.title 當成預設檔名，所以列印前先換掉、列印完再換回來。
+   不做的話存出來會是「mammyshop 媽咪小站 - 後台管理 · 出缺勤與薪資系統.pdf」，
+   一堆檔案疊在下載資料夾裡完全分不出誰是誰。
+   afterprint 有些瀏覽器不觸發，所以再補一個 setTimeout 保險。 */
+function printWithFilename(name){
+  /* 列印前把所有捲動位移歸零。這是防禦性的（表格若比視窗寬，捲動狀態會影響輸出），
+     但要注意：先前以為「第一頁左緣被裁」是捲動造成的，那個推論是錯的 ——
+     真正的原因見列印樣式裡 .content 的 padding-left 說明。 */
+  document.querySelectorAll('*').forEach(el=>{
+    if(el.scrollLeft) el.scrollLeft = 0;
+    if(el.scrollTop) el.scrollTop = 0;
+  });
+  window.scrollTo(0, 0);
+  const original = document.title;
+  const restore = () => {
+    document.title = original;
+    window.removeEventListener('afterprint', restore);
+  };
+  document.title = String(name || original).replace(/[\\/:*?"<>|]/g, '-');
+  window.addEventListener('afterprint', restore);
+  setTimeout(()=>window.print(), 0);
+  setTimeout(restore, 3000);
+}
 function trimNum(v, decimals){
   const num = Number(v)||0;
   const fixed = num.toFixed(decimals);
@@ -487,7 +775,7 @@ function tenureText(hireDate, breakStart, breakEnd){
   else if(years >= 2) leave = 10;
   else if(years >= 1) leave = 7;
   else if(months >= 6) leave = 3;
-  return `到職年資約 ${y} 年 ${m} 個月${breakNote}，依勞基法第 38 條參考特休天數：約 ${leave} 天（僅供參考，請以實際規定核算）`;
+  return `到職年資約 ${y} 年 ${m} 個月${breakNote}，依勞基法第 38 條參考特休日數：約 ${leave} 日（僅供參考，請以實際規定核算）`;
 }
 
 /* ========================= 勞健保投保級距對照表與薪資計算引擎 ========================= */
@@ -526,7 +814,14 @@ function insuranceBaseDetail(emp, settings){
 function insuranceBase(emp, settings){ return insuranceBaseDetail(emp, settings).base; }
 
 /* ========================= 台灣勞基法相關常數（115年/2026年適用） ========================= */
-const MIN_WAGE_MONTHLY = 29500;
+// 基本工資改由「系統設定 → 基本工資」提供，每年調整不必改程式。
+// 這裡的值只是設定還沒載入前的備援；settings 一到就會被 applyMinWage() 覆寫。
+// 用 let 而非 const 是因為有幾處引用不在 React 元件內、拿不到 settings。
+let MIN_WAGE_MONTHLY = 29500;
+function applyMinWage(settings){
+  const v = Number(settings && settings.minimumWage) || 0;
+  if(v > 0) MIN_WAGE_MONTHLY = v;
+}
 const MIN_WAGE_HOURLY = 196;
 const MONTHLY_OT_CAP_DEFAULT = 46;
 
@@ -544,10 +839,13 @@ function emptyEntry(){
     lateMinutes:0, lateCount:0, earlyMinutes:0, earlyCount:0, presentDays:0
   };
 }
-function calcRestDayPay(hourly, hours){
+// mode='tier'（預設，公司現行）：舊制 4/8/12 小時級距，做 1 小時也算 4 小時，優於法令
+// mode='actual'：2018 修法後的核實計算，做幾小時算幾小時。倍率兩者相同，差別只在「算幾小時」
+// ⚠️ 這支與 Code.gs 的 calcRestDayPayGas 是兩份獨立實作，改公式兩邊都要改
+function calcRestDayPay(hourly, hours, mode){
   const h = n(hours);
   if(h<=0) return {pay:0, countedHours:0, overCap:false};
-  const counted = h<=4 ? 4 : (h<=8 ? 8 : (h<=12 ? 12 : h));
+  const counted = (mode==='actual') ? h : (h<=4 ? 4 : (h<=8 ? 8 : (h<=12 ? 12 : h)));
   const t1 = Math.min(counted,2);
   const t2 = Math.min(Math.max(counted-2,0),6);
   const t3 = Math.max(counted-8,0);
@@ -595,7 +893,7 @@ function calcMenstrualLeaveRefMoney(hourly, menstrualHours, leaveBaseline){
   const unpaidHours = overageThisMonth - halfPayHours;
   return hourly*0.5*halfPayHours + hourly*1.0*unpaidHours; // 全薪部分金額為0，不列入
 }
-// 計算勞健保加退保狀態：勞保依「當月在職天數/30」比例計算；健保看「當月最後一天」是否仍在職，是則收整月保費，否則本月不收
+// 計算勞健保加退保狀態：勞保依「當月在職日數/30」比例計算；健保看「當月最後一天」是否仍在職，是則收整月保費，否則本月不收
 function getInsuranceStatusForMonth(hireDate, resignDate, month){
   const parts = String(month||'').split('-').map(Number);
   const y = parts[0], m = parts[1];
@@ -627,7 +925,7 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const dailyWage = base>0 ? base/30 : 0;
 
   const weekdayOtPay = hourly*1.34*n(entry.otWeekday134) + hourly*1.67*n(entry.otWeekday167);
-  const restDay = calcRestDayPay(hourly, entry.otRestDayHours);
+  const restDay = calcRestDayPay(hourly, entry.otRestDayHours, (settings && settings.restDayOtMode) || 'tier');
   const holiday = calcHolidayPay(hourly, dailyWage, entry.otHolidayHours);
   const mandatoryRestMode = (settings && settings.mandatoryRestPayMode) || 'double';
   const mandatoryRestPay = calcMandatoryRestPay(hourly, dailyWage, entry.otMandatoryRestHours, mandatoryRestMode);
@@ -684,15 +982,15 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const payableTotal = payableA + overtimePay;
 
 
-  const MENSTRUAL_FULL_PAY_HOURS = 24; // 每年前3天(以8hr/天計)生理假全薪
-  const SICK_LEAVE_ANNUAL_CAP_HOURS = 240; // 病假年度30天(以8hr/天計)上限，生理假超過3天部分需併入計算
+  const MENSTRUAL_FULL_PAY_HOURS = 24; // 每年前3 日(以8hr/天計)生理假全薪
+  const SICK_LEAVE_ANNUAL_CAP_HOURS = 240; // 病假年度30 日(以8hr/天計)上限，生理假超過3 日部分需併入計算
   const menstrualUsedBefore = n(leaveBaseline && leaveBaseline.menstrual);
   const sickUsedBefore = n(leaveBaseline && leaveBaseline.sick);
   const remainFullPay = Math.max(0, MENSTRUAL_FULL_PAY_HOURS - menstrualUsedBefore);
   const menstrualPaidHours = Math.min(n(entry.menstrualLeave), remainFullPay);
   const menstrualOverageThisMonth = n(entry.menstrualLeave) - menstrualPaidHours;
 
-  // 病假＋生理假(超過3天部分)共用年度30天上限；超過部分不給薪(0%)，未超過部分半薪(50%)
+  // 病假＋生理假(超過3 日部分)共用年度30 日上限；超過部分不給薪(0%)，未超過部分半薪(50%)
   const menstrualOverageBefore = Math.max(0, menstrualUsedBefore - MENSTRUAL_FULL_PAY_HOURS);
   const combinedUsedBefore = sickUsedBefore + menstrualOverageBefore;
   let sickCapRemaining = Math.max(0, SICK_LEAVE_ANNUAL_CAP_HOURS - combinedUsedBefore);
@@ -701,7 +999,7 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   sickCapRemaining = Math.max(0, sickCapRemaining - sickHalfPayHours);
   const menstrualHalfPayHours = Math.min(menstrualOverageThisMonth, sickCapRemaining);
   const menstrualUnpaidHours = menstrualOverageThisMonth - menstrualHalfPayHours;
-  const menstrualHalfHours = menstrualOverageThisMonth; // 沿用舊欄位名稱：本月生理假超過3天(全薪)的部分小時數
+  const menstrualHalfHours = menstrualOverageThisMonth; // 沿用舊欄位名稱：本月生理假超過3 日(全薪)的部分小時數
   const sickCapExceeded = (sickUnpaidHours + menstrualUnpaidHours) > 0;
 
   const leaveDeduct = hourly*1.0*n(entry.personalLeave)
@@ -781,12 +1079,14 @@ function LoginScreen({onLoggedIn, storeName}){
 /* ========================= App ========================= */
 const NAV = [
   {group:'總覽', id:'dashboard', label:'Dashboard', icon:'dashboard'},
+  {group:'總覽', id:'guide', label:'操作流程', icon:'menu_book'},
   {group:'出缺勤', id:'employees', label:'員工資料', icon:'people'},
   {group:'出缺勤', id:'records', label:'打卡紀錄 / 補登', icon:'schedule'},
   {group:'出缺勤', id:'requests', label:'假單審核', icon:'approval'},
   {group:'出缺勤', id:'annual', label:'特休設定', icon:'beach_access'},
   {group:'出缺勤', id:'comp', label:'加班補休明細表', icon:'swap_horiz'},
-  {group:'出缺勤', id:'attendance', label:'出缺勤彙總', icon:'fact_check'},
+  // icon 不可重複，否則側欄兩個項目長得一模一樣。'fact_check' 留給薪資印領清冊
+  {group:'出缺勤', id:'attendance', label:'出缺勤彙總', icon:'summarize'},
   {group:'薪資', id:'payroll', label:'薪資計算 / 明細', icon:'calculate'},
   {group:'薪資', id:'payslip', label:'薪資條', icon:'receipt_long'},
   {group:'薪資', id:'transfer', label:'匯款明細表', icon:'account_balance_wallet'},
@@ -962,7 +1262,7 @@ function App(){
         // 後端每段各自 try/catch，單項失敗回 null，這裡沿用「拿不到就維持原值」的行為
         if(d.employees) setEmployees(d.employees);
         if(d.payrollEntries !== null && d.payrollEntries !== undefined){ setPayrollEntries(d.payrollEntries || {}); setDirty(false); }
-        if(d.settings) setSettings(d.settings);
+        if(d.settings){ setSettings(d.settings); applyMinWage(d.settings); }
         if(d.companies) setCompanies(d.companies);
         if(d.departments) setDepartments(d.departments);
         if(d.shifts) setShifts(d.shifts);
@@ -984,7 +1284,7 @@ function App(){
     {key:'disasterLeave', label:'災防假'},
     {key:'lateMinutes', label:'遲到分鐘'}, {key:'lateCount', label:'遲到次數'},
     {key:'earlyMinutes', label:'早退分鐘'}, {key:'earlyCount', label:'早退次數'},
-    {key:'presentDays', label:'出勤天數'}
+    {key:'presentDays', label:'出勤日數'}
   ];
   function summaryToEntry(s){
     return {
@@ -999,10 +1299,17 @@ function App(){
       presentDays: s.presentDays || 0
     };
   }
-  async function applyAttendanceToPayroll(){
+  // onlyEmpId 有值時只套用那一位（薪資表每列的「套用」鈕）。差異確認、實際寫入、
+  // 還原全部沿用同一條路徑，只是把 summary 先過濾掉其他人，避免兩套邏輯各走各的。
+  async function applyAttendanceToPayroll(onlyEmpId){
     try{
-      const summary = await apiGet('getMonthlySummary', {month});
+      const all = await apiGet('getMonthlySummary', {month});
+      const summary = onlyEmpId ? all.filter(s=>s.employeeId===onlyEmpId) : all;
       const nameOf = {}; employees.forEach(e=>nameOf[e.id]=e.name);
+      if(onlyEmpId && summary.length===0){
+        alert('這位員工本月沒有出缺勤資料可套用');
+        return;
+      }
       const lockedOf = {};
       const changes = [];
       summary.forEach(s=>{
@@ -1015,18 +1322,22 @@ function App(){
         });
       });
       setApplyBox({
-        loading:false, summary, changes,
+        loading:false, summary, changes, onlyEmpId: onlyEmpId || '',
+        onlyName: onlyEmpId ? (nameOf[onlyEmpId] || onlyEmpId) : '',
         lockedNames: Object.keys(lockedOf).map(id=>nameOf[id]||id),
-        untouched: employees.length - new Set(changes.map(c=>c.empId)).size
+        untouched: (onlyEmpId ? 1 : employees.length) - new Set(changes.map(c=>c.empId)).size
       });
     }catch(e){ alert(e.message); }
   }
   function confirmApply(){
     const box = applyBox; if(!box) return;
     setApplyUndo({entries: JSON.parse(JSON.stringify(payrollEntries)), month, count: box.changes.length});
-    const map = {};
-    box.summary.forEach(s=>{ map[s.employeeId] = {menstrual: s.menstrualLeaveUsedBefore || 0, sick: s.sickLeaveUsedBefore || 0}; });
-    setMenstrualBaseline(map);
+    // 單人套用只更新那一位的基準；整份覆蓋會把其他人已算好的生理假／病假年度基準洗成空的
+    setMenstrualBaseline(prev => {
+      const map = box.onlyEmpId ? {...prev} : {};
+      box.summary.forEach(s=>{ map[s.employeeId] = {menstrual: s.menstrualLeaveUsedBefore || 0, sick: s.sickLeaveUsedBefore || 0}; });
+      return map;
+    });
     setPayrollEntries(prev => {
       const next = {...prev};
       box.summary.forEach(s=>{
@@ -1065,6 +1376,11 @@ function App(){
   const needsMonth = ['records','requests','attendance','payroll','payslip','transfer'].includes(tab);
 
   function logout(){
+    /* 先通知後端把工作階段刪掉，再清本地狀態。
+       ⚠️ 只清本地是不夠的：後端紀錄還在，舊 token 到期前（30 天）都還能用，
+       在公用電腦登出等於沒登出。用 fire-and-forget，後端失敗也不擋使用者離開。 */
+    const t = CURRENT_TOKEN;
+    if(t){ apiPost('logoutSession', {token:t}).catch(()=>{}); }
     setToken(null);
     setSession(null);
     setEmployees([]); setPayrollEntries({});
@@ -1111,6 +1427,14 @@ function App(){
           <button className="ghost sm" style={{background:'transparent', color:'#EEEEEE', borderColor:'#454B55', justifyContent:'center'}} onClick={()=>{ if(confirm('確定要登出嗎？')) logout(); }} title="登出">
             <span className="material-icons" style={{fontSize:16}}>logout</span>{!sidebarCollapsed && '登出'}
           </button>
+          {/* 版本識別。瀏覽器偶爾會抓著舊的 admin.html 不放，肉眼分不出手上是不是最新版；
+              回報問題時附上這串，就能確認版本對不對（點一下可強制重載並清掉編譯快取）。 */}
+          {!sidebarCollapsed && (
+            <div className="build-tag" title="點一下強制重新載入最新版"
+              onClick={()=>{ try{ localStorage.removeItem('tap_admin_compiled'); }catch(e){} location.reload(true); }}>
+              版本 {window.__APP_BUILD || '?'}
+            </div>
+          )}
         </div>
       </div>
       <div className="main">
@@ -1129,13 +1453,18 @@ function App(){
         </div>
         <div className="content">
           {tab==='dashboard' && <DashboardTab setTab={setTab}/>}
+          {tab==='guide' && <GuideTab setTab={setTab}/>}
           {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees} onEdit={openEditEmployee} onNew={openNewEmployee} accountBox={accountBox} setAccountBox={setAccountBox} createAccountSubmit={createAccountSubmit}/>}
           {tab==='records' && <RecordsTab employees={employees} month={month}/>}
           {tab==='requests' && <RequestsTab month={month} employees={employees}/>}
           {tab==='annual' && <AnnualLeaveTab employees={employees}/>}
           {tab==='comp' && <CompLedgerTab employees={employees}/>}
-          {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}/>}
-          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onUndoApply={applyUndo?undoApply:null} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee} onReload={()=>reloadPayroll(month)} menstrualBaseline={menstrualBaseline}/>}
+          {/* allLocked 一起傳進去：這顆「套用」跟薪資頁那顆是同一支函式，
+              按鈕的可用狀態也該一致，否則在彙總頁按下去只會跳出「沒有任何欄位需要變動」，
+              讓人誤以為資料有問題，其實是該月已鎖定、本來就不會被覆蓋 */}
+          {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}
+            allLocked={rows.length>0 && rows.every(({entry})=>entry.locked)}/>}
+          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onUndoApply={applyUndo?undoApply:null} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee} onReload={()=>reloadPayroll(month)} menstrualBaseline={menstrualBaseline} settings={settings}/>}
           {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month} settings={settings} menstrualBaseline={menstrualBaseline}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
           {tab==='register' && <PayrollRegisterTab/>}
@@ -1152,17 +1481,21 @@ function App(){
       {applyBox && (
         <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setApplyBox(null); }}>
           <div className="modal" style={{width:560}}>
-            <h3 style={{marginTop:0}}><span className="material-icons">sync_alt</span> 套用出缺勤時數</h3>
+            <h3 style={{marginTop:0}}><span className="material-icons">sync_alt</span>
+              套用出缺勤時數{applyBox.onlyName && <span style={{fontWeight:400, color:'var(--muted)', fontSize:14}}>／僅 {applyBox.onlyName}</span>}
+            </h3>
             {applyBox.changes.length===0 ? (
               <div className="hint" style={{padding:'10px 0'}}>
+                {applyBox.onlyName ? <>{applyBox.onlyName} 的</> : null}
                 打卡計算結果與目前薪資表的時數<b>完全相同</b>，沒有任何欄位需要變動。
               </div>
             ) : (
               <>
                 <div className="hint" style={{marginBottom:8}}>
-                  將以 {month} 的打卡紀錄重新計算，以下
-                  <b> {new Set(applyBox.changes.map(c=>c.empId)).size} </b>人的
-                  <b> {applyBox.changes.length} </b>個欄位會變動：
+                  將以 {month} 的打卡紀錄重新計算
+                  {applyBox.onlyName
+                    ? <>，<b>只影響 {applyBox.onlyName} 一人</b>，以下 <b>{applyBox.changes.length}</b> 個欄位會變動：</>
+                    : <>，以下<b> {new Set(applyBox.changes.map(c=>c.empId)).size} </b>人的<b> {applyBox.changes.length} </b>個欄位會變動：</>}
                 </div>
                 <div style={{maxHeight:280, overflowY:'auto', border:'1px solid var(--line)', borderRadius:6}}>
                   <table style={{fontSize:13}}>
@@ -1183,7 +1516,8 @@ function App(){
                   </table>
                 </div>
                 <div className="hint" style={{marginTop:8}}>
-                  其餘 {applyBox.untouched} 人無變化。
+                  {!applyBox.onlyName && <>其餘 {applyBox.untouched} 人無變化。</>}
+                  {applyBox.onlyName && <>其他人的數字完全不動。</>}
                   {applyBox.lockedNames.length>0 && <> 已鎖定而略過：{applyBox.lockedNames.join('、')}。</>}
                   套用後可用工具列的「復原套用」一鍵還原，儲存前都有效。
                 </div>
@@ -1259,7 +1593,7 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           <div className="field">
             <label>離職日</label>
             <input type="date" value={editing.resignDate||''} onChange={e=>{ setEditing({...editing, resignDate:e.target.value, status: e.target.value ? '離職' : editing.status}); setResignPreview(null); }} />
-            <div className="hint" style={{marginTop:4}}>有填離職日時，勞保費當月按在職天數比例計算，健保費則看月底當天是否仍在職（在職才收整月保費）</div>
+            <div className="hint" style={{marginTop:4}}>有填離職日時，勞保費當月按在職日數比例計算，健保費則看月底當天是否仍在職（在職才收整月保費）</div>
             {editing.resignDate && editing.hireDate && !isNew && (
               <div style={{marginTop:6}}>
                 <button type="button" className="ghost sm" disabled={resignPreviewLoading} onClick={loadResignPreview}>
@@ -1268,8 +1602,8 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
                 {resignPreview && (
                   <div className="hint" style={{marginTop:6, background:'var(--bg-soft, #f5f5f5)', padding:8, borderRadius:6, lineHeight:1.7}}>
                     週年制重新計算期間：{resignPreview.periodStart} ～ {resignPreview.periodEnd}<br/>
-                    應有 {trimNum(resignPreview.entitledDays,1)} 天，已休 {trimNum(resignPreview.usedDays,1)} 天，可結算 {trimNum(resignPreview.settleDays,1)} 天（{trimNum(resignPreview.settleHours,1)} 小時）<br/>
-                    {resignPreview.overUsed && <span style={{color:'var(--danger)'}}>⚠ 已超休 {resignPreview.overDays} 天，公司不能扣薪，結算金額以0計<br/></span>}
+                    應有 {trimNum(resignPreview.entitledDays,1)} 日，已休 {trimNum(resignPreview.usedDays,1)} 日，可結算 {trimNum(resignPreview.settleDays,1)} 日（{trimNum(resignPreview.settleHours,1)} 小時）<br/>
+                    {resignPreview.overUsed && <span style={{color:'var(--danger)'}}>⚠ 已超休 {resignPreview.overDays} 日，公司不能扣薪，結算金額以0計<br/></span>}
                     以本薪 {money(editing.baseSalary)} 估算，結算金額約 <b>{money(resignPreview.settlePay)}</b> 元
                     <div style={{marginTop:4, color:'var(--muted, #888)'}}>正式金額請至「薪資結算」頁該員工當月薪資列，按同樣的試算按鈕帶入。</div>
                   </div>
@@ -1393,10 +1727,10 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
               <input type="number" style={{flex:'1 1 90px', minWidth:0}} value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} />
               <select style={{flex:'0 0 auto', width:'auto'}} value={editing.transportAllowanceMode||'fixed'} onChange={e=>setEditing({...editing, transportAllowanceMode:e.target.value})}>
                 <option value="fixed">固定／月</option>
-                <option value="daily">依出勤天數</option>
+                <option value="daily">依出勤日數</option>
               </select>
             </div>
-            {editing.transportAllowanceMode==='daily' && <div className="hint" style={{marginTop:4}}>系統會用「套用出缺勤時數」抓當月實際出勤天數 × 這個金額，自動算出當月交通津貼</div>}
+            {editing.transportAllowanceMode==='daily' && <div className="hint" style={{marginTop:4}}>系統會用「套用出缺勤時數」抓當月實際出勤日數 × 這個金額，自動算出當月交通津貼</div>}
           </div>
           <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
           <div className="field"><label>全勤獎金（固定）</label><input type="number" value={editing.fullAttendanceBonus} onChange={e=>setEditing({...editing, fullAttendanceBonus:Number(e.target.value)})} /></div>
@@ -1514,9 +1848,15 @@ function RecordsTab({employees, month}){
   const [filterCompany, setFilterCompany] = useState('全部');
   const [filterName, setFilterName] = useState('全部');
   const [onlyAbnormal, setOnlyAbnormal] = useState(false);
+  // 已作廢的紀錄預設隱藏（它們不算數），勾選才撈出來查看與還原
+  const [showVoided, setShowVoided] = useState(false);
 
-  function load(){ setLoading(true); apiGet('getRecords', {month}).then(setRecords).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
-  useEffect(load, [month]);
+  function load(){
+    setLoading(true);
+    apiGet('getRecords', {month, includeVoided: showVoided ? 'true' : 'false'})
+      .then(setRecords).catch(e=>alert(e.message)).finally(()=>setLoading(false));
+  }
+  useEffect(load, [month, showVoided]);
 
   async function saveManual(){
     try{ await apiPost('addManualRecord', manual); setManual(null); load(); }catch(e){ alert(e.message); }
@@ -1524,15 +1864,23 @@ function RecordsTab({employees, month}){
   async function saveEdit(){
     try{ await apiPost('adjustRecord', editing); setEditing(null); load(); }catch(e){ alert(e.message); }
   }
-  async function removeRecord(id, info){
+  // 作廢而非刪除：原始資料完整保留，只是不再列入任何統計與薪資計算。
+  // 依勞基法第 30 條第 5 項出勤紀錄應保存 5 年，硬刪除等於銷毀憑證、勞檢時無法舉證。
+  async function voidRecordAsk(id, info){
     const who = info ? `${info.date}　${info.name}　${info.checkIn||'—'} / ${info.checkOut||'—'}\n\n` : '';
-    if(!confirm(
-      '刪除打卡紀錄\n\n' + who +
-      '出勤紀錄依勞動基準法第 30 條應保存 5 年，未依規定保存可處 9 萬至 45 萬元罰鍰。\n' +
-      '本系統為永久刪除，刪除後無法還原，也無法在勞檢或勞資爭議時舉證。\n\n' +
-      '確定仍要刪除嗎？'
-    )) return;
-    try{ await apiPost('deleteRecord', {id}); load(); }catch(e){ alert(e.message); }
+    const reason = prompt(
+      '作廢打卡紀錄\n\n' + who +
+      '作廢後這筆不再列入出缺勤統計與薪資計算，但原始資料會完整保留，\n' +
+      '並記錄操作者與時間，日後可還原（勞基法第 30 條要求出勤紀錄保存 5 年）。\n\n' +
+      '請填寫作廢原因：', '');
+    if(reason === null) return;               // 按取消
+    if(!reason.trim()){ alert('請填寫作廢原因，這是稽核軌跡的一部分'); return; }
+    try{ await apiPost('voidRecord', {id, reason: reason.trim()}); load(); }catch(e){ alert(e.message); }
+  }
+  async function restoreRecordAsk(id, info){
+    const who = info ? `${info.date}　${info.name}` : '這筆紀錄';
+    if(!confirm(`還原「${who}」？\n\n還原後會重新列入出缺勤統計與薪資計算。`)) return;
+    try{ await apiPost('restoreRecord', {id}); load(); }catch(e){ alert(e.message); }
   }
 
   const empMap = {}; employees.forEach(e=>{ empMap[e.id] = e; });
@@ -1573,6 +1921,9 @@ function RecordsTab({employees, month}){
         <label style={{display:'flex', alignItems:'center', gap:5, fontSize:13, color:'var(--ink)'}}>
           <input type="checkbox" checked={onlyAbnormal} onChange={e=>setOnlyAbnormal(e.target.checked)} style={{width:'auto'}} />只顯示異常記錄
         </label>
+        <label style={{display:'flex', alignItems:'center', gap:5, fontSize:13, color:'var(--ink)'}}>
+          <input type="checkbox" checked={showVoided} onChange={e=>setShowVoided(e.target.checked)} style={{width:'auto'}} />顯示已作廢
+        </label>
         <span className="grow"></span>
         <button className="ghost sm" onClick={()=>setManual({employeeId:'', name:'', companyFilter:'全部', date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
         <button className="ghost sm" onClick={load}>重新整理</button>
@@ -1590,8 +1941,8 @@ function RecordsTab({employees, month}){
               {filtered.map(r=>{
                 const emp = empMap[r.employeeId];
                 return (
-                <tr key={r.id}>
-                  <td className="center"><b>{r.name}</b></td>
+                <tr key={r.id} className={r.voided ? 'voided-row' : ''}>
+                  <td className="center"><b>{r.name}</b>{r.voided && <span className="void-tag">已作廢</span>}</td>
                   <td className="center">{emp ? (emp.company||'(未分類)') : '-'}</td>
                   <td className="center">{r.date}</td>
                   {punchCell(r.checkIn, r.checkInStatus)}
@@ -1599,9 +1950,18 @@ function RecordsTab({employees, month}){
                   {punchCell(r.outgo, r.outgoStatus)}
                   {punchCell(r.returnTime, r.returnStatus)}
                   <td className="center">{r.source}</td>
-                  <td className="left">{r.note}</td>
-                  <td><button className="ghost sm" onClick={()=>setEditing({id:r.id, checkIn:r.checkIn, checkOut:r.checkOut, note:r.note, lat:r.checkInLat||r.checkOutLat||'', lng:r.checkInLng||r.checkOutLng||''})}>修改</button>{' '}
-                      <button className="danger sm" onClick={()=>removeRecord(r.id, r)}>刪除</button></td>
+                  <td className="left">
+                    {r.note}
+                    {r.voided && <div className="void-meta">{r.voidedBy} 於 {r.voidedAt} 作廢{r.voidReason ? '：' + r.voidReason : ''}</div>}
+                  </td>
+                  <td>
+                    {r.voided ? (
+                      <button className="ghost sm" onClick={()=>restoreRecordAsk(r.id, r)}>還原</button>
+                    ) : (<>
+                      <button className="ghost sm" onClick={()=>setEditing({id:r.id, checkIn:r.checkIn, checkOut:r.checkOut, note:r.note, lat:r.checkInLat||r.checkOutLat||'', lng:r.checkInLng||r.checkOutLng||''})}>修改</button>{' '}
+                      <button className="danger sm" onClick={()=>voidRecordAsk(r.id, r)}>作廢</button>
+                    </>)}
+                  </td>
                 </tr>
                 );
               })}
@@ -1675,18 +2035,70 @@ function RecordsTab({employees, month}){
 }
 
 /* ========================= 出缺勤彙總 ========================= */
-function AttendanceTab({month, onApply}){
+// 偶發假別共用「其他有薪假」一欄：這些假一年可能只請一次，各給固定欄位會有 7 欄整年是 0
+const OCCASIONAL_LEAVES = ['婚假','喪假','公假','公傷病假','產假','產檢假','陪產假'];
+// 展開明細的一列。狀態放最前，最左邊形成一條顏色帶，待審核的幾筆往下掃就找得到
+function LeaveDetailRow({d}){
+  const pending = (d.status === '待審核' || d.status === '初核通過');
+  const sameDay = String(d.startTime).slice(0,10) === String(d.endTime).slice(0,10);
+  const when = sameDay
+    ? `${String(d.startTime).slice(5,10)}　${String(d.startTime).slice(11,16)}–${String(d.endTime).slice(11,16)}`
+    : `${String(d.startTime).slice(5,10)} ～ ${String(d.endTime).slice(5,10)}`;
+  return (
+    <div className="lv-row">
+      <span className={'lv-st' + (pending ? ' wait' : '')}>{d.status}</span>
+      <span className="lv-ty">{d.leaveType}</span>
+      <span className="lv-hr">{trimNum(d.hours,1)} 小時</span>
+      <span className="lv-when">{when}{d.reason ? <span className="lv-why">· {d.reason}</span> : null}</span>
+    </div>
+  );
+}
+
+function AttendanceTab({month, onApply, allLocked}){
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [makeupBox, setMakeupBox] = useState(null); // {employeeId, name, dates}
+  // 欄位分組摺疊：預設展開出勤與兩組請假、收起加班，一屏看得完不必橫向捲
+  const [openG, setOpenG] = useState({att:true, unpaid:true, paid:true, ot:false});
+  const [openRow, setOpenRow] = useState({});
+  const g = k => !!openG[k];
+  const toggleG = k => setOpenG(o=>({...o, [k]:!o[k]}));
+  const toggleRow = id => setOpenRow(o=>({...o, [id]:!o[id]}));
+  // 扣薪假／有薪假分開統計：兩者性質不同（一個扣薪影響全勤、一個不扣），
+  // 合成單一「請假合計」會看不出嚴重性，且扣薪假小計要能直接對薪資表的請假扣款
+  function unpaidSum(e){ return r1(n(e.personalLeave)+n(e.sickLeave)+n(e.familyCareLeave)+n(e.menstrualLeave)+n(e.disasterLeave)); }
+  function occasional(e){
+    const t = e.leaveByType || {};
+    return OCCASIONAL_LEAVES.filter(k=>n(t[k])>0).map(k=>({type:k, hours:n(t[k])}));
+  }
+  function paidSum(e){
+    const t = e.leaveByType || {};
+    return r1(n(t['特休']) + n(t['補休']) + occasional(e).reduce((s,x)=>s+x.hours,0));
+  }
+  function r1(v){ return Math.round((Number(v)||0)*10)/10; }
+  // 0 用淡字而不是留白：留白會讓人分不清「沒請假」和「資料還沒帶進來」
+  const Z = ({v, cls}) => <td className={'center ' + (cls||'') + (n(v)===0 ? ' zero-dim' : '')}>{trimNum(v,1)}</td>;
 
   function load(){ setLoading(true); apiGet('getMonthlySummary', {month}).then(setSummary).catch(e=>alert(e.message)).finally(()=>setLoading(false)); }
   useEffect(load, [month]);
 
   function doExportCSV(){
-    const headers = ['姓名','出勤天數','遲到次數','遲到分鐘','早退次數','早退分鐘','平日1.34倍(hr)','平日1.67倍(hr)','單日超時天數','單日超時日期','休息日出勤(hr)','國定假日出勤(hr)','例假日出勤(hr)','總工時(hr)','平日加班上限是否超過','定位異常天數'];
-    const rows = summary.map(e=>[e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,e.otWeekday134,e.otWeekday167,e.dailyOtExceedDays.length,e.dailyOtExceedDays.join('、'),e.otRestDayHours,e.otHolidayHours,e.otMandatoryRestHours,e.workedHoursTotal,e.otCapExceeded?'是':'否',e.flaggedDays]);
+    // CSV 一律匯出全部欄位（含收合起來的群組），畫面上的摺疊只是為了控制寬度，不該影響匯出內容
+    const headers = ['姓名','出勤日數','遲到次數','遲到分鐘','早退次數','早退分鐘',
+      '事假(hr)','病假(hr)','家庭照顧假(hr)','生理假(hr)','災防假(hr)','扣薪假小計(hr)',
+      '特休(hr)','補休(hr)','其他有薪假(hr)','其他有薪假明細','有薪假小計(hr)','待審核筆數','待審核時數(hr)',
+      '平日1.34倍(hr)','平日1.67倍(hr)','單日超時日數','單日超時日期','休息日出勤(hr)','國定假日出勤(hr)','例假日出勤(hr)','總工時(hr)','平日加班上限是否超過','定位異常日數'];
+    const rows = summary.map(e=>{
+      const t = e.leaveByType || {};
+      const occ = occasional(e);
+      return [e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,
+        e.personalLeave,e.sickLeave,e.familyCareLeave,e.menstrualLeave,e.disasterLeave,unpaidSum(e),
+        n(t['特休']),n(t['補休']),occ.reduce((s,x)=>s+x.hours,0),occ.map(x=>x.type+' '+x.hours).join('、'),paidSum(e),
+        e.pendingLeaveCount||0,e.pendingLeaveHours||0,
+        e.otWeekday134,e.otWeekday167,e.dailyOtExceedDays.length,e.dailyOtExceedDays.join('、'),
+        e.otRestDayHours,e.otHolidayHours,e.otMandatoryRestHours,e.workedHoursTotal,e.otCapExceeded?'是':'否',e.flaggedDays];
+    });
     exportCSV(`出缺勤彙總_${month}.csv`, headers, rows);
   }
   async function doApply(){
@@ -1699,39 +2111,102 @@ function AttendanceTab({month, onApply}){
       <div className="toolbar">
         <span className="grow"></span>
         <button className="ghost sm" onClick={doExportCSV}>匯出 CSV</button>
-        <button onClick={doApply} disabled={applying}>{applying?'套用中...':'套用出缺勤時數到薪資計算'}</button>
+        <button onClick={doApply} disabled={applying || allLocked}
+          title={allLocked ? '本月薪資已鎖定，時數不會被覆蓋。要修改請先到「薪資計算 / 明細」解鎖' : ''}>
+          {applying?'套用中...':'套用出缺勤時數到薪資計算'}
+        </button>
+        {allLocked && <span className="hint" style={{fontSize:11.5}}>本月已鎖定</span>}
+      </div>
+      <div className="grp-bar">
+        {[{k:'att',t:'出勤'},{k:'unpaid',t:'扣薪假'},{k:'paid',t:'有薪假'},{k:'ot',t:'加班'}].map(x=>(
+          <button key={x.k} type="button" className={'grp-chip' + (g(x.k)?' on':'')} onClick={()=>toggleG(x.k)}>
+            <span className="grp-dot"></span>{x.t}
+          </button>
+        ))}
+        <span className="hint" style={{marginLeft:'auto', fontSize:11.5}}>點姓名展開該員工當月逐筆假單</span>
       </div>
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
-          <table>
-            <thead><tr><th className="center">姓名</th><th className="center">出勤天數</th><th className="center">遲到次數</th><th className="center">遲到分鐘</th><th className="center">早退次數</th><th className="center">早退分鐘</th><th className="center">平日1.34倍(hr)</th><th className="center">平日1.67倍(hr)</th><th className="center">單日超時</th><th className="center">休息日(hr)</th><th className="center">國定假日(hr)</th><th className="center">例假日(hr)</th><th className="center">總工時(hr)</th><th className="center">定位異常</th></tr></thead>
+          <table className="sum-tbl">
+            <thead>
+              <tr>
+                <th className="center" rowSpan="2">姓名</th>
+                {g('att') && <th className="center grp-att" colSpan="5">出勤</th>}
+                {g('unpaid') && <th className="center grp-un" colSpan="6">扣薪假（小時）</th>}
+                {g('paid') && <th className="center grp-pd" colSpan="4">有薪假（小時）</th>}
+                {g('ot') && <th className="center grp-ot" colSpan="7">加班（小時）</th>}
+              </tr>
+              <tr>
+                {g('att') && <><th className="center">出勤日數</th><th className="center">遲到次數</th><th className="center">遲到分鐘</th><th className="center">早退次數</th><th className="center">早退分鐘</th></>}
+                {g('unpaid') && <><th className="center">事假</th><th className="center">病假</th><th className="center">家庭照顧</th><th className="center">生理</th><th className="center">災防</th><th className="center">小計</th></>}
+                {g('paid') && <><th className="center">特休</th><th className="center">補休</th><th className="center">其他有薪假</th><th className="center">小計</th></>}
+                {g('ot') && <><th className="center">平日1.34</th><th className="center">平日1.67</th><th className="center">單日超時</th><th className="center">休息日</th><th className="center">國定假日</th><th className="center">例假日</th><th className="center">總工時</th></>}
+              </tr>
+            </thead>
             <tbody>
-              {summary.map(e=>(
-                <tr key={e.employeeId}>
-                  <td className="center"><b>{e.name}</b></td>
-                  <td className="center">{e.presentDays}</td><td className="center">{e.lateCount}</td><td className="center">{e.lateMinutes}</td>
-                  <td className="center">{e.earlyLeaveCount}</td><td className="center">{e.earlyLeaveMinutes}</td>
-                  <td className={'center ' + (e.otCapExceeded?'flag':'')}>{e.otWeekday134}</td>
-                  <td className={'center ' + (e.otCapExceeded?'flag':'')}>{e.otWeekday167}</td>
-                  <td className={'center ' + (e.dailyOtWarning?'flag':'')} title={e.dailyOtExceedDays.join('、')}>
-                    {e.dailyOtWarning ? <span className="material-icons" style={{fontSize:15, verticalAlign:'middle'}}>warning</span> : '-'}
-                    {e.dailyOtWarning ? ` ${e.dailyOtExceedDays.length}天` : ''}
-                  </td>
-                  <td className={'center ' + (e.otRestDayHours>0 ? (e.otCapExceeded?'flag':'') : '')}>{e.otRestDayHours}</td>
-                  <td className="center">{e.otHolidayHours}</td>
-                  <td className={'center ' + (e.otMandatoryRestHours>0?'flag':'')}>
-                    {e.otMandatoryRestHours}
-                    {e.mandatoryRestDates.length>0 && (
-                      <button className="ghost sm" style={{marginLeft:6, padding:'2px 6px', fontSize:11}} onClick={()=>setMakeupBox({employeeId:e.employeeId, name:e.name, dates:e.mandatoryRestDates, unresolvedDates:e.mandatoryRestUnresolvedDates})}>
-                        {e.mandatoryRestWarning ? '待補假' : '已補假'}
-                      </button>
+              {summary.map(e=>{
+                const t = e.leaveByType || {};
+                const occ = occasional(e);
+                const detail = e.leaveDetail || [];
+                const open = !!openRow[e.employeeId];
+                const colCount = 1 + (g('att')?5:0) + (g('unpaid')?6:0) + (g('paid')?4:0) + (g('ot')?7:0);
+                return (
+                  <React.Fragment key={e.employeeId}>
+                    <tr className={detail.length ? 'row-exp' : ''} onClick={detail.length ? (()=>toggleRow(e.employeeId)) : undefined}>
+                      <td className="center emp-cell">
+                        <b>{e.name}</b>
+                        {detail.length > 0 && <span className={'exp-arrow' + (open?' open':'')}>›</span>}
+                        {e.pendingLeaveCount > 0 && <span className="pend-badge" title={`待審核 ${trimNum(e.pendingLeaveHours,1)} 小時，未計入下方合計`}>待審 {e.pendingLeaveCount}</span>}
+                      </td>
+                      {g('att') && <>
+                        <Z v={e.presentDays} /><Z v={e.lateCount} /><Z v={e.lateMinutes} /><Z v={e.earlyLeaveCount} /><Z v={e.earlyLeaveMinutes} />
+                      </>}
+                      {g('unpaid') && <>
+                        <Z v={e.personalLeave} /><Z v={e.sickLeave} /><Z v={e.familyCareLeave} /><Z v={e.menstrualLeave} /><Z v={e.disasterLeave} />
+                        <Z v={unpaidSum(e)} cls="col-sum" />
+                      </>}
+                      {g('paid') && <>
+                        <Z v={t['特休']} /><Z v={t['補休']} />
+                        <td className={'center ' + (occ.length?'':'zero-dim')}>
+                          {occ.length ? occ.map(x=><span key={x.type} className="occ-tag">{x.type} {trimNum(x.hours,1)}</span>) : '0'}
+                        </td>
+                        <Z v={paidSum(e)} cls="col-sum" />
+                      </>}
+                      {g('ot') && <>
+                        <td className={'center ' + (e.otCapExceeded?'flag':'') + (n(e.otWeekday134)===0?' zero-dim':'')}>{trimNum(e.otWeekday134,1)}</td>
+                        <td className={'center ' + (e.otCapExceeded?'flag':'') + (n(e.otWeekday167)===0?' zero-dim':'')}>{trimNum(e.otWeekday167,1)}</td>
+                        <td className={'center ' + (e.dailyOtWarning?'flag':'zero-dim')} title={e.dailyOtExceedDays.join('、')}>
+                          {e.dailyOtWarning ? <><span className="material-icons" style={{fontSize:15, verticalAlign:'middle'}}>warning</span>{` ${e.dailyOtExceedDays.length} 日`}</> : '0'}
+                        </td>
+                        <td className={'center ' + (e.otRestDayHours>0 ? (e.otCapExceeded?'flag':'') : 'zero-dim')}>{trimNum(e.otRestDayHours,1)}</td>
+                        <Z v={e.otHolidayHours} />
+                        <td className={'center ' + (e.otMandatoryRestHours>0?'flag':'zero-dim')} onClick={ev=>ev.stopPropagation()}>
+                          {trimNum(e.otMandatoryRestHours,1)}
+                          {e.mandatoryRestDates.length>0 && (
+                            <button className="ghost sm" style={{marginLeft:6, padding:'2px 6px', fontSize:11}} onClick={()=>setMakeupBox({employeeId:e.employeeId, name:e.name, dates:e.mandatoryRestDates, unresolvedDates:e.mandatoryRestUnresolvedDates})}>
+                              {e.mandatoryRestWarning ? '待補假' : '已補假'}
+                            </button>
+                          )}
+                        </td>
+                        <Z v={e.workedHoursTotal} />
+                      </>}
+                    </tr>
+                    {open && detail.length > 0 && (
+                      <tr className="detail-row">
+                        <td colSpan={colCount}>
+                          <div className="lv-head">
+                            <span>狀態</span><span>假別</span><span className="lv-hr">時數</span><span>日期／時段</span>
+                          </div>
+                          <div className="lv-list">
+                            {detail.map(d=><LeaveDetailRow key={d.requestId} d={d} />)}
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  </td>
-                  <td className="center">{e.workedHoursTotal}</td>
-                  <td className={'center ' + (e.flaggedDays>0?'flag':'')}>{e.flaggedDays}</td>
-                </tr>
-              ))}
-              {summary.length===0 && <tr><td colSpan="14" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
+                  </React.Fragment>
+                );
+              })}
+              {summary.length===0 && <tr><td colSpan="23" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
             </tbody>
           </table>
         )}
@@ -1744,7 +2219,7 @@ function AttendanceTab({month, onApply}){
         <div className="modal-bg">
           <div className="modal">
             <h3><span className="material-icons">event_repeat</span>{makeupBox.name} － 例假日補假登記</h3>
-            <div className="hint" style={{marginBottom:10}}>依勞基法第40條，例假日出勤事後須完成補假，請登記每一天實際補假的日期。</div>
+            <div className="hint" style={{marginBottom:10}}>依勞基法第40條，例假日出勤事後須完成補假，請登記每一日實際補假的日期。</div>
             <MakeupList employeeId={makeupBox.employeeId} dates={makeupBox.dates} onSaved={()=>{ load(); }}/>
             <div className="modal-actions">
               <button className="ghost" onClick={()=>setMakeupBox(null)}>關閉</button>
@@ -1799,7 +2274,7 @@ function NumCell({value, onChange, disabled}){
 }
 
 /* ========================= 薪資計算 / 明細總表 ========================= */
-function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoApply, onSave, dirty, saving, onEditEmployee, onReload, menstrualBaseline}){
+function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoApply, onSave, dirty, saving, onEditEmployee, onReload, menstrualBaseline, settings}){
   const [subTab, setSubTab] = useState('06');
   const [settleBox, setSettleBox] = useState(null); // {year, items, loading, saving}
   const [lockBox, setLockBox] = useState(null); // {items, loading, saving}
@@ -1994,7 +2469,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
         </button>
       </div>
       <div className="toolbar no-print">
-        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍/其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3天全薪、第4天起50%）、災防假100%（公司採不支薪，惟不影響全勤與考績）；病假與生理假(超過3天部分)共用年度30天上限，超過後不給薪</span>
+        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍/其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3 日全薪、第4 日起50%）、災防假100%（公司採不支薪，惟不影響全勤與考績）；病假與生理假(超過3 日部分)共用年度30 日上限，超過後不給薪</span>
       </div>
 
       {(otCapAlerts.length>0 || minWageAlerts.length>0 || restDayCapAlerts.length>0 || sickCapAlerts.length>0) && (
@@ -2003,7 +2478,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
           {otCapAlerts.length>0 && <div className="hint">平日加班＋休息日出勤合計超過月上限 {MONTHLY_OT_CAP_DEFAULT} 小時：{otCapAlerts.map(r=>r.emp.name).join('、')}（依勞基法第32條，一般上限46小時，經工會或勞資會議同意可延長至54小時，但每3個月不得逾138小時；國定假日與例假加班不列入此上限）</div>}
           {restDayCapAlerts.length>0 && <div className="hint">休息日單日出勤超過12小時：{restDayCapAlerts.map(r=>r.emp.name).join('、')}，請確認是否合法並已依規定辦理</div>}
           {minWageAlerts.length>0 && <div className="hint">經常性給予（本薪＋伙食＋交通＋職務加給）低於2026年最低工資 {money(MIN_WAGE_MONTHLY)} 元：{minWageAlerts.map(r=>r.emp.name).join('、')}，請確認薪資結構是否合法（不含加班費、獎金與全勤獎金）</div>}
-          {sickCapAlerts.length>0 && <div className="hint">病假＋生理假(超過3天部分)已達年度30天上限，本月部分時數不給薪：{sickCapAlerts.map(r=>r.emp.name).join('、')}</div>}
+          {sickCapAlerts.length>0 && <div className="hint">病假＋生理假(超過3 日部分)已達年度30 日上限，本月部分時數不給薪：{sickCapAlerts.map(r=>r.emp.name).join('、')}</div>}
         </div>
       )}
 
@@ -2077,7 +2552,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             const leaveBaseline = menstrualBaseline[emp.id] || {menstrual:0, sick:0};
             const refOtWeekday134 = calc.hourly*1.34*n(s.otWeekday134);
             const refOtWeekday167 = calc.hourly*1.67*n(s.otWeekday167);
-            const refOtRestDay = calcRestDayPay(calc.hourly, s.otRestDayHours).pay;
+            const refOtRestDay = calcRestDayPay(calc.hourly, s.otRestDayHours, (settings && settings.restDayOtMode) || 'tier').pay;
             const refOtHoliday = calcHolidayPay(calc.hourly, calc.dailyWage, s.otHolidayHours).pay;
             const refPersonalLeave = calc.hourly*1.0*n(s.personalLeave);
             const refSickLeave = calcSickLeaveRefMoney(calc.hourly, s.sickLeave, leaveBaseline);
@@ -2085,13 +2560,23 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             const refDisasterLeave = calc.hourly*1.0*n(s.disasterLeave);
             return (
             <tr key={emp.id}>
-              <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
+              <td className="center freeze-1">
+                <b style={{cursor:'pointer'}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料">{emp.name}</b>
+                <br/><span className="hint">{emp.department}</span>
+                {/* 單人套用：只重算這一列的出缺勤時數，其他人已手動輸入的數字完全不動 */}
+                {!entry.locked && (
+                  <><br/><button type="button" className="ghost sm no-print"
+                    style={{marginTop:3, padding:'1px 7px', fontSize:11, fontWeight:400}}
+                    onClick={()=>onApply(emp.id)}
+                    title={'只以打卡紀錄重算 ' + emp.name + ' 的出缺勤時數'}>套用</button></>
+                )}
+              </td>
               <td className="freeze-2 center">{money(calc.effBaseSalary)}</td>
               {shown('allow') && <>
               <td className="hint">{money(calc.effMealAllowance)}</td>
-              <td className="hint" title={emp.transportAllowanceMode==='daily'?`依出勤天數計算：${entry.presentDays||0}天 × ${money(emp.transportAllowance)}`:''}>{money(calc.effTransportAllowance)}</td>
+              <td className="hint" title={emp.transportAllowanceMode==='daily'?`依出勤日數計算：${entry.presentDays||0} 日 × ${money(emp.transportAllowance)}`:''}>{money(calc.effTransportAllowance)}</td>
               <td className="hint">{money(calc.effPositionAllowance)}</td>
-              <td className="hint" title={calc.fullAttendanceDeductRatio>0?`依請假/遲到早退比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%`:(calc.fullAttendanceRatio<1?`依在職天數比例試算（${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')} style={calc.fullAttendanceDeductRatio>0?{color:'var(--danger)'}:undefined}>{money(calc.fullAttendanceAdjusted)}</td>
+              <td className="hint" title={calc.fullAttendanceDeductRatio>0?`依請假/遲到早退比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%`:(calc.fullAttendanceRatio<1?`依在職日數比例試算（${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')} style={calc.fullAttendanceDeductRatio>0?{color:'var(--danger)'}:undefined}>{money(calc.fullAttendanceAdjusted)}</td>
               </>}
               {shown('ot') && <>
               <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} />{refBelow(refOtWeekday134)}</td>
@@ -2130,7 +2615,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               </td>
               <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} />{refBelow(refDisasterLeave)}</td>
               </>}
-              <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays}天比例計算`:''}>{money(calc.laborFee)}</td>
+              <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays} 日比例計算`:''}>{money(calc.laborFee)}</td>
               <td className="col-deduct" title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
               <td className="col-deduct">
                 <NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} disabled={entry.locked} />
@@ -2255,12 +2740,12 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             <div className="hint" style={{marginBottom:10}}>依「特休設定」裡的核定時數與已使用時數，試算每位員工剩餘特休折算的金額。確認無誤後按「套用」，會自動填入下方「特休結算」欄位，仍可個別手動調整。</div>
             {settleBox.loading ? <div className="hint">試算中...</div> : (
               <table>
-                <thead><tr><th className="left">姓名</th><th>剩餘時數 / 天數</th><th className="left">算式</th><th>結算金額</th></tr></thead>
+                <thead><tr><th className="left">姓名</th><th>剩餘時數 / 日數</th><th className="left">算式</th><th>結算金額</th></tr></thead>
                 <tbody>
                   {settleBox.items.map(it=>(
                     <tr key={it.employeeId}>
-                      <td className="left">{it.name}{it.overUsed && <div className="hint" style={{color:'var(--danger)'}}>⚠ 已超休 {trimNum(it.overHours,1)} 小時（{trimNum(it.overHours/8,1)} 天），公司不能扣薪，金額以0計</div>}</td>
-                      <td>{trimNum(it.remainHours,1)}<span className="hint" style={{marginLeft:4}}>（{trimNum(it.remainHours/8,1)} 天）</span></td>
+                      <td className="left">{it.name}{it.overUsed && <div className="hint" style={{color:'var(--danger)'}}>⚠ 已超休 {trimNum(it.overHours,1)} 小時（{trimNum(it.overHours/8,1)} 日），公司不能扣薪，金額以0計</div>}</td>
+                      <td>{trimNum(it.remainHours,1)}<span className="hint" style={{marginLeft:4}}>（{trimNum(it.remainHours/8,1)} 日）</span></td>
                       <td className="left hint">{trimNum(it.remainHours,1)} hr × {it.hourly} 元/hr =</td>
                       <td><b>{money(it.amount)}</b></td>
                     </tr>
@@ -2309,19 +2794,19 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             <h3><span className="material-icons">calculate</span>特休結算試算：{resignRowBox.name}</h3>
             {resignRowBox.loading ? <div className="hint">試算中...</div> : resignRowBox.data && (
               <div>
-                <div className="hint" style={{marginBottom:10}}>不論平常特休用歷年制或週年制核定，離職一律改用「週年制」重新計算最後一個未滿的服務年度，已休超過應有天數不倒扣。</div>
+                <div className="hint" style={{marginBottom:10}}>不論平常特休用歷年制或週年制核定，離職一律改用「週年制」重新計算最後一個未滿的服務年度，已休超過應有日數不倒扣。</div>
                 <table>
                   <tbody>
                     <tr><td className="left">重新計算期間</td><td>{resignRowBox.data.periodStart} ～ {resignRowBox.data.periodEnd}</td></tr>
-                    <tr><td className="left">應有天數</td><td>{resignRowBox.data.entitledDays} 天</td></tr>
-                    <tr><td className="left">已休天數</td><td>{trimNum(resignRowBox.data.usedDays,1)} 天（{trimNum(resignRowBox.data.usedHours,1)} 小時）</td></tr>
-                    <tr><td className="left">可結算天數</td><td><b>{resignRowBox.data.settleDays} 天</b>（{resignRowBox.data.settleHours} 小時）</td></tr>
+                    <tr><td className="left">應有日數</td><td>{resignRowBox.data.entitledDays} 日</td></tr>
+                    <tr><td className="left">已休日數</td><td>{trimNum(resignRowBox.data.usedDays,1)} 日（{trimNum(resignRowBox.data.usedHours,1)} 小時）</td></tr>
+                    <tr><td className="left">可結算日數</td><td><b>{resignRowBox.data.settleDays} 日</b>（{resignRowBox.data.settleHours} 小時）</td></tr>
                     <tr><td className="left">日薪基準</td><td>{money(resignRowBox.data.dailyWage)}</td></tr>
                     <tr><td className="left">結算金額</td><td><b>{money(resignRowBox.data.settlePay)}</b></td></tr>
                   </tbody>
                 </table>
                 {resignRowBox.data.overUsed && (
-                  <div className="hint" style={{color:'var(--danger)', marginTop:8}}>⚠ 已超休 {resignRowBox.data.overDays} 天，依規定公司不能扣薪，結算金額以0計，僅提醒留意。</div>
+                  <div className="hint" style={{color:'var(--danger)', marginTop:8}}>⚠ 已超休 {resignRowBox.data.overDays} 日，依規定公司不能扣薪，結算金額以0計，僅提醒留意。</div>
                 )}
               </div>
             )}
@@ -2353,7 +2838,7 @@ function hrsLabel(hours){
   const h = Number(hours) || 0;
   if(h <= 0) return '';
   const days = Math.round((h/8)*10)/10;
-  return `${h}小時（${days}天）`;
+  return `${h}小時（${days} 日）`;
 }
 function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
   const show = v => !hideZero || Number(v) !== 0;
@@ -2382,7 +2867,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
           <tr><td className="left col-add" style={{fontWeight:600}}>本薪</td><td className="col-add"></td><td className="col-add" style={{fontWeight:600}}>{money(calc.effBaseSalary)}</td></tr>
           {(!hideZero || hasAnyAllowance) && <tr><td className="left col-add" colSpan="3" style={{fontSize:11, color:'var(--muted)', paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>}
           {show(n(calc.effMealAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>伙食津貼</td><td className="col-add"></td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effMealAllowance)}</td></tr>}
-          {show(n(calc.effTransportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼{emp.transportAllowanceMode==='daily' && <span>（{entry.presentDays||0}天×{money(emp.transportAllowance)}）</span>}</td><td className="col-add"></td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effTransportAllowance)}</td></tr>}
+          {show(n(calc.effTransportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼{emp.transportAllowanceMode==='daily' && <span>（{entry.presentDays||0} 日×{money(emp.transportAllowance)}）</span>}</td><td className="col-add"></td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effTransportAllowance)}</td></tr>}
           {show(n(calc.effPositionAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>職務加給</td><td className="col-add"></td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effPositionAllowance)}</td></tr>}
           {show(n(calc.effFullAttendanceBonus)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>全勤獎金{calc.fullAttendanceDeductRatio>0 && <span style={{color:'var(--danger)'}}>（依比例扣{(calc.fullAttendanceDeductRatio*100).toFixed(1)}%）</span>}{calc.fullAttendanceRatio<1 && <span>（依在職比例{(calc.fullAttendanceRatio*100).toFixed(0)}%）</span>}</td><td className="col-add"></td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.fullAttendanceAdjusted)}</td></tr>}
           {show(n(entry.festivalBonus)) && <tr><td className="left col-add">三節獎金</td><td className="col-add"></td><td className="col-add">{money(entry.festivalBonus)}</td></tr>}
@@ -2402,7 +2887,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
         <colgroup><col style={{width:'38%'}} /><col style={{width:'38%'}} /><col style={{width:100}} /></colgroup>
         <thead><tr><th className="col-deduct" colSpan="3"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>remove_circle</span> 應扣項目</th></tr></thead>
         <tbody>
-          <tr><td className="left col-deduct">勞保費{!calc.insFullMonth && <span style={{fontWeight:400}}>（按{calc.insLaborDays}天計）</span>}</td><td className="col-deduct"></td><td className="col-deduct">{money(calc.laborFee)}</td></tr>
+          <tr><td className="left col-deduct">勞保費{!calc.insFullMonth && <span style={{fontWeight:400}}>（按{calc.insLaborDays} 日計）</span>}</td><td className="col-deduct"></td><td className="col-deduct">{money(calc.laborFee)}</td></tr>
           <tr><td className="left col-deduct">健保費{!calc.insActiveAtMonthEnd && <span style={{fontWeight:400}}>（月底已離職不收）</span>}{calc.insActiveAtMonthEnd && n(emp.dependentCount)>0 && <span style={{fontWeight:400}}>（含眷屬{Math.min(n(emp.dependentCount),3)}人）</span>}</td><td className="col-deduct"></td><td className="col-deduct">{money(calc.healthFee)}</td></tr>
           {show(personalOnlyHours) && <tr><td className="left col-deduct">事假</td><td className="col-deduct hrs">{hrsLabel(personalOnlyHours)}</td><td className="col-deduct">{money(calc.hourly*personalOnlyHours)}</td></tr>}
           {show(familyCareHours) && <tr><td className="left col-deduct">家庭照顧假</td><td className="col-deduct hrs">{hrsLabel(familyCareHours)}</td><td className="col-deduct">{money(calc.hourly*familyCareHours)}</td></tr>}
@@ -2413,7 +2898,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
           <tr className="total-row"><td className="left">應扣合計</td><td></td><td>{money(calc.deductTotal)}</td></tr>
         </tbody>
       </table>
-      {(n(entry.sickLeave)>0 || n(entry.menstrualLeave)>0) && <div style={{fontSize:10.5, color:'var(--muted)', marginBottom:8}}>病假、生理假：年度合計前30天半薪，超過不給薪</div>}
+      {(n(entry.sickLeave)>0 || n(entry.menstrualLeave)>0) && <div style={{fontSize:10.5, color:'var(--muted)', marginBottom:8}}>病假、生理假：年度合計前30 日半薪，超過不給薪</div>}
 
       {infoLeaveRows.length>0 && (
         <table style={{marginBottom:8}}>
@@ -2483,7 +2968,11 @@ function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseli
           <input type="checkbox" checked={hideZero} onChange={e=>setHideZero(e.target.checked)} style={{width:'auto'}} />
           隱藏金額為0的項目
         </label>
-        <button className="ghost sm" onClick={()=>window.print()}>列印薪資條</button>
+        <button className="ghost sm" onClick={()=>{
+          const [yy,mo] = month.split('-');
+          const who = selected==='all' ? '全部員工' : ((employees.find(e=>e.id===selected)||{}).name || '');
+          printWithFilename(`${yy}年${mo}月份-薪資條-${who}`);
+        }}>列印薪資條</button>
       </div>
       {list.length===0 && <div className="empty card">尚無員工資料</div>}
       {list.map(emp=>{
@@ -2593,22 +3082,186 @@ function TransferTab({rows, month}){
 }
 
 /* ========================= 薪資印領清冊(全年度) ========================= */
+/* ============ 印領清冊：SVG 精確排版列印 ============
+   為什麼不用 HTML 列印：HTML 的版面是「瀏覽器算出來的」，同一份檔案在不同瀏覽器、
+   不同縮放、不同印表機驅動下結果可能不同 —— 實測就遇過「第一頁左緣被裁掉約 8px」
+   這種只在特定情境出現、加大頁面邊界也無效的問題，來回試印很難收斂。
+
+   改用 SVG：每個文字與線條都寫死座標（單位直接用 mm），瀏覽器只負責顯示、
+   不參與排版計算，所以「看到什麼就印出什麼」。文字仍是真的文字（可選取、可搜尋、
+   任何解析度都清晰），不是圖片。 */
+const REG_PAGE = { w:297, h:210, m:6 };          // A4 橫式（mm）
+const REG_COL  = { label:22, month:20, ytd:20 }; // 欄寬：項目／每月／全年合計
+const REG_SIG_H = 20;                             // 簽名格高度，至少 2cm 才蓋得下印章
+
+function regEsc(t){
+  return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+// 產生一位員工的一頁 SVG
+function regEmployeeSvg(emp, company, year){
+  const P = REG_PAGE, C = REG_COL;
+  const x0 = P.m, tableW = C.label + C.month*12 + C.ytd;
+  const rows = REGISTER_ROW_DEFS;
+  // 版面高度分配：抬頭 → 員工橫幅 → 表頭 → 說明 → 資料列 → 簽名格
+  const yHead = P.m + 4.2, yLaw = yHead + 3.4, yBar = yLaw + 3.0;
+  const barH = 6.2, hdrH = 5.6, capH = 4.6;
+  const yTable = yBar + barH;
+  const bodyTop = yTable + hdrH + capH;
+  const avail = P.h - P.m - REG_SIG_H - bodyTop;
+  const rowH = Math.min(6.2, avail / rows.length);
+  const colX = i => x0 + C.label + C.month*i;          // 第 i 個月的左緣
+  const ytdX = x0 + C.label + C.month*12;
+  const bottom = bodyTop + rowH*rows.length;
+
+  const L = [];   // 線條
+  const T = [];   // 文字
+  const R = [];   // 色塊
+  const line = (a,b,c,d,col,w)=>L.push(`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="${col}" stroke-width="${w||0.15}"/>`);
+  const text = (x,y,t,o={})=>T.push(
+    `<text x="${x}" y="${y}" font-size="${o.size||2.5}" fill="${o.fill||'#1a1d21'}"`+
+    ` text-anchor="${o.anchor||'start'}"${o.weight?` font-weight="${o.weight}"`:''}>${regEsc(t)}</text>`);
+  const rect = (x,y,w,h,f)=>R.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}"/>`);
+
+  // ── 抬頭 ──
+  text(x0, yHead, company, {size:3.6, weight:700});
+  text(x0 + company.length*3.7 + 2.5, yHead, `${year} 年度薪資印領清冊`, {size:2.4, fill:'#5c646e'});
+  text(x0, yLaw, '依勞基法第 23 條規定製作，記載工資總額、各項目金額、扣除項目金額與實發金額，須保存 5 年。每人每月留一欄供簽名或蓋章確認領取。',
+       {size:1.9, fill:'#5c646e'});
+
+  // ── 員工橫幅 ──
+  rect(x0, yBar, tableW, barH, '#F2F0E8');
+  text(x0+2, yBar+4.2, emp.name, {size:3.0, weight:700});
+  let bx = x0 + 2 + emp.name.length*3.1 + 3;
+  text(bx, yBar+4.2, '身分證字號', {size:1.8, fill:'#7a828a'});  bx += 9.5;
+  text(bx, yBar+4.2, emp.nationalId || '未填寫', {size:2.1});    bx += (emp.nationalId||'未填寫').length*1.25 + 5;
+  text(bx, yBar+4.2, '戶籍地', {size:1.8, fill:'#7a828a'});      bx += 6.2;
+  text(bx, yBar+4.2, emp.householdAddress || '未填寫', {size:2.1});
+
+  // ── 表頭 ──
+  rect(x0, yTable, tableW, hdrH, '#EDEDED');
+  text(x0+2, yTable+3.8, '項目', {size:2.3, weight:700, fill:'#3b4148'});
+  for(let i=0;i<12;i++){
+    const settled = emp.monthly[i] && emp.monthly[i].hasEntry !== false;
+    text(colX(i)+C.month/2, yTable+3.8, (i+1)+'月',
+         {size:2.3, weight:700, anchor:'middle', fill: settled?'#3b4148':'#b0b6bc'});
+  }
+  text(ytdX+C.ytd/2, yTable+3.8, '全年合計', {size:2.3, weight:700, anchor:'middle', fill:'#3b4148'});
+
+  // ── 說明列 ──
+  text(x0+C.label+2, yTable+hdrH+3.2, '以下為本薪內含明細，僅供對照，不另外加總', {size:2.0, fill:'#5c646e'});
+
+  // ── 資料列 ──
+  rows.forEach((def, ri)=>{
+    const y = bodyTop + rowH*ri, yc = y + rowH*0.7;
+    if(def.kind==='add') rect(x0, y, tableW, rowH, 'rgba(47,125,79,.05)');
+    if(def.kind==='cut') rect(x0, y, tableW, rowH, 'rgba(161,61,61,.05)');
+    if(def.kind==='grand') rect(x0, y, tableW, rowH, 'rgba(0,173,181,.10)');
+    if(def.kind==='add'||def.kind==='cut')
+      rect(x0, y, 0.7, rowH, def.kind==='add' ? '#2f7d4f' : '#a13d3d');
+    const strong = def.bold || def.kind==='grand';
+    const fill = def.kind==='grand' ? '#00767C' : (def.indent ? '#5c646e' : '#1a1d21');
+    const size = def.indent ? 2.0 : (def.kind==='grand' ? 2.5 : 2.3);
+    text(x0 + (def.indent ? 5.5 : 2.2), yc, def.label,
+         {size, weight: strong?700:400, fill});
+    const fmt = v => {
+      const n0 = Number(v)||0;
+      const t = n0.toLocaleString('en-US');
+      return def.kind==='cut' && n0!==0 ? '−'+t : t;
+    };
+    emp.monthly.forEach((mo, i)=>{
+      const empty = mo.hasEntry === false;
+      const v = empty ? '—' : fmt(mo[def.key]);
+      const zero = !empty && (Number(mo[def.key])||0)===0;
+      text(colX(i)+C.month-1.6, yc, v,
+           {size, anchor:'end', weight: strong?700:400,
+            fill: empty ? '#c3c8cd' : (zero ? '#a8aeb5' : fill)});
+    });
+    const yv = emp.yearTotal[def.key];
+    text(ytdX+C.ytd-1.6, yc, fmt(yv),
+         {size, anchor:'end', weight:700,
+          fill: (Number(yv)||0)===0 ? '#a8aeb5' : fill});
+  });
+
+  // ── 簽名格 ──
+  const ySig = bottom;
+  text(x0+2.2, ySig+REG_SIG_H/2+1, '簽名／蓋章', {size:2.2, fill:'#5c646e'});
+
+  // ── 框線（最後畫，蓋在色塊上）──
+  const G='#DCDCDC', D='#9AA1A8', B='#00ADB5';
+  for(let ri=0; ri<=rows.length; ri++){
+    const y = bodyTop + rowH*ri;
+    const def = rows[ri], prev = rows[ri-1];
+    let col=G, w=0.15;
+    if(def && def.sum){ col=D; w=0.22; }
+    if((def && def.kind==='grand') || (prev && prev.kind==='grand')){ col=B; w=0.25; }
+    line(x0, y, x0+tableW, y, col, w);
+  }
+  line(x0, yTable, x0+tableW, yTable, D, 0.22);
+  line(x0, yTable+hdrH, x0+tableW, yTable+hdrH, D, 0.22);
+  line(x0, ySig+REG_SIG_H, x0+tableW, ySig+REG_SIG_H, D, 0.22);
+  line(x0, yBar, x0+tableW, yBar, D, 0.22);
+  for(let i=0;i<=12;i++) line(colX(i), yTable, colX(i), ySig+REG_SIG_H, i===0?D:G, i===0?0.22:0.15);
+  line(ytdX, yTable, ytdX, ySig+REG_SIG_H, D, 0.22);
+  line(x0, yTable, x0, ySig+REG_SIG_H, D, 0.22);
+  line(x0+tableW, yTable, x0+tableW, ySig+REG_SIG_H, D, 0.22);
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${P.w}mm" height="${P.h}mm"`+
+    ` viewBox="0 0 ${P.w} ${P.h}" class="reg-page">`+
+    `<style>text{font-family:'Noto Sans TC','PingFang TC',sans-serif}</style>`+
+    R.join('') + L.join('') + T.join('') + `</svg>`;
+}
+
+// 開新視窗列印。刻意不在原頁面列印 —— 新視窗只有 SVG，完全不受後台 CSS 影響
+function printRegisterSvg(list, company, year){
+  const pages = list.map(emp=>regEmployeeSvg(emp, company, year)).join('');
+  const title = `${year}年度-薪資印領清冊-${company||''}`.replace(/[\\/:*?"<>|]/g,'-');
+  const w = window.open('', '_blank');
+  if(!w){ alert('瀏覽器封鎖了彈出視窗，請允許後再試一次'); return; }
+  w.document.write(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${regEsc(title)}</title><style>`+
+    `@page{size:A4 landscape;margin:0}`+
+    `html,body{margin:0;padding:0;background:#fff}`+
+    `.reg-page{display:block;page-break-after:always;break-after:page}`+
+    `.reg-page:last-child{page-break-after:auto;break-after:auto}`+
+    `@media screen{body{background:#e9ecef;padding:16px}`+
+    `.reg-page{margin:0 auto 16px;box-shadow:0 2px 12px rgba(0,0,0,.18);background:#fff}}`+
+    `</style></head><body>${pages}</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>{ w.print(); }, 400);
+}
+
 const REGISTER_ROW_DEFS = [
-  {key:'base', label:'本薪', anchor:true},
-  {key:'mealAllowance', label:'伙食津貼', indent:true},
-  {key:'transportAllowance', label:'交通津貼', indent:true},
-  {key:'positionAllowance', label:'職務加給', indent:true},
-  {key:'fullAttendanceBonus', label:'全勤獎金', indent:true},
-  {key:'overtimePay', label:'加班費'},
-  {key:'bonusTotal', label:'獎金'},
-  {key:'annualLeaveSettlement', label:'特休結算'},
-  {key:'payableTotal', label:'應發合計', bold:true},
-  {key:'laborFee', label:'勞保費'},
-  {key:'healthFee', label:'健保費'},
-  {key:'leaveDeduct', label:'請假扣款'},
-  {key:'otherDeduction', label:'其他扣款'},
-  {key:'deductTotal', label:'應扣合計', bold:true},
-  {key:'netPay', label:'實發淨額', bold:true, highlight:true}
+  /* kind 決定左側色條與正負號：
+       add  加項（綠條）
+       cut  減項（紅條，金額前加負號）
+       grand 實發總計（加框強調）
+     原本所有項目平鋪，只靠「合計」列的粗體分段，讀的人要自己記住哪幾行要減；
+     沒有負號時「應發 42,168、勞保 758」看起來像兩筆收入。 */
+  {key:'base', label:'本薪', kind:'add', anchor:true},
+  {key:'mealAllowance', label:'伙食津貼', kind:'add', indent:true},
+  {key:'transportAllowance', label:'交通津貼', kind:'add', indent:true},
+  {key:'positionAllowance', label:'職務加給', kind:'add', indent:true},
+  {key:'fullAttendanceBonus', label:'全勤獎金', kind:'add', indent:true},
+  {key:'overtimePay', label:'加班費', kind:'add'},
+  {key:'bonusTotal', label:'獎金', kind:'add'},
+  {key:'annualLeaveSettlement', label:'特休結算', kind:'add'},
+  {key:'payableTotal', label:'應發合計', kind:'add', bold:true, sum:true},
+  {key:'laborFee', label:'勞保費', kind:'cut'},
+  {key:'healthFee', label:'健保費', kind:'cut'},
+  {key:'leaveDeduct', label:'請假扣款', kind:'cut'},
+  {key:'otherDeduction', label:'其他扣款', kind:'cut'},
+  {key:'deductTotal', label:'應扣合計', kind:'cut', bold:true, sum:true},
+  /* 26 日發放的項目逐項列出，不併成一筆「26日應發」——
+     清冊是簽收憑證，員工要看得出這筆錢的名目。
+     不另設「6日實發」列：那等於「應發合計 − 應扣合計」，讀表的人自己減得出來。
+     整份的算式是：應發合計 − 應扣合計 ＋ 26 日各項 − 26日扣款 ＝ 實發總計 */
+  {key:'businessExpense', label:'業務費用', kind:'add', indent:true},
+  {key:'salesPerformance', label:'業績獎金', kind:'add', indent:true},
+  {key:'salesBonus26', label:'其他獎金', kind:'add', indent:true},
+  {key:'otherExpense26', label:'其他費用', kind:'add', indent:true},
+  {key:'deduction26', label:'其他扣款', kind:'cut', indent:true},
+  {key:'netPay', label:'實發總計', kind:'grand', bold:true}
 ];
 function PayrollRegisterTab(){
   const [year, setYear] = useState(String(new Date().getFullYear()));
@@ -2616,37 +3269,12 @@ function PayrollRegisterTab(){
   const [loading, setLoading] = useState(true);
   const [activeCompany, setActiveCompany] = useState(null);
   const scrollRef = useRef(null);
-  // 欄位群組收合：整張表 20 餘欄，多數月份只有少數群組有資料，預設只展開有值的群組
-  const GROUPS = [
-    {key:'allow', label:'津貼明細'},
-    {key:'ot',    label:'加班時數'},
-    {key:'bonus', label:'獎金'},
-    {key:'leave', label:'請假時數'}
-  ];
-  const [openGroups, setOpenGroups] = useState(null);
-  const groupCounts = useMemo(()=>{
-    const c = {allow:0, ot:0, bonus:0, leave:0};
-    rows.forEach(({emp, entry})=>{
-      if(n(emp.mealAllowance)||n(emp.transportAllowance)||n(emp.positionAllowance)||n(emp.fullAttendanceBonus)) c.allow++;
-      if(n(entry.otWeekday134)||n(entry.otWeekday167)||n(entry.otRestDayHours)||n(entry.otHolidayHours)) c.ot++;
-      if(n(entry.festivalBonus)||n(entry.yearEndBonus)||n(entry.performanceBonus)||n(entry.otherBonus)) c.bonus++;
-      if(n(entry.personalLeave)||n(entry.sickLeave)||n(entry.menstrualLeave)||n(entry.disasterLeave)||n(entry.familyCareLeave)) c.leave++;
-    });
-    return c;
-  }, [rows]);
-  useEffect(()=>{
-    if(openGroups || !rows.length) return;
-    setOpenGroups(GROUPS.filter(g=>groupCounts[g.key]>0).map(g=>g.key));
-  }, [rows.length, groupCounts]);
-  const shown = k => !openGroups || openGroups.indexOf(k) !== -1;
-  // 本月是否已有任何輸入或鎖定紀錄，用來決定要不要顯示空狀態引導
-  const hasAnyEntry = useMemo(()=> rows.some(({entry})=>
-    entry.locked || Object.keys(entry).some(k=> typeof entry[k]==='number' && entry[k]!==0)
-  ), [rows]);
-  const toggleGroup = k => setOpenGroups(prev => {
-    const cur = prev || GROUPS.map(g=>g.key);
-    return cur.indexOf(k)===-1 ? cur.concat([k]) : cur.filter(x=>x!==k);
-  });
+  // ⚠️ 這裡原本有一段從 PayrollTab 複製過來的「欄位群組收合」程式碼（GROUPS／groupCounts／
+  //    openGroups／shown／toggleGroup／hasAnyEntry），但那段依賴 PayrollTab 的 `rows` prop，
+  //    而本元件沒有 rows（資料來源是 data[activeCompany]），且整段在畫面裡從未被使用。
+  //    結果是元件一初始化就 `rows is not defined`，整個後台變空白頁、只留 "Script error."
+  //    （React 正式版會把細節藏起來，很難查）。2026-08-14 移除。
+  //    複製元件邏輯時務必確認依賴的變數在新位置存在，不要只看語法過得去。
   function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
   function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
 
@@ -2676,51 +3304,71 @@ function PayrollRegisterTab(){
         <button className="ghost sm" onClick={scrollToStart} title="跳到最左邊"><span className="material-icons" style={{fontSize:16}}>first_page</span></button>
         <button className="ghost sm" onClick={scrollToEnd} title="跳到最右邊看全年合計"><span className="material-icons" style={{fontSize:16}}>last_page</span></button>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
-        <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
-      </div>
-      <div className="hint" style={{marginBottom:12}}>
-        依勞基法第23條規定製作，記載工資總額、各項目金額、扣除項目金額與實發金額，須保存5年。每人每月留一欄供簽名或蓋章確認領取。
+        <button onClick={()=>printRegisterSvg(list, activeCompany, year)} disabled={!list.length}
+          title="以固定座標繪製，列印結果與畫面完全一致，不受瀏覽器排版影響">列印 / 另存 PDF</button>
       </div>
       {loading ? <div className="hint">載入中...</div> : !data || companies.length===0 ? <div className="empty card">尚無資料</div> : (
-          <div className="card" style={{overflowX:'auto'}} ref={scrollRef}>
-            <h3 style={{marginBottom:2}}>{activeCompany}</h3>
-            <div className="hint" style={{marginBottom:10}}>{year}年度薪資印領清冊</div>
-            <table style={{minWidth:1500}}>
+          /* 每位員工一張獨立卡片。列印本來就是一人一頁，畫面卻擠成連續的一張大表，
+             兩邊的心智模型不一致；分成卡片之後，畫面上看到的區塊就等於印出來的頁。
+             ⚠️ 公司名與法源說明必須放在「每一張卡片裡」，不能只放在最上面一次 ——
+             那樣列印時它會自己佔掉第一頁，而後面每一頁都看不出是哪家公司的清冊。 */
+          <div ref={scrollRef}>
+            {list.map(emp=>(
+              <div className="card reg-card" key={emp.employeeId} style={{overflowX:'auto'}}>
+                <div className="reg-head">
+                  <div className="reg-head-title">
+                    <b>{activeCompany}</b>
+                    <span>{year} 年度薪資印領清冊</span>
+                  </div>
+                  <div className="reg-head-law">
+                    依勞基法第 23 條規定製作，記載工資總額、各項目金額、扣除項目金額與實發金額，須保存 5 年。每人每月留一欄供簽名或蓋章確認領取。
+                  </div>
+                </div>
+                <table className="reg-table" style={{minWidth:1500}}>
               <tbody>
-                {list.map(emp=>{
+                {[emp].map(emp=>{
                   const regRows = [
+                    {type:'emp'},
                     {type:'header'},
                     {type:'caption'},
                     ...REGISTER_ROW_DEFS.map(def=>({type:'data', def})),
                     {type:'signature'}
                   ];
-                  const middleIdx = Math.floor(regRows.length/2);
                   return (
                     <React.Fragment key={emp.employeeId}>
                       {regRows.map((row,idx)=>{
-                        const freeze1Style = {
-                          borderTop: idx===0 ? '1px solid var(--line)' : 'none',
-                          borderBottom: idx===regRows.length-1 ? '1px solid var(--line)' : 'none'
-                        };
-                        const nameCell = (
-                          <td className="reg-freeze-1" style={freeze1Style}>
-                            {idx===middleIdx && (
-                              <>
-                                <div style={{fontWeight:700}}>{emp.name}</div>
-                                <div className="hint" style={{marginTop:4}}>{emp.department}</div>
-                                <div className="hint" style={{marginTop:4}}>身分證字號：{emp.nationalId || '未填寫'}</div>
-                                <div className="hint" style={{marginTop:2}}>戶籍地：{emp.householdAddress || '未填寫'}</div>
-                              </>
-                            )}
-                          </td>
-                        );
+                        /* 員工資料改成橫幅（見下方 type==='emp' 的那一列），不再佔用左側整欄。
+                           原本那格約 40mm 寬卻只有中間幾行字，而簽名欄要求每格至少 2×2cm ——
+                           橫式 A4 可用寬度 285mm，12 個月各 20mm 就要 240mm，
+                           再加項目欄與全年合計已經 282mm，留不下 40mm 給姓名欄。 */
+                        const nameCell = null;
+                        if(row.type==='emp'){
+                          return (
+                            /* emp-start：列印時每位員工從新的一頁開始 */
+                            <tr key="emp" className="emp-start">
+                              <td className="reg-emp-bar" colSpan={14}>
+                                <span className="nm">{emp.name}</span>
+                                <span className="f"><b>身分證字號</b>{emp.nationalId || '未填寫'}</span>
+                                <span className="f"><b>戶籍地</b>{emp.householdAddress || '未填寫'}</span>
+                              </td>
+                            </tr>
+                          );
+                        }
                         if(row.type==='header'){
                           return (
+                            /* emp-start：列印時每位員工從新的一頁開始（見 @media print）。
+                               一人一頁的好處是每個人簽自己那張、發放時不會看到同事的薪資；
+                               更重要的是保證「一個人的資料不會被切成兩頁」——
+                               靠「剛好放不下」自然分頁是不可靠的，字級一改就會切開。 */
                             <tr key="header">
                               {nameCell}
                               <th className="left reg-freeze-2" style={{minWidth:90}}>項目</th>
-                              {Array.from({length:12},(_,i)=>i+1).map(m=><th key={m}>{m}月</th>)}
-                              <th>全年合計</th>
+                              {/* 尚未結算的月份標題也淡化，一眼看得出這一整欄都還沒發生 */}
+                              {Array.from({length:12},(_,i)=>i+1).map(m=>{
+                                const settled = emp.monthly[m-1] && emp.monthly[m-1].hasEntry !== false;
+                                return <th key={m} className={settled?'':'reg-empty'}>{m}月</th>;
+                              })}
+                              <th className="reg-ytd">全年合計</th>
                             </tr>
                           );
                         }
@@ -2738,20 +3386,40 @@ function PayrollRegisterTab(){
                             <tr key="signature">
                               {nameCell}
                               <td className="left reg-freeze-2">簽名/蓋章</td>
-                              {Array.from({length:12},(_,i)=><td key={i} style={{height:34}}></td>)}
-                              <td></td>
+                              {/* 簽名／蓋章每格至少 2×2cm：印章直徑常見 1.5～2cm，
+                                     格子小於印章就蓋不進去。寬度由 colgroup 控制，這裡定高度。 */}
+                              {Array.from({length:12},(_,i)=><td key={i} className="sig-cell"></td>)}
+                              <td className="reg-ytd sig-cell"></td>
                             </tr>
                           );
                         }
                         const def = row.def;
+                        /* 減項的金額前面加負號。清冊是給人驗算的，符號本身就是資訊 ——
+                           沒有負號時「應發 42,168、勞保 758」看起來像兩筆收入。0 不加負號。 */
+                        const fmt = v => (def.kind==='cut' && n(v) !== 0) ? '−' + money(v) : money(v);
+                        /* 真的 0 淡化：這張表有大量 0，滿版黑字會搶走注意力。
+                           但不能留白 —— 留白會讓人以為漏填。 */
+                        const zc = v => n(v)===0 ? ' reg-zero' : '';
+                        const rowCls = [
+                          'reg-row',
+                          def.kind ? 'k-'+def.kind : '',
+                          def.indent ? 'reg-ind' : '',
+                          def.sum ? 'reg-sum' : ''
+                        ].filter(Boolean).join(' ');
                         return (
-                          <tr key={def.key}>
+                          <tr key={def.key} className={rowCls}>
                             {nameCell}
-                            <td className="left reg-freeze-2" style={def.indent?{paddingLeft:14, fontSize:11, color:'var(--muted)'}:{fontWeight:def.bold?700:(def.anchor?600:400)}}>{def.label}</td>
+                            <td className="left reg-freeze-2">{def.label}</td>
                             {emp.monthly.map(mo=>(
-                              <td key={mo.month} className={def.highlight?'num-pos':''} style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}}>{money(mo[def.key])}</td>
+                              /* 尚未結算的月份顯示「—」而不是 0。印領清冊記載的是「實際發放」的
+                                 工資（勞基法第 23 條），0 代表「有發薪、金額為零」，是不實記載 */
+                              mo.hasEntry === false ? (
+                                <td key={mo.month} className="reg-empty" title="本月尚無薪資紀錄，未列入全年合計">—</td>
+                              ) : (
+                                <td key={mo.month} className={zc(mo[def.key])}>{fmt(mo[def.key])}</td>
+                              )
                             ))}
-                            <td style={{fontWeight:def.bold?700:(def.anchor?600:400), fontSize:def.indent?11:undefined, color:def.indent?'var(--muted)':undefined}} className={def.highlight?'num-pos':''}>{money(emp.yearTotal[def.key])}</td>
+                            <td className={'reg-ytd' + zc(emp.yearTotal[def.key])}>{fmt(emp.yearTotal[def.key])}</td>
                           </tr>
                         );
                       })}
@@ -2759,7 +3427,9 @@ function PayrollRegisterTab(){
                   );
                 })}
               </tbody>
-            </table>
+                </table>
+              </div>
+            ))}
           </div>
       )}
     </div>
@@ -3382,8 +4052,8 @@ function AnnualLeaveTab({employees}){
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>
-        核定每位員工當年度的特休「時數」（1天＝8小時）。按「試算」可依到職日自動帶入建議天數，仍可手動調整後再儲存。
-        <br/>⚠ 系統試算僅供參考，正式天數請以<a href="https://calcr2.mol.gov.tw/RestDays" target="_blank" rel="noopener" style={{color:'var(--brand)'}}>勞動部特別休假日數試算系統</a>或人資顧問確認為準。
+        核定每位員工當年度的特休「時數」（1 日＝8小時）。按「試算」可依到職日自動帶入建議日數，仍可手動調整後再儲存。
+        <br/>⚠ 系統試算僅供參考，正式日數請以<a href="https://calcr2.mol.gov.tw/RestDays" target="_blank" rel="noopener" style={{color:'var(--brand)'}}>勞動部特別休假日數試算系統</a>或人資顧問確認為準。
       </div>
       <div className="card" style={{overflowX:'auto'}}>
         {loading || !data ? <div className="hint">載入中...</div> : (
@@ -3393,7 +4063,7 @@ function AnnualLeaveTab({employees}){
               <col style={{width:'10%'}} /><col style={{width:'12%'}} /><col style={{width:'10%'}} />
               <col style={{width:'10%'}} /><col style={{width:'17%'}} />
             </colgroup>
-            <thead><tr><th className="center">姓名</th><th className="center">部門</th><th className="left">到職日</th><th className="center">核定天數</th><th className="center">核定時數</th><th className="center">已用</th><th className="center">剩餘</th><th className="center">操作</th></tr></thead>
+            <thead><tr><th className="center">姓名</th><th className="center">部門</th><th className="left">到職日</th><th className="center">核定日數</th><th className="center">核定時數</th><th className="center">已用</th><th className="center">剩餘</th><th className="center">操作</th></tr></thead>
             <tbody>
               {employees.map(emp=>{
                 const granted = data.granted[emp.id] ? data.granted[emp.id].hours : 0;
@@ -3405,12 +4075,12 @@ function AnnualLeaveTab({employees}){
                     <td className="center"><b>{emp.name}</b></td>
                     <td className="center">{emp.department}</td>
                     <td className="left">{emp.hireDate ? rocDate(emp.hireDate) : '-'}</td>
-                    <td className="center hint">{editDays} 天</td>
+                    <td className="center hint">{editDays} 日</td>
                     <td className="center"><input type="number" min="0" step="0.01" value={editVal} onChange={e=>setEdits({...edits, [emp.id]: e.target.value})} style={{width:80, textAlign:'center'}} /></td>
-                    <td className="center">{trimNum(used, 1)}<span className="hint" style={{marginLeft:4}}>（{trimNum(used/8, 1)} 天）</span></td>
+                    <td className="center">{trimNum(used, 1)}<span className="hint" style={{marginLeft:4}}>（{trimNum(used/8, 1)} 日）</span></td>
                     <td className={'center' + (granted-used < 8 ? ' flag' : '')}>
                       {trimNum(Math.max(0, granted-used), 1)}
-                      <span className="hint" style={{marginLeft:4}}>（{trimNum(Math.max(0, granted-used)/8, 1)} 天）</span>
+                      <span className="hint" style={{marginLeft:4}}>（{trimNum(Math.max(0, granted-used)/8, 1)} 日）</span>
                     </td>
                     <td className="center">
                       <button className="ghost sm" onClick={()=>estimate(emp.id)} disabled={estimatingId===emp.id || !emp.hireDate} title={!emp.hireDate?'請先設定到職日':''}>{estimatingId===emp.id?'試算中':'試算'}</button>{' '}
@@ -3428,13 +4098,13 @@ function AnnualLeaveTab({employees}){
         <div className="modal-bg">
           <div className="modal" style={{maxWidth:640}}>
             <h3><span className="material-icons">calculate</span>批次試算預覽（{year}年・{system==='calendar'?'歷年制':'週年制'}）</h3>
-            <div className="hint" style={{marginBottom:10}}>以下為系統依到職日試算的建議天數，確認無誤後按「套用全部」，會覆蓋這些員工目前的核定時數。個別員工仍可在下方表格單獨微調。</div>
+            <div className="hint" style={{marginBottom:10}}>以下為系統依到職日試算的建議日數，確認無誤後按「套用全部」，會覆蓋這些員工目前的核定時數。個別員工仍可在下方表格單獨微調。</div>
             <table>
               <colgroup>
                 <col style={{width:'14%'}} /><col style={{width:'26%'}} /><col style={{width:'14%'}} />
                 <col style={{width:'14%'}} /><col style={{width:'32%'}} />
               </colgroup>
-              <thead><tr><th className="center">姓名</th><th className="left">到職日</th><th className="center">建議天數</th><th className="center">建議時數</th><th className="center">備註</th></tr></thead>
+              <thead><tr><th className="center">姓名</th><th className="left">到職日</th><th className="center">建議日數</th><th className="center">建議時數</th><th className="center">備註</th></tr></thead>
               <tbody>
                 {batchBox.items.map(it=>(
                   <tr key={it.employeeId}>
@@ -3457,6 +4127,125 @@ function AnnualLeaveTab({employees}){
     </div>
   );
 }
+/* ========================= 操作流程 =========================
+   每月薪資結算的節點說明。放在後台而不是外部文件的原因：
+   換一台電腦、換一個人接手都還在，而且每個步驟可以直接點到對應頁籤。
+   內容依實際程式碼流程整理（提醒信由 sendPayrollReminderMail 於每月 1、15、21 日 09:00 觸發）。 */
+const GUIDE_STEPS = [
+  {
+    when:'平時', sub:'整個月', kind:'do', title:'打卡與假單累積', go:'requests', goText:'假單審核',
+    acts:[
+      '員工每日打卡，異常（遲到、早退、定位超出範圍）系統自動標記',
+      '請假走**兩段簽核**：主管初核 → 管理者複核，兩關都過才算「已核准」',
+      '加班可申請**換補休**，核准後自動轉入補休帳並記到期日'
+    ],
+    warn:'只有**已核准**的假會進入薪資計算。月底前務必把待審的單批完——出缺勤彙總的姓名旁若有「待審 N」標籤，代表那幾筆還沒算進去。'
+  },
+  {
+    when:'1 日', sub:'09:00 寄信提醒', kind:'auto', title:'核對出缺勤，套用時數', go:'attendance', goText:'出缺勤彙總',
+    acts:[
+      '切到上個月，逐列檢查**紅字警示**：平日加班超過月上限 46 小時、例假日出勤尚未完成補假登記、定位異常',
+      '展開姓名核對逐筆假單，確認沒有漏批的',
+      '按**「套用出缺勤時數到薪資計算」**——會先列出差異讓你確認，套用後仍可一鍵復原'
+    ],
+    warn:'套用會**覆蓋**薪資表裡手動填過的時數欄位。系統做成兩段式就是為了讓你先看見差異；若已手動調整過，請確認差異清單再按下去。'
+  },
+  {
+    when:'1–5 日', sub:'結算作業', kind:'do', title:'計算薪資並儲存', go:'payroll', goText:'薪資計算 / 明細',
+    acts:[
+      '確認本薪、津貼、獎金；加班費與請假扣款由系統依時數自動算出',
+      '勞健保依投保級距自動帶入，離職／到職當月按比例計算',
+      '有離職者先做**特休結算**（未休完依法折發工資），金額會進「特休結算」欄',
+      '按**「儲存薪資紀錄」**'
+    ],
+    out:['員工前台可看薪資條'],
+    note:'儲存後員工立刻看得到，不必等鎖定。'
+  },
+  {
+    when:'6 日', sub:'發放', kind:'pay', title:'發放 6 日薪資', go:'transfer', goText:'匯款明細表',
+    note:'金額為 pay06 ＝ 應發合計 − 應扣合計（本薪、津貼、獎金、加班費、全勤，扣除勞健保與請假扣款）。',
+    out:['匯款明細表','薪資條']
+  },
+  {
+    when:'15–20 日', sub:'15 日 09:00 寄信提醒', kind:'auto', title:'補入 26 日項目', go:'payroll', goText:'薪資計算 / 明細',
+    note:'這些項目月初通常還結不出來，所以獨立成第二次發放：',
+    acts:['業務獎金、業績獎金','代墊費用、其他費用','26 日應扣項目'],
+    note2:'填完一樣按「儲存薪資紀錄」。'
+  },
+  {
+    when:'21 日', sub:'09:00 寄信提醒', kind:'auto', title:'鎖定月份，結案', go:'payroll', goText:'薪資計算 / 明細',
+    note:'鎖定會把當月的**薪資結構凍結成快照**——本薪、投保級距、勞健保金額全部寫死在該月紀錄裡。',
+    warn:'沒鎖定的話，**日後調薪或調整投保級距會回頭改到歷史薪資條**，帳就對不回去了。鎖定前系統會給你一份預覽，可逐人微調勞健保金額；鎖定後仍可解鎖修改。',
+    out:['薪資印領清冊']
+  },
+  {
+    when:'26 日', sub:'發放', kind:'pay', title:'發放 26 日款項', go:'transfer', goText:'匯款明細表',
+    note:'金額為 pay26 ＝ 業務獎金 ＋ 業績獎金 ＋ 代墊費用 ＋ 其他費用 − 26 日應扣。'
+  }
+];
+// 內文用 **粗體** 標記重點，這裡轉成 <b>。不引外部 markdown 套件，只處理這一種語法。
+function boldize(text){
+  return String(text).split('**').map((seg, i)=> i%2 ? <b key={i}>{seg}</b> : <span key={i}>{seg}</span>);
+}
+function GuideTab({setTab}){
+  return (
+    <div className="guide">
+      <div className="guide-lead">
+        系統會在每月 <b>1、15、21 日早上 9 點</b>寄信提醒，所以不用記日期。以下是每個節點該做什麼、在哪一頁做、做完產出什麼。
+        <div className="guide-legend">
+          <span><i className="k-do"></i>你要操作</span>
+          <span><i className="k-auto"></i>系統自動提醒</span>
+          <span><i className="k-pay"></i>發放日</span>
+        </div>
+      </div>
+
+      <div className="tl">
+        {GUIDE_STEPS.map((s, i)=>(
+          <div className={'tl-step ' + s.kind} key={i}>
+            <div className="tl-when"><div className="d">{s.when}</div><div className="s">{s.sub}</div></div>
+            <div className="tl-body">
+              <div className="card">
+                <div className="tl-head">
+                  <h3>{s.title}</h3>
+                  {s.kind==='auto' && <span className="tl-tag auto">自動提醒</span>}
+                  {s.kind==='pay' && <span className="tl-tag pay">發放日</span>}
+                  {s.go && <button className="ghost sm" onClick={()=>setTab(s.go)}>前往 {s.goText} →</button>}
+                </div>
+                <div className="tl-content">
+                  {s.note && <p>{boldize(s.note)}</p>}
+                  {s.acts && <ol className="tl-acts">{s.acts.map((a,j)=><li key={j}>{boldize(a)}</li>)}</ol>}
+                  {s.note2 && <p style={{marginTop:9}}>{boldize(s.note2)}</p>}
+                  {s.warn && <div className="tl-warn">{boldize(s.warn)}</div>}
+                  {s.out && (
+                    <div className="tl-out">
+                      <span className="lbl">產出</span>
+                      {s.out.map(o=><span className="tl-pill" key={o}>{o}</span>)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="guide-h">金額怎麼組成</h3>
+      <div className="card guide-formula">
+        <div className="fr"><span className="k">應發合計</span><span className="v"><b>本薪</b>（已含伙食津貼、交通津貼、職務加給、全勤獎金）<em className="p">＋</em> 獎金 <em className="p">＋</em> 特休結算 <em className="p">＋</em> 加班費 <em className="p">＋</em> 全勤調整</span></div>
+        <div className="fr"><span className="k">應扣合計</span><span className="v">勞保費 <em className="p">＋</em> 健保費 <em className="p">＋</em> 請假扣款 <em className="p">＋</em> 其他扣款</span></div>
+        <div className="fr"><span className="k">6 日實發</span><span className="v"><b>應發合計 <em className="m">−</em> 應扣合計</b></span></div>
+        <div className="fr"><span className="k">26 日實發</span><span className="v"><b>業務獎金 <em className="p">＋</em> 業績獎金 <em className="p">＋</em> 代墊費用 <em className="p">＋</em> 其他費用 <em className="m">−</em> 26 日應扣</b></span></div>
+      </div>
+
+      <h3 className="guide-h">請假扣款與全勤</h3>
+      <div className="card guide-note">
+        <p>事假、家庭照顧假<b>全額扣</b>；病假與生理假<b>扣半薪</b>，兩者共用年度 30 日上限，超過部分全額扣；災防假依公司政策不支薪但<b>不影響全勤與考績</b>。特休、補休、婚喪假、公假、公傷病假<b>不扣薪</b>。</p>
+        <p>全勤獎金的扣減只看<b>病假與事假</b>的時數比例。生理假、家庭照顧假、婚喪假、公假、公傷病假依性別平等工作法第 21 條<b>不得影響全勤</b>，不列入扣減。</p>
+      </div>
+    </div>
+  );
+}
+
 function DashboardTab({setTab}){
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -3510,7 +4299,7 @@ function DashboardTab({setTab}){
 
               {remind.假單待審逾期.length>0 && (
                 <div style={{marginTop:10}}>
-                  <div style={{fontSize:12, fontWeight:600, color:'var(--danger)'}}>假單待審超過 {remind.假單逾期天數門檻} 天</div>
+                  <div style={{fontSize:12, fontWeight:600, color:'var(--danger)'}}>假單待審超過 {remind.假單逾期日數門檻} 日</div>
                   <div className="hint" style={{marginTop:2}}>
                     {remind.假單待審逾期.map(x=>x.姓名+'（'+x.類型+'，'+x.申請時間+'）').join('、')}
                   </div>
@@ -3605,7 +4394,7 @@ function CompLedgerTab({employees}){
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
         <button className="ghost sm" onClick={doExport}><span className="material-icons" style={{fontSize:16}}>download</span>匯出 CSV</button>
       </div>
-      <div className="hint" style={{marginBottom:12}}>每筆加班換補休核准後會自動「轉入」，員工請補休假核准後會自動「使用」扣抵，餘額為累計結果。到期日到了仍未使用完的補休，依規定應折算工資發給。到期日欄位：<span style={{color:'var(--danger)'}}>紅字</span>＝已過期，<span style={{color:'#B8860B'}}>橘字</span>＝即將到期（設定頁可調整提醒天數）。</div>
+      <div className="hint" style={{marginBottom:12}}>每筆加班換補休核准後會自動「轉入」，員工請補休假核准後會自動「使用」扣抵，餘額為累計結果。到期日到了仍未使用完的補休，依規定應折算工資發給。到期日欄位：<span style={{color:'var(--danger)'}}>紅字</span>＝已過期，<span style={{color:'#B8860B'}}>橘字</span>＝即將到期（設定頁可調整提醒日數）。</div>
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
@@ -4181,6 +4970,30 @@ function SettingsTab({onSaved, initialCategory}){
           </select>
           <div className="hint" style={{marginTop:4}}>例假日原則不可出勤，僅天災事變等特殊狀況例外（勞基法第40條），事後仍須完成補休登記。</div>
         </div>
+        <div className="field">
+          <label>休息日加班算法</label>
+          <select value={s.restDayOtMode || 'tier'} onChange={e=>setS({...s,restDayOtMode:e.target.value})}>
+            <option value="tier">舊制 4/8/12 小時級距（優於法令，公司現行）</option>
+            <option value="actual">核實計算（2018 修法後的法定做法）</option>
+          </select>
+          <div className="hint" style={{marginTop:4}}>
+            兩者的加成倍率相同（前 2 小時 1.34、第 3–8 小時 1.67、超過 8 小時 2.67），差別只在「算幾小時」。
+            級距制做 1 小時就算 4 小時，對員工有利。
+          </div>
+          {s.restDayOtMode === 'actual' && (
+            <div className="hint" style={{marginTop:4, color:'var(--danger)'}}>
+              ⚠ 由級距制改為核實計算會<b>減少員工的加班費</b>，屬勞動條件不利變更，
+              依勞基法第 21 條須先取得勞工同意，不可逕行變更。已鎖定的月份不受影響。
+            </div>
+          )}
+        </div>
+        <div className="field">
+          <label>基本工資（月薪）</label>
+          <input type="number" value={s.minimumWage} onChange={e=>setS({...s,minimumWage:e.target.value})} />
+          <div className="hint" style={{marginTop:4}}>
+            供儀表板與員工編輯視窗警示用，不影響薪資計算。每年基本工資調整時改這裡即可，不必動程式。
+          </div>
+        </div>
       </div>
       <div className="hint">依勞基法第32條，平日延長工時原則每月不得超過46小時（經工會或無工會則經勞資會議同意可延長至54小時，但每3個月不得逾138小時）；此上限不含國定假日與例假日出勤。</div>
       </>)}
@@ -4192,11 +5005,11 @@ function SettingsTab({onSaved, initialCategory}){
           <select value={s.leaveUnit} onChange={e=>setS({...s,leaveUnit:Number(e.target.value)})}>
             <option value={1}>1 小時</option>
             <option value={0.5}>0.5 小時</option>
-            <option value={4}>半天（4 小時）</option>
+            <option value={4}>半日（4 小時）</option>
           </select>
         </div>
         <div className="field"><label>補休使用期限（月）</label><input type="number" min="1" value={s.compTimeExpireMonths} onChange={e=>setS({...s,compTimeExpireMonths:e.target.value})} /></div>
-        <div className="field"><label>補休到期提醒（到期前幾天）</label><input type="number" min="1" value={s.compExpireReminderDays} onChange={e=>setS({...s,compExpireReminderDays:e.target.value})} /></div>
+        <div className="field"><label>補休到期提醒（到期前幾日）</label><input type="number" min="1" value={s.compExpireReminderDays} onChange={e=>setS({...s,compExpireReminderDays:e.target.value})} /></div>
       </div>
       <div className="hint">補休期限自核准日起算，依勞基法第32條之1，補休期限屆滿或契約終止仍未休完的時數，應依原加班費標準折算工資。</div>
 
@@ -4288,6 +5101,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
   var CACHE_KEY = 'tap_admin_compiled';
   function hashStr(s){ var h = 5381, i = s.length; while(i) h = (h * 33) ^ s.charCodeAt(--i); return (h >>> 0).toString(36); }
   var srcHash = hashStr(APP_SRC);
+  // 版本識別：顯示在側欄底部。瀏覽器有時會抓著舊的 admin.html 不放（快取機制本身沒問題，
+  // 是連 HTML 都是舊的，所以雜湊也跟著是舊的），肉眼分不出手上是不是最新版。
+  // 把雜湊印出來，回報問題時報這串就知道版本對不對。
+  window.__APP_BUILD = srcHash;
   function readCompiledCache(){
     try{
       var raw = localStorage.getItem(CACHE_KEY);
