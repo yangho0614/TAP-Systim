@@ -2647,6 +2647,10 @@ function App(){
     }catch(e){ alert(e.message); }
   }
   function logout(){
+    /* 先通知後端刪掉工作階段，再清本地。只清本地的話後端紀錄還在，
+       舊 token 到期前（30 天）仍然有效 —— 員工在共用裝置登出等於沒登出。 */
+    const t = CURRENT_TOKEN;
+    if(t){ apiPost('logoutSession', {token:t}).catch(()=>{}); }
     setToken(null);
     setSession(null); setStatus(null); setPending([]); setUnreadAnnounceCount(0); setTab('home');
   }

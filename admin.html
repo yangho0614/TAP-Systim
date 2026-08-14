@@ -1355,6 +1355,11 @@ function App(){
   const needsMonth = ['records','requests','attendance','payroll','payslip','transfer'].includes(tab);
 
   function logout(){
+    /* 先通知後端把工作階段刪掉，再清本地狀態。
+       ⚠️ 只清本地是不夠的：後端紀錄還在，舊 token 到期前（30 天）都還能用，
+       在公用電腦登出等於沒登出。用 fire-and-forget，後端失敗也不擋使用者離開。 */
+    const t = CURRENT_TOKEN;
+    if(t){ apiPost('logoutSession', {token:t}).catch(()=>{}); }
     setToken(null);
     setSession(null);
     setEmployees([]); setPayrollEntries({});
