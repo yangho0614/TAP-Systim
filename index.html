@@ -357,14 +357,10 @@
     .big-btn{ font-size:21px; padding:22px 0; }
   }
 
-  /* 地圖上的公司名稱標籤。地圖底圖有深有淺（道路、水域、POI 色塊都不同），
-     單靠白字在淺色路面上會糊掉，所以加一圈深色描邊確保任何底色都讀得到。
-     Google Maps 的 label 是直接畫在地圖 canvas 上的 div，只能用 text-shadow 做描邊。 */
+  /* 地圖公司徽章上的「公司」兩字。文字是坐在湖水藍膠囊上的，底色固定，
+     所以不需要描邊（描邊反而會讓小字糊掉）。 */
   .map-pin-label{
-    text-shadow:
-      0 0 3px rgba(34,40,49,.95), 0 1px 2px rgba(34,40,49,.95),
-      1px 0 2px rgba(34,40,49,.85), -1px 0 2px rgba(34,40,49,.85);
-    letter-spacing:.02em;
+    letter-spacing:.06em;
     white-space:nowrap;
   }
 </style>
@@ -1310,20 +1306,35 @@ function PunchMap({companyLat, companyLng, radius, deviceLat, deviceLng, company
       mapObjRef.current = map;
       if(hasCompany){
         const companyPos = {lat:Number(companyLat), lng:Number(companyLng)};
+        // 公司標記＝湖水藍膠囊徽章（公事包圖示＋「公司」），下方尖角指出實際座標。
+        // 「我的位置」維持米金色小圓點，兩者「形狀」就不同，不必靠顏色分辨。
+        // ⚠️ 文字不畫在 SVG 裡：SVG 當成圖片載入時，中文字型不一定會被解析，
+        //    不同瀏覽器可能變成方框或直接不顯示。膠囊與圖示用 SVG，「公司」兩字交給
+        //    Google Maps 的 label（由瀏覽器以 DOM 繪製），中文一定正常。
+        const PIN_W = 78, PIN_H = 30, TAIL = 8;
+        const pinSvg =
+          '<svg xmlns="http://www.w3.org/2000/svg" width="' + PIN_W + '" height="' + (PIN_H + TAIL) + '">' +
+            '<rect x="1" y="1" width="' + (PIN_W - 2) + '" height="' + (PIN_H - 2) + '" rx="' + ((PIN_H - 2) / 2) + '"' +
+              ' fill="#00ADB5" stroke="#EEEEEE" stroke-width="2"/>' +
+            '<path d="M' + (PIN_W / 2 - 6) + ',' + (PIN_H - 1) + ' h12 l-6,' + (TAIL - 1) + ' z" fill="#00ADB5"/>' +
+            // 公事包（Material 的 work，縮到 14px 置於左側）
+            '<g transform="translate(10,8) scale(0.583)" fill="#08343a">' +
+              '<path d="M20 6h-4V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2zm-6 0h-4V4h4v2z"/>' +
+            '</g>' +
+          '</svg>';
         new google.maps.Marker({
           position:companyPos, map, title:companyName || '公司位置',
           icon:{
-            path:google.maps.SymbolPath.CIRCLE, scale:8,
-            fillColor:'#00ADB5', fillOpacity:1, strokeColor:'#EEEEEE', strokeWeight:2,
-            // labelOrigin 的單位是「符號座標」，會再乘上 scale；-2.6 約等於把文字推到圖示上方 21px。
-            // 不設的話 label 會壓在圓點正中央，字被圖示蓋住看不清楚。
-            labelOrigin: new google.maps.Point(0, -2.6)
+            url:'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(pinSvg),
+            scaledSize:new google.maps.Size(PIN_W, PIN_H + TAIL),
+            // anchor 設在尖角，圖示才會「指」在座標上而不是壓在座標上
+            anchor:new google.maps.Point(PIN_W / 2, PIN_H + TAIL),
+            // Icon（非 Symbol）的 labelOrigin 單位是像素，相對圖片左上角。
+            // 往右偏一點避開左側的公事包圖示。
+            labelOrigin:new google.maps.Point(PIN_W / 2 + 8, PIN_H / 2)
           },
-          // 公司名稱直接標在圖釘上方，員工一眼確認自己看的是哪個據點的圍籬，
-          // 不用去點那顆小圓點才知道（手機上很難按準）
-          label: companyName ? {
-            text: companyName, color:'#FFFFFF', fontSize:'12px', fontWeight:'700', className:'map-pin-label'
-          } : undefined
+          label:{ text:'公司', color:'#08343a', fontSize:'13px', fontWeight:'800', className:'map-pin-label' },
+          zIndex: 2
         });
         const circle = new google.maps.Circle({
           center:companyPos, radius:Number(radius||200), map,
