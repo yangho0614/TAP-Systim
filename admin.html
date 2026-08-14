@@ -2952,12 +2952,16 @@ const REGISTER_ROW_DEFS = [
   {key:'leaveDeduct', label:'請假扣款'},
   {key:'otherDeduction', label:'其他扣款'},
   {key:'deductTotal', label:'應扣合計', bold:true},
-  /* 6 日與 26 日分開列，讀表的人才驗算得出來：
-     6日實發 = 應發合計 − 應扣合計；實發總計 = 6日實發 + 26日應發。
-     原本只有一列「實發淨額」印的是 pay06+pay26，但表上只有 6 日的應發／應扣，
-     一減就對不上（差額正是 26 日那筆），對要保存 5 年供勞檢查核的文件是致命的。 */
-  {key:'pay06', label:'6日實發', bold:true},
-  {key:'pay26', label:'26日應發', bold:true},
+  /* 26 日發放的項目逐項列出，不併成一筆「26日應發」——
+     清冊是簽收憑證，員工要看得出這筆錢的名目。
+     不另設「6日實發」列：那等於「應發合計 − 應扣合計」，讀表的人自己減得出來，
+     多一列反而讓版面變長。整份的算式是：
+        應發合計 − 應扣合計 ＋ 26 日各項 − 26日扣款 ＝ 實發總計 */
+  {key:'businessExpense', label:'業務費用', indent:true},
+  {key:'salesPerformance', label:'業績獎金', indent:true},
+  {key:'salesBonus26', label:'其他獎金', indent:true},
+  {key:'otherExpense26', label:'其他費用', indent:true},
+  {key:'deduction26', label:'26日扣款', indent:true},
   {key:'netPay', label:'實發總計', bold:true, highlight:true}
 ];
 function PayrollRegisterTab(){
