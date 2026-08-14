@@ -104,20 +104,20 @@
   .reg-row.k-add > td{ background:rgba(47,125,79,.05); }
   .reg-row.k-cut > td{ background:rgba(161,61,61,.05); }
   .reg-row td.reg-freeze-2{ padding-left:12px; }
-  .reg-row.reg-ind td.reg-freeze-2{ padding-left:26px; color:var(--muted); font-size:11px; }
+  .reg-row.reg-ind td.reg-freeze-2{ padding-left:32px; color:var(--muted); font-size:11px; }
   .reg-row.reg-ind > td{ font-size:11px; color:var(--muted); }
-  /* 框線只用兩種粗細：一般格線 1px、分組強調線 2px。
-     不用 1.5px —— 在非整數裝置像素比的螢幕上會被捨入成 1px 或 2px，同一條線
-     左右段看起來粗細不一。 */
-  .reg-row.reg-sum > td{ font-weight:700; border-top:2px solid #b9c0c7; }
+  /* 框線一律 1px，層次只用「顏色深淺」表現。
+     先前一般格線 1px 淺灰、分區線 2px 亮青，粗細落差太大，畫面很跳；
+     同一張表裡出現多種線寬本來就不容易收乾淨。 */
+  .reg-row.reg-sum > td{ font-weight:700; border-top:1px solid #9AA1A8; }
   /* 整張表最重要的數字，原本只是粗體，翻頁核對時要逐行找 */
   .reg-row.k-grand > td{ font-weight:800; background:rgba(0,173,181,.10); color:#00767C;
-                         border-top:2px solid var(--brand); border-bottom:2px solid var(--brand); }
+                         border-top:1px solid var(--brand); border-bottom:1px solid var(--brand); }
   /* 真的 0 淡化：滿版黑字會搶走注意力。但不能留白 —— 留白會讓人以為漏填 */
   .reg-table td.reg-zero{ color:#A8AEB5; }
   /* 全年合計獨立於各月，用較重的分隔線切開 */
   .reg-table th, .reg-table td{ border:1px solid #DCDCDC; }
-  .reg-table .reg-ytd{ border-left:2px solid #9aa1a8 !important; font-weight:700; }
+  .reg-table .reg-ytd{ border-left:1px solid #9AA1A8 !important; font-weight:700; }
   .build-tag{ margin-top:8px; text-align:center; font-size:10.5px; color:#6D7278;
               cursor:pointer; letter-spacing:.04em; }
   .build-tag:hover{ color:#00ADB5; text-decoration:underline; }
@@ -129,7 +129,7 @@
      那是「姓名欄還沒合併」時代的殘留：當時每一列都輸出一格，要藏掉它們之間的橫線
      才能看起來像一整格。改用 rowSpan 真正合併之後，這兩行反而讓整塊的上下邊界消失，
      列印出來每位員工區塊的左上／左下角是開口的。 */
-  .reg-freeze-2{ min-width:96px; border-right:2px solid var(--brand); }
+  .reg-freeze-2{ min-width:96px; border-right:1px solid #9AA1A8; }
   th.reg-freeze-2{ z-index:4; background:#EDEDED; }
   .col-add{background:#EAF6ED;}
   .col-deduct{background:#FBEDEA;}
@@ -244,7 +244,13 @@
     .no-print{display:none !important;}
     .sidebar,.topbar,.toolbar{display:none !important;}
     body{background:#fff;}
-    .content{padding:0; overflow:visible !important; overflow-x:visible !important;}
+    /* ⚠️ 左邊必須留 4mm 緩衝，否則列印的「第一頁」左緣會被裁掉約 8px ——
+       實測（無頭 Chrome，獨立測試檔）：第一頁固定被切，第二頁之後完全正常；
+       在第一張卡片前插一頁封面，原本被切的那張移到第 2 頁就恢復正常。
+       加大 @page margin 沒有用（20mm 也照切），因為裁切是跟著「內容框」而不是頁面邊界。
+       所以改成讓內容本身往右退 4mm，被吃掉的就是空白而不是文字。
+       後面幾頁只是多 4mm 內縮，看不出差別。 */
+    .content{padding:0 0 0 4mm; overflow:visible !important; overflow-x:visible !important;}
     html, body{ overflow:visible !important; }
     .card{border:none; overflow:visible !important; padding:0; margin-bottom:22px;}
     .print-only{display:block;}
@@ -262,11 +268,11 @@
     th{ background:#e8e8e8 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     /* 框線比照畫面的淺灰，不用列印專用的深灰 #999（那是為了黑白列印可辨識） */
     .reg-table th, .reg-table td{ border:1px solid #DCDCDC !important; }
-    .reg-table .reg-row.reg-sum > td{ border-top:2px solid #b9c0c7 !important; }
-    .reg-table .reg-row.k-grand > td{ border-top:2px solid #00ADB5 !important;
-                                      border-bottom:2px solid #00ADB5 !important; }
-    .reg-table .reg-ytd{ border-left:2px solid #9aa1a8 !important; }
-    .reg-table .reg-freeze-2{ border-right:2px solid #00ADB5 !important; }
+    .reg-table .reg-row.reg-sum > td{ border-top:1px solid #9AA1A8 !important; }
+    .reg-table .reg-row.k-grand > td{ border-top:1px solid #00ADB5 !important;
+                                      border-bottom:1px solid #00ADB5 !important; }
+    .reg-table .reg-ytd{ border-left:1px solid #9AA1A8 !important; }
+    .reg-table .reg-freeze-2{ border-right:1px solid #9AA1A8 !important; }
     tr.total-row td{ background:#f0f0f0 !important; font-weight:700;
                      -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     /* 凍結欄在列印時不需要，且 sticky 會造成錯位 */
@@ -284,6 +290,11 @@
     /* ⚠️ word-break:break-all 只能套在數字欄。套到員工資料格會把身分證號斷成
        「L1236 / 87827」、地址斷在詞中間，看起來像資料壞掉。 */
     .reg-table th, .reg-table td{ padding:2px 3px !important; }
+    /* ⚠️ 上面那行的 !important 會把標籤欄的縮排一起蓋掉，列印出來
+       「伙食津貼」會跟「本薪」齊頭，看不出是內含明細。這裡要補回來。 */
+    .reg-table .reg-row > td.reg-freeze-2{ padding-left:10px !important; }
+    .reg-table .reg-row.reg-ind > td.reg-freeze-2{ padding-left:24px !important; }
+    .reg-table tr > td.reg-freeze-2, .reg-table tr > th.reg-freeze-2{ padding-left:10px !important; }
     .reg-table td:not(.reg-freeze-2):not(.reg-emp-bar){ word-break:break-all; }
     /* 欄寬用 mm 明確指定，確保簽名格達到 2×2cm。
        橫式 A4 可用寬 297−12=285mm：項目 22 ＋ 12 個月各 20（240）＋ 全年合計 20 ＝ 282mm。
@@ -685,10 +696,9 @@ function fileToBase64(file){
    一堆檔案疊在下載資料夾裡完全分不出誰是誰。
    afterprint 有些瀏覽器不觸發，所以再補一個 setTimeout 保險。 */
 function printWithFilename(name){
-  /* ⚠️ 列印前必須把「所有」有橫向位移的元素歸零，不能只挑幾個 class。
-     清冊的捲動容器其實有兩層：外層的 .content（overflow-x:auto）與每張 .reg-card；
-     只重設卡片而漏掉 .content，列印時第一頁仍會整片往左位移、左邊被切掉
-     （「優」字只剩一半、「項目」變「頁目」）。直接掃全部元素最保險。 */
+  /* 列印前把所有捲動位移歸零。這是防禦性的（表格若比視窗寬，捲動狀態會影響輸出），
+     但要注意：先前以為「第一頁左緣被裁」是捲動造成的，那個推論是錯的 ——
+     真正的原因見列印樣式裡 .content 的 padding-left 說明。 */
   document.querySelectorAll('*').forEach(el=>{
     if(el.scrollLeft) el.scrollLeft = 0;
     if(el.scrollTop) el.scrollTop = 0;
