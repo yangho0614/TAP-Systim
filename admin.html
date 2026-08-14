@@ -257,6 +257,12 @@
     /* 印領清冊：畫面上為了好讀給了 minWidth:1500，列印時必須放掉，
        否則表格比紙寬、右側會被裁切。字級與內距一併縮小以塞進一頁寬。 */
     .reg-table{ min-width:0 !important; width:100% !important; table-layout:fixed; font-size:8.5px; }
+    /* ⚠️ 縮排列在螢幕上是 font-size:11px，特異性比 .reg-table 的 8.5px 高，
+       列印時會變成「內含明細比本薪還大」——整個反過來。這裡必須明確壓回去。 */
+    .reg-table .reg-row.reg-ind > td{ font-size:7.5px !important; }
+    .reg-table .reg-row > td{ font-size:8.5px; }
+    .reg-table .reg-row.k-grand > td{ font-size:9.5px !important; }
+    .reg-table .reg-row.reg-sum > td{ font-size:9px !important; }
     /* ⚠️ word-break:break-all 只能套在數字欄。套到員工資料格會把身分證號斷成
        「L1236 / 87827」、地址斷在詞中間，看起來像資料壞掉。 */
     .reg-table th, .reg-table td{ padding:2px 3px !important; }
@@ -283,9 +289,11 @@
     /* 每位員工從新的一頁開始（第一位除外，否則會多出一張空白頁）。
        一個人的資料絕不能被切成兩頁，這是印領清冊當作簽收憑證的前提。 */
     .reg-table tbody > tr{ page-break-inside:avoid; }
-    /* 分頁改在卡片層級：每張卡片是獨立的 table，第一張不加分頁避免多出空白頁 */
-    .reg-card{ page-break-before:always; page-break-inside:avoid; }
-    .reg-card:first-of-type{ page-break-before:auto; }
+    /* 分頁改在卡片層級。⚠️ 用「相鄰兄弟」而不是 :first-of-type ——
+       卡片前面還有 <h3> 與說明文字兩個 div，第一張卡片不是「第一個 div」，
+       :first-of-type 比對不到，結果連第一張也加了分頁，印出一整頁空白。 */
+    .reg-card{ page-break-inside:avoid; }
+    .reg-card + .reg-card{ page-break-before:always; }
     /* 未結算月份的「—」列印時用淺灰，跟真的 0 仍要分得出來 */
     .reg-empty{ color:#999 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   }
