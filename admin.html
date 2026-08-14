@@ -2892,37 +2892,12 @@ function PayrollRegisterTab(){
   const [loading, setLoading] = useState(true);
   const [activeCompany, setActiveCompany] = useState(null);
   const scrollRef = useRef(null);
-  // 欄位群組收合：整張表 20 餘欄，多數月份只有少數群組有資料，預設只展開有值的群組
-  const GROUPS = [
-    {key:'allow', label:'津貼明細'},
-    {key:'ot',    label:'加班時數'},
-    {key:'bonus', label:'獎金'},
-    {key:'leave', label:'請假時數'}
-  ];
-  const [openGroups, setOpenGroups] = useState(null);
-  const groupCounts = useMemo(()=>{
-    const c = {allow:0, ot:0, bonus:0, leave:0};
-    rows.forEach(({emp, entry})=>{
-      if(n(emp.mealAllowance)||n(emp.transportAllowance)||n(emp.positionAllowance)||n(emp.fullAttendanceBonus)) c.allow++;
-      if(n(entry.otWeekday134)||n(entry.otWeekday167)||n(entry.otRestDayHours)||n(entry.otHolidayHours)) c.ot++;
-      if(n(entry.festivalBonus)||n(entry.yearEndBonus)||n(entry.performanceBonus)||n(entry.otherBonus)) c.bonus++;
-      if(n(entry.personalLeave)||n(entry.sickLeave)||n(entry.menstrualLeave)||n(entry.disasterLeave)||n(entry.familyCareLeave)) c.leave++;
-    });
-    return c;
-  }, [rows]);
-  useEffect(()=>{
-    if(openGroups || !rows.length) return;
-    setOpenGroups(GROUPS.filter(g=>groupCounts[g.key]>0).map(g=>g.key));
-  }, [rows.length, groupCounts]);
-  const shown = k => !openGroups || openGroups.indexOf(k) !== -1;
-  // 本月是否已有任何輸入或鎖定紀錄，用來決定要不要顯示空狀態引導
-  const hasAnyEntry = useMemo(()=> rows.some(({entry})=>
-    entry.locked || Object.keys(entry).some(k=> typeof entry[k]==='number' && entry[k]!==0)
-  ), [rows]);
-  const toggleGroup = k => setOpenGroups(prev => {
-    const cur = prev || GROUPS.map(g=>g.key);
-    return cur.indexOf(k)===-1 ? cur.concat([k]) : cur.filter(x=>x!==k);
-  });
+  // ⚠️ 這裡原本有一段從 PayrollTab 複製過來的「欄位群組收合」程式碼（GROUPS／groupCounts／
+  //    openGroups／shown／toggleGroup／hasAnyEntry），但那段依賴 PayrollTab 的 `rows` prop，
+  //    而本元件沒有 rows（資料來源是 data[activeCompany]），且整段在畫面裡從未被使用。
+  //    結果是元件一初始化就 `rows is not defined`，整個後台變空白頁、只留 "Script error."
+  //    （React 正式版會把細節藏起來，很難查）。2026-08-14 移除。
+  //    複製元件邏輯時務必確認依賴的變數在新位置存在，不要只看語法過得去。
   function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
   function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
 
