@@ -487,7 +487,7 @@ function tenureText(hireDate, breakStart, breakEnd){
   else if(years >= 2) leave = 10;
   else if(years >= 1) leave = 7;
   else if(months >= 6) leave = 3;
-  return `到職年資約 ${y} 年 ${m} 個月${breakNote}，依勞基法第 38 條參考特休天數：約 ${leave} 天（僅供參考，請以實際規定核算）`;
+  return `到職年資約 ${y} 年 ${m} 個月${breakNote}，依勞基法第 38 條參考特休日數：約 ${leave} 日（僅供參考，請以實際規定核算）`;
 }
 
 /* ========================= 勞健保投保級距對照表與薪資計算引擎 ========================= */
@@ -595,7 +595,7 @@ function calcMenstrualLeaveRefMoney(hourly, menstrualHours, leaveBaseline){
   const unpaidHours = overageThisMonth - halfPayHours;
   return hourly*0.5*halfPayHours + hourly*1.0*unpaidHours; // 全薪部分金額為0，不列入
 }
-// 計算勞健保加退保狀態：勞保依「當月在職天數/30」比例計算；健保看「當月最後一天」是否仍在職，是則收整月保費，否則本月不收
+// 計算勞健保加退保狀態：勞保依「當月在職日數/30」比例計算；健保看「當月最後一天」是否仍在職，是則收整月保費，否則本月不收
 function getInsuranceStatusForMonth(hireDate, resignDate, month){
   const parts = String(month||'').split('-').map(Number);
   const y = parts[0], m = parts[1];
@@ -684,15 +684,15 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const payableTotal = payableA + overtimePay;
 
 
-  const MENSTRUAL_FULL_PAY_HOURS = 24; // 每年前3天(以8hr/天計)生理假全薪
-  const SICK_LEAVE_ANNUAL_CAP_HOURS = 240; // 病假年度30天(以8hr/天計)上限，生理假超過3天部分需併入計算
+  const MENSTRUAL_FULL_PAY_HOURS = 24; // 每年前3 日(以8hr/天計)生理假全薪
+  const SICK_LEAVE_ANNUAL_CAP_HOURS = 240; // 病假年度30 日(以8hr/天計)上限，生理假超過3 日部分需併入計算
   const menstrualUsedBefore = n(leaveBaseline && leaveBaseline.menstrual);
   const sickUsedBefore = n(leaveBaseline && leaveBaseline.sick);
   const remainFullPay = Math.max(0, MENSTRUAL_FULL_PAY_HOURS - menstrualUsedBefore);
   const menstrualPaidHours = Math.min(n(entry.menstrualLeave), remainFullPay);
   const menstrualOverageThisMonth = n(entry.menstrualLeave) - menstrualPaidHours;
 
-  // 病假＋生理假(超過3天部分)共用年度30天上限；超過部分不給薪(0%)，未超過部分半薪(50%)
+  // 病假＋生理假(超過3 日部分)共用年度30 日上限；超過部分不給薪(0%)，未超過部分半薪(50%)
   const menstrualOverageBefore = Math.max(0, menstrualUsedBefore - MENSTRUAL_FULL_PAY_HOURS);
   const combinedUsedBefore = sickUsedBefore + menstrualOverageBefore;
   let sickCapRemaining = Math.max(0, SICK_LEAVE_ANNUAL_CAP_HOURS - combinedUsedBefore);
@@ -701,7 +701,7 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   sickCapRemaining = Math.max(0, sickCapRemaining - sickHalfPayHours);
   const menstrualHalfPayHours = Math.min(menstrualOverageThisMonth, sickCapRemaining);
   const menstrualUnpaidHours = menstrualOverageThisMonth - menstrualHalfPayHours;
-  const menstrualHalfHours = menstrualOverageThisMonth; // 沿用舊欄位名稱：本月生理假超過3天(全薪)的部分小時數
+  const menstrualHalfHours = menstrualOverageThisMonth; // 沿用舊欄位名稱：本月生理假超過3 日(全薪)的部分小時數
   const sickCapExceeded = (sickUnpaidHours + menstrualUnpaidHours) > 0;
 
   const leaveDeduct = hourly*1.0*n(entry.personalLeave)
@@ -984,7 +984,7 @@ function App(){
     {key:'disasterLeave', label:'災防假'},
     {key:'lateMinutes', label:'遲到分鐘'}, {key:'lateCount', label:'遲到次數'},
     {key:'earlyMinutes', label:'早退分鐘'}, {key:'earlyCount', label:'早退次數'},
-    {key:'presentDays', label:'出勤天數'}
+    {key:'presentDays', label:'出勤日數'}
   ];
   function summaryToEntry(s){
     return {
@@ -1259,7 +1259,7 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
           <div className="field">
             <label>離職日</label>
             <input type="date" value={editing.resignDate||''} onChange={e=>{ setEditing({...editing, resignDate:e.target.value, status: e.target.value ? '離職' : editing.status}); setResignPreview(null); }} />
-            <div className="hint" style={{marginTop:4}}>有填離職日時，勞保費當月按在職天數比例計算，健保費則看月底當天是否仍在職（在職才收整月保費）</div>
+            <div className="hint" style={{marginTop:4}}>有填離職日時，勞保費當月按在職日數比例計算，健保費則看月底當天是否仍在職（在職才收整月保費）</div>
             {editing.resignDate && editing.hireDate && !isNew && (
               <div style={{marginTop:6}}>
                 <button type="button" className="ghost sm" disabled={resignPreviewLoading} onClick={loadResignPreview}>
@@ -1268,8 +1268,8 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
                 {resignPreview && (
                   <div className="hint" style={{marginTop:6, background:'var(--bg-soft, #f5f5f5)', padding:8, borderRadius:6, lineHeight:1.7}}>
                     週年制重新計算期間：{resignPreview.periodStart} ～ {resignPreview.periodEnd}<br/>
-                    應有 {trimNum(resignPreview.entitledDays,1)} 天，已休 {trimNum(resignPreview.usedDays,1)} 天，可結算 {trimNum(resignPreview.settleDays,1)} 天（{trimNum(resignPreview.settleHours,1)} 小時）<br/>
-                    {resignPreview.overUsed && <span style={{color:'var(--danger)'}}>⚠ 已超休 {resignPreview.overDays} 天，公司不能扣薪，結算金額以0計<br/></span>}
+                    應有 {trimNum(resignPreview.entitledDays,1)} 日，已休 {trimNum(resignPreview.usedDays,1)} 日，可結算 {trimNum(resignPreview.settleDays,1)} 日（{trimNum(resignPreview.settleHours,1)} 小時）<br/>
+                    {resignPreview.overUsed && <span style={{color:'var(--danger)'}}>⚠ 已超休 {resignPreview.overDays} 日，公司不能扣薪，結算金額以0計<br/></span>}
                     以本薪 {money(editing.baseSalary)} 估算，結算金額約 <b>{money(resignPreview.settlePay)}</b> 元
                     <div style={{marginTop:4, color:'var(--muted, #888)'}}>正式金額請至「薪資結算」頁該員工當月薪資列，按同樣的試算按鈕帶入。</div>
                   </div>
@@ -1393,10 +1393,10 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
               <input type="number" style={{flex:'1 1 90px', minWidth:0}} value={editing.transportAllowance} onChange={e=>setEditing({...editing, transportAllowance:Number(e.target.value)})} />
               <select style={{flex:'0 0 auto', width:'auto'}} value={editing.transportAllowanceMode||'fixed'} onChange={e=>setEditing({...editing, transportAllowanceMode:e.target.value})}>
                 <option value="fixed">固定／月</option>
-                <option value="daily">依出勤天數</option>
+                <option value="daily">依出勤日數</option>
               </select>
             </div>
-            {editing.transportAllowanceMode==='daily' && <div className="hint" style={{marginTop:4}}>系統會用「套用出缺勤時數」抓當月實際出勤天數 × 這個金額，自動算出當月交通津貼</div>}
+            {editing.transportAllowanceMode==='daily' && <div className="hint" style={{marginTop:4}}>系統會用「套用出缺勤時數」抓當月實際出勤日數 × 這個金額，自動算出當月交通津貼</div>}
           </div>
           <div className="field"><label>職務加給</label><input type="number" value={editing.positionAllowance} onChange={e=>setEditing({...editing, positionAllowance:Number(e.target.value)})} /></div>
           <div className="field"><label>全勤獎金（固定）</label><input type="number" value={editing.fullAttendanceBonus} onChange={e=>setEditing({...editing, fullAttendanceBonus:Number(e.target.value)})} /></div>
@@ -1685,7 +1685,7 @@ function AttendanceTab({month, onApply}){
   useEffect(load, [month]);
 
   function doExportCSV(){
-    const headers = ['姓名','出勤天數','遲到次數','遲到分鐘','早退次數','早退分鐘','平日1.34倍(hr)','平日1.67倍(hr)','單日超時天數','單日超時日期','休息日出勤(hr)','國定假日出勤(hr)','例假日出勤(hr)','總工時(hr)','平日加班上限是否超過','定位異常天數'];
+    const headers = ['姓名','出勤日數','遲到次數','遲到分鐘','早退次數','早退分鐘','平日1.34倍(hr)','平日1.67倍(hr)','單日超時日數','單日超時日期','休息日出勤(hr)','國定假日出勤(hr)','例假日出勤(hr)','總工時(hr)','平日加班上限是否超過','定位異常日數'];
     const rows = summary.map(e=>[e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,e.otWeekday134,e.otWeekday167,e.dailyOtExceedDays.length,e.dailyOtExceedDays.join('、'),e.otRestDayHours,e.otHolidayHours,e.otMandatoryRestHours,e.workedHoursTotal,e.otCapExceeded?'是':'否',e.flaggedDays]);
     exportCSV(`出缺勤彙總_${month}.csv`, headers, rows);
   }
@@ -1704,7 +1704,7 @@ function AttendanceTab({month, onApply}){
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
-            <thead><tr><th className="center">姓名</th><th className="center">出勤天數</th><th className="center">遲到次數</th><th className="center">遲到分鐘</th><th className="center">早退次數</th><th className="center">早退分鐘</th><th className="center">平日1.34倍(hr)</th><th className="center">平日1.67倍(hr)</th><th className="center">單日超時</th><th className="center">休息日(hr)</th><th className="center">國定假日(hr)</th><th className="center">例假日(hr)</th><th className="center">總工時(hr)</th><th className="center">定位異常</th></tr></thead>
+            <thead><tr><th className="center">姓名</th><th className="center">出勤日數</th><th className="center">遲到次數</th><th className="center">遲到分鐘</th><th className="center">早退次數</th><th className="center">早退分鐘</th><th className="center">平日1.34倍(hr)</th><th className="center">平日1.67倍(hr)</th><th className="center">單日超時</th><th className="center">休息日(hr)</th><th className="center">國定假日(hr)</th><th className="center">例假日(hr)</th><th className="center">總工時(hr)</th><th className="center">定位異常</th></tr></thead>
             <tbody>
               {summary.map(e=>(
                 <tr key={e.employeeId}>
@@ -1715,7 +1715,7 @@ function AttendanceTab({month, onApply}){
                   <td className={'center ' + (e.otCapExceeded?'flag':'')}>{e.otWeekday167}</td>
                   <td className={'center ' + (e.dailyOtWarning?'flag':'')} title={e.dailyOtExceedDays.join('、')}>
                     {e.dailyOtWarning ? <span className="material-icons" style={{fontSize:15, verticalAlign:'middle'}}>warning</span> : '-'}
-                    {e.dailyOtWarning ? ` ${e.dailyOtExceedDays.length}天` : ''}
+                    {e.dailyOtWarning ? ` ${e.dailyOtExceedDays.length} 日` : ''}
                   </td>
                   <td className={'center ' + (e.otRestDayHours>0 ? (e.otCapExceeded?'flag':'') : '')}>{e.otRestDayHours}</td>
                   <td className="center">{e.otHolidayHours}</td>
@@ -1744,7 +1744,7 @@ function AttendanceTab({month, onApply}){
         <div className="modal-bg">
           <div className="modal">
             <h3><span className="material-icons">event_repeat</span>{makeupBox.name} － 例假日補假登記</h3>
-            <div className="hint" style={{marginBottom:10}}>依勞基法第40條，例假日出勤事後須完成補假，請登記每一天實際補假的日期。</div>
+            <div className="hint" style={{marginBottom:10}}>依勞基法第40條，例假日出勤事後須完成補假，請登記每一日實際補假的日期。</div>
             <MakeupList employeeId={makeupBox.employeeId} dates={makeupBox.dates} onSaved={()=>{ load(); }}/>
             <div className="modal-actions">
               <button className="ghost" onClick={()=>setMakeupBox(null)}>關閉</button>
@@ -1994,7 +1994,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
         </button>
       </div>
       <div className="toolbar no-print">
-        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍/其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3天全薪、第4天起50%）、災防假100%（公司採不支薪，惟不影響全勤與考績）；病假與生理假(超過3天部分)共用年度30天上限，超過後不給薪</span>
+        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍/其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3 日全薪、第4 日起50%）、災防假100%（公司採不支薪，惟不影響全勤與考績）；病假與生理假(超過3 日部分)共用年度30 日上限，超過後不給薪</span>
       </div>
 
       {(otCapAlerts.length>0 || minWageAlerts.length>0 || restDayCapAlerts.length>0 || sickCapAlerts.length>0) && (
@@ -2003,7 +2003,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
           {otCapAlerts.length>0 && <div className="hint">平日加班＋休息日出勤合計超過月上限 {MONTHLY_OT_CAP_DEFAULT} 小時：{otCapAlerts.map(r=>r.emp.name).join('、')}（依勞基法第32條，一般上限46小時，經工會或勞資會議同意可延長至54小時，但每3個月不得逾138小時；國定假日與例假加班不列入此上限）</div>}
           {restDayCapAlerts.length>0 && <div className="hint">休息日單日出勤超過12小時：{restDayCapAlerts.map(r=>r.emp.name).join('、')}，請確認是否合法並已依規定辦理</div>}
           {minWageAlerts.length>0 && <div className="hint">經常性給予（本薪＋伙食＋交通＋職務加給）低於2026年最低工資 {money(MIN_WAGE_MONTHLY)} 元：{minWageAlerts.map(r=>r.emp.name).join('、')}，請確認薪資結構是否合法（不含加班費、獎金與全勤獎金）</div>}
-          {sickCapAlerts.length>0 && <div className="hint">病假＋生理假(超過3天部分)已達年度30天上限，本月部分時數不給薪：{sickCapAlerts.map(r=>r.emp.name).join('、')}</div>}
+          {sickCapAlerts.length>0 && <div className="hint">病假＋生理假(超過3 日部分)已達年度30 日上限，本月部分時數不給薪：{sickCapAlerts.map(r=>r.emp.name).join('、')}</div>}
         </div>
       )}
 
@@ -2089,9 +2089,9 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               <td className="freeze-2 center">{money(calc.effBaseSalary)}</td>
               {shown('allow') && <>
               <td className="hint">{money(calc.effMealAllowance)}</td>
-              <td className="hint" title={emp.transportAllowanceMode==='daily'?`依出勤天數計算：${entry.presentDays||0}天 × ${money(emp.transportAllowance)}`:''}>{money(calc.effTransportAllowance)}</td>
+              <td className="hint" title={emp.transportAllowanceMode==='daily'?`依出勤日數計算：${entry.presentDays||0} 日 × ${money(emp.transportAllowance)}`:''}>{money(calc.effTransportAllowance)}</td>
               <td className="hint">{money(calc.effPositionAllowance)}</td>
-              <td className="hint" title={calc.fullAttendanceDeductRatio>0?`依請假/遲到早退比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%`:(calc.fullAttendanceRatio<1?`依在職天數比例試算（${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')} style={calc.fullAttendanceDeductRatio>0?{color:'var(--danger)'}:undefined}>{money(calc.fullAttendanceAdjusted)}</td>
+              <td className="hint" title={calc.fullAttendanceDeductRatio>0?`依請假/遲到早退比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%`:(calc.fullAttendanceRatio<1?`依在職日數比例試算（${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')} style={calc.fullAttendanceDeductRatio>0?{color:'var(--danger)'}:undefined}>{money(calc.fullAttendanceAdjusted)}</td>
               </>}
               {shown('ot') && <>
               <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} />{refBelow(refOtWeekday134)}</td>
@@ -2130,7 +2130,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               </td>
               <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} />{refBelow(refDisasterLeave)}</td>
               </>}
-              <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays}天比例計算`:''}>{money(calc.laborFee)}</td>
+              <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays} 日比例計算`:''}>{money(calc.laborFee)}</td>
               <td className="col-deduct" title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
               <td className="col-deduct">
                 <NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} disabled={entry.locked} />
@@ -2255,12 +2255,12 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             <div className="hint" style={{marginBottom:10}}>依「特休設定」裡的核定時數與已使用時數，試算每位員工剩餘特休折算的金額。確認無誤後按「套用」，會自動填入下方「特休結算」欄位，仍可個別手動調整。</div>
             {settleBox.loading ? <div className="hint">試算中...</div> : (
               <table>
-                <thead><tr><th className="left">姓名</th><th>剩餘時數 / 天數</th><th className="left">算式</th><th>結算金額</th></tr></thead>
+                <thead><tr><th className="left">姓名</th><th>剩餘時數 / 日數</th><th className="left">算式</th><th>結算金額</th></tr></thead>
                 <tbody>
                   {settleBox.items.map(it=>(
                     <tr key={it.employeeId}>
-                      <td className="left">{it.name}{it.overUsed && <div className="hint" style={{color:'var(--danger)'}}>⚠ 已超休 {trimNum(it.overHours,1)} 小時（{trimNum(it.overHours/8,1)} 天），公司不能扣薪，金額以0計</div>}</td>
-                      <td>{trimNum(it.remainHours,1)}<span className="hint" style={{marginLeft:4}}>（{trimNum(it.remainHours/8,1)} 天）</span></td>
+                      <td className="left">{it.name}{it.overUsed && <div className="hint" style={{color:'var(--danger)'}}>⚠ 已超休 {trimNum(it.overHours,1)} 小時（{trimNum(it.overHours/8,1)} 日），公司不能扣薪，金額以0計</div>}</td>
+                      <td>{trimNum(it.remainHours,1)}<span className="hint" style={{marginLeft:4}}>（{trimNum(it.remainHours/8,1)} 日）</span></td>
                       <td className="left hint">{trimNum(it.remainHours,1)} hr × {it.hourly} 元/hr =</td>
                       <td><b>{money(it.amount)}</b></td>
                     </tr>
@@ -2309,19 +2309,19 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             <h3><span className="material-icons">calculate</span>特休結算試算：{resignRowBox.name}</h3>
             {resignRowBox.loading ? <div className="hint">試算中...</div> : resignRowBox.data && (
               <div>
-                <div className="hint" style={{marginBottom:10}}>不論平常特休用歷年制或週年制核定，離職一律改用「週年制」重新計算最後一個未滿的服務年度，已休超過應有天數不倒扣。</div>
+                <div className="hint" style={{marginBottom:10}}>不論平常特休用歷年制或週年制核定，離職一律改用「週年制」重新計算最後一個未滿的服務年度，已休超過應有日數不倒扣。</div>
                 <table>
                   <tbody>
                     <tr><td className="left">重新計算期間</td><td>{resignRowBox.data.periodStart} ～ {resignRowBox.data.periodEnd}</td></tr>
-                    <tr><td className="left">應有天數</td><td>{resignRowBox.data.entitledDays} 天</td></tr>
-                    <tr><td className="left">已休天數</td><td>{trimNum(resignRowBox.data.usedDays,1)} 天（{trimNum(resignRowBox.data.usedHours,1)} 小時）</td></tr>
-                    <tr><td className="left">可結算天數</td><td><b>{resignRowBox.data.settleDays} 天</b>（{resignRowBox.data.settleHours} 小時）</td></tr>
+                    <tr><td className="left">應有日數</td><td>{resignRowBox.data.entitledDays} 日</td></tr>
+                    <tr><td className="left">已休日數</td><td>{trimNum(resignRowBox.data.usedDays,1)} 日（{trimNum(resignRowBox.data.usedHours,1)} 小時）</td></tr>
+                    <tr><td className="left">可結算日數</td><td><b>{resignRowBox.data.settleDays} 日</b>（{resignRowBox.data.settleHours} 小時）</td></tr>
                     <tr><td className="left">日薪基準</td><td>{money(resignRowBox.data.dailyWage)}</td></tr>
                     <tr><td className="left">結算金額</td><td><b>{money(resignRowBox.data.settlePay)}</b></td></tr>
                   </tbody>
                 </table>
                 {resignRowBox.data.overUsed && (
-                  <div className="hint" style={{color:'var(--danger)', marginTop:8}}>⚠ 已超休 {resignRowBox.data.overDays} 天，依規定公司不能扣薪，結算金額以0計，僅提醒留意。</div>
+                  <div className="hint" style={{color:'var(--danger)', marginTop:8}}>⚠ 已超休 {resignRowBox.data.overDays} 日，依規定公司不能扣薪，結算金額以0計，僅提醒留意。</div>
                 )}
               </div>
             )}
@@ -2353,7 +2353,7 @@ function hrsLabel(hours){
   const h = Number(hours) || 0;
   if(h <= 0) return '';
   const days = Math.round((h/8)*10)/10;
-  return `${h}小時（${days}天）`;
+  return `${h}小時（${days} 日）`;
 }
 function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
   const show = v => !hideZero || Number(v) !== 0;
@@ -2382,7 +2382,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
           <tr><td className="left col-add" style={{fontWeight:600}}>本薪</td><td className="col-add"></td><td className="col-add" style={{fontWeight:600}}>{money(calc.effBaseSalary)}</td></tr>
           {(!hideZero || hasAnyAllowance) && <tr><td className="left col-add" colSpan="3" style={{fontSize:11, color:'var(--muted)', paddingLeft:20}}>以下為本薪內含明細，僅供對照，不另外加總</td></tr>}
           {show(n(calc.effMealAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>伙食津貼</td><td className="col-add"></td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effMealAllowance)}</td></tr>}
-          {show(n(calc.effTransportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼{emp.transportAllowanceMode==='daily' && <span>（{entry.presentDays||0}天×{money(emp.transportAllowance)}）</span>}</td><td className="col-add"></td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effTransportAllowance)}</td></tr>}
+          {show(n(calc.effTransportAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>交通津貼{emp.transportAllowanceMode==='daily' && <span>（{entry.presentDays||0} 日×{money(emp.transportAllowance)}）</span>}</td><td className="col-add"></td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effTransportAllowance)}</td></tr>}
           {show(n(calc.effPositionAllowance)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>職務加給</td><td className="col-add"></td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.effPositionAllowance)}</td></tr>}
           {show(n(calc.effFullAttendanceBonus)) && <tr><td className="left col-add" style={{paddingLeft:28, fontSize:11, color:'var(--muted)', borderLeft:'2px solid var(--line)'}}>全勤獎金{calc.fullAttendanceDeductRatio>0 && <span style={{color:'var(--danger)'}}>（依比例扣{(calc.fullAttendanceDeductRatio*100).toFixed(1)}%）</span>}{calc.fullAttendanceRatio<1 && <span>（依在職比例{(calc.fullAttendanceRatio*100).toFixed(0)}%）</span>}</td><td className="col-add"></td><td className="col-add" style={{fontSize:11, color:'var(--muted)'}}>{money(calc.fullAttendanceAdjusted)}</td></tr>}
           {show(n(entry.festivalBonus)) && <tr><td className="left col-add">三節獎金</td><td className="col-add"></td><td className="col-add">{money(entry.festivalBonus)}</td></tr>}
@@ -2402,7 +2402,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
         <colgroup><col style={{width:'38%'}} /><col style={{width:'38%'}} /><col style={{width:100}} /></colgroup>
         <thead><tr><th className="col-deduct" colSpan="3"><span className="material-icons" style={{fontSize:14, verticalAlign:'middle'}}>remove_circle</span> 應扣項目</th></tr></thead>
         <tbody>
-          <tr><td className="left col-deduct">勞保費{!calc.insFullMonth && <span style={{fontWeight:400}}>（按{calc.insLaborDays}天計）</span>}</td><td className="col-deduct"></td><td className="col-deduct">{money(calc.laborFee)}</td></tr>
+          <tr><td className="left col-deduct">勞保費{!calc.insFullMonth && <span style={{fontWeight:400}}>（按{calc.insLaborDays} 日計）</span>}</td><td className="col-deduct"></td><td className="col-deduct">{money(calc.laborFee)}</td></tr>
           <tr><td className="left col-deduct">健保費{!calc.insActiveAtMonthEnd && <span style={{fontWeight:400}}>（月底已離職不收）</span>}{calc.insActiveAtMonthEnd && n(emp.dependentCount)>0 && <span style={{fontWeight:400}}>（含眷屬{Math.min(n(emp.dependentCount),3)}人）</span>}</td><td className="col-deduct"></td><td className="col-deduct">{money(calc.healthFee)}</td></tr>
           {show(personalOnlyHours) && <tr><td className="left col-deduct">事假</td><td className="col-deduct hrs">{hrsLabel(personalOnlyHours)}</td><td className="col-deduct">{money(calc.hourly*personalOnlyHours)}</td></tr>}
           {show(familyCareHours) && <tr><td className="left col-deduct">家庭照顧假</td><td className="col-deduct hrs">{hrsLabel(familyCareHours)}</td><td className="col-deduct">{money(calc.hourly*familyCareHours)}</td></tr>}
@@ -2413,7 +2413,7 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
           <tr className="total-row"><td className="left">應扣合計</td><td></td><td>{money(calc.deductTotal)}</td></tr>
         </tbody>
       </table>
-      {(n(entry.sickLeave)>0 || n(entry.menstrualLeave)>0) && <div style={{fontSize:10.5, color:'var(--muted)', marginBottom:8}}>病假、生理假：年度合計前30天半薪，超過不給薪</div>}
+      {(n(entry.sickLeave)>0 || n(entry.menstrualLeave)>0) && <div style={{fontSize:10.5, color:'var(--muted)', marginBottom:8}}>病假、生理假：年度合計前30 日半薪，超過不給薪</div>}
 
       {infoLeaveRows.length>0 && (
         <table style={{marginBottom:8}}>
@@ -3382,8 +3382,8 @@ function AnnualLeaveTab({employees}){
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
       <div className="hint" style={{marginBottom:12}}>
-        核定每位員工當年度的特休「時數」（1天＝8小時）。按「試算」可依到職日自動帶入建議天數，仍可手動調整後再儲存。
-        <br/>⚠ 系統試算僅供參考，正式天數請以<a href="https://calcr2.mol.gov.tw/RestDays" target="_blank" rel="noopener" style={{color:'var(--brand)'}}>勞動部特別休假日數試算系統</a>或人資顧問確認為準。
+        核定每位員工當年度的特休「時數」（1 日＝8小時）。按「試算」可依到職日自動帶入建議日數，仍可手動調整後再儲存。
+        <br/>⚠ 系統試算僅供參考，正式日數請以<a href="https://calcr2.mol.gov.tw/RestDays" target="_blank" rel="noopener" style={{color:'var(--brand)'}}>勞動部特別休假日數試算系統</a>或人資顧問確認為準。
       </div>
       <div className="card" style={{overflowX:'auto'}}>
         {loading || !data ? <div className="hint">載入中...</div> : (
@@ -3393,7 +3393,7 @@ function AnnualLeaveTab({employees}){
               <col style={{width:'10%'}} /><col style={{width:'12%'}} /><col style={{width:'10%'}} />
               <col style={{width:'10%'}} /><col style={{width:'17%'}} />
             </colgroup>
-            <thead><tr><th className="center">姓名</th><th className="center">部門</th><th className="left">到職日</th><th className="center">核定天數</th><th className="center">核定時數</th><th className="center">已用</th><th className="center">剩餘</th><th className="center">操作</th></tr></thead>
+            <thead><tr><th className="center">姓名</th><th className="center">部門</th><th className="left">到職日</th><th className="center">核定日數</th><th className="center">核定時數</th><th className="center">已用</th><th className="center">剩餘</th><th className="center">操作</th></tr></thead>
             <tbody>
               {employees.map(emp=>{
                 const granted = data.granted[emp.id] ? data.granted[emp.id].hours : 0;
@@ -3405,12 +3405,12 @@ function AnnualLeaveTab({employees}){
                     <td className="center"><b>{emp.name}</b></td>
                     <td className="center">{emp.department}</td>
                     <td className="left">{emp.hireDate ? rocDate(emp.hireDate) : '-'}</td>
-                    <td className="center hint">{editDays} 天</td>
+                    <td className="center hint">{editDays} 日</td>
                     <td className="center"><input type="number" min="0" step="0.01" value={editVal} onChange={e=>setEdits({...edits, [emp.id]: e.target.value})} style={{width:80, textAlign:'center'}} /></td>
-                    <td className="center">{trimNum(used, 1)}<span className="hint" style={{marginLeft:4}}>（{trimNum(used/8, 1)} 天）</span></td>
+                    <td className="center">{trimNum(used, 1)}<span className="hint" style={{marginLeft:4}}>（{trimNum(used/8, 1)} 日）</span></td>
                     <td className={'center' + (granted-used < 8 ? ' flag' : '')}>
                       {trimNum(Math.max(0, granted-used), 1)}
-                      <span className="hint" style={{marginLeft:4}}>（{trimNum(Math.max(0, granted-used)/8, 1)} 天）</span>
+                      <span className="hint" style={{marginLeft:4}}>（{trimNum(Math.max(0, granted-used)/8, 1)} 日）</span>
                     </td>
                     <td className="center">
                       <button className="ghost sm" onClick={()=>estimate(emp.id)} disabled={estimatingId===emp.id || !emp.hireDate} title={!emp.hireDate?'請先設定到職日':''}>{estimatingId===emp.id?'試算中':'試算'}</button>{' '}
@@ -3428,13 +3428,13 @@ function AnnualLeaveTab({employees}){
         <div className="modal-bg">
           <div className="modal" style={{maxWidth:640}}>
             <h3><span className="material-icons">calculate</span>批次試算預覽（{year}年・{system==='calendar'?'歷年制':'週年制'}）</h3>
-            <div className="hint" style={{marginBottom:10}}>以下為系統依到職日試算的建議天數，確認無誤後按「套用全部」，會覆蓋這些員工目前的核定時數。個別員工仍可在下方表格單獨微調。</div>
+            <div className="hint" style={{marginBottom:10}}>以下為系統依到職日試算的建議日數，確認無誤後按「套用全部」，會覆蓋這些員工目前的核定時數。個別員工仍可在下方表格單獨微調。</div>
             <table>
               <colgroup>
                 <col style={{width:'14%'}} /><col style={{width:'26%'}} /><col style={{width:'14%'}} />
                 <col style={{width:'14%'}} /><col style={{width:'32%'}} />
               </colgroup>
-              <thead><tr><th className="center">姓名</th><th className="left">到職日</th><th className="center">建議天數</th><th className="center">建議時數</th><th className="center">備註</th></tr></thead>
+              <thead><tr><th className="center">姓名</th><th className="left">到職日</th><th className="center">建議日數</th><th className="center">建議時數</th><th className="center">備註</th></tr></thead>
               <tbody>
                 {batchBox.items.map(it=>(
                   <tr key={it.employeeId}>
@@ -3510,7 +3510,7 @@ function DashboardTab({setTab}){
 
               {remind.假單待審逾期.length>0 && (
                 <div style={{marginTop:10}}>
-                  <div style={{fontSize:12, fontWeight:600, color:'var(--danger)'}}>假單待審超過 {remind.假單逾期天數門檻} 天</div>
+                  <div style={{fontSize:12, fontWeight:600, color:'var(--danger)'}}>假單待審超過 {remind.假單逾期日數門檻} 日</div>
                   <div className="hint" style={{marginTop:2}}>
                     {remind.假單待審逾期.map(x=>x.姓名+'（'+x.類型+'，'+x.申請時間+'）').join('、')}
                   </div>
@@ -3605,7 +3605,7 @@ function CompLedgerTab({employees}){
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
         <button className="ghost sm" onClick={doExport}><span className="material-icons" style={{fontSize:16}}>download</span>匯出 CSV</button>
       </div>
-      <div className="hint" style={{marginBottom:12}}>每筆加班換補休核准後會自動「轉入」，員工請補休假核准後會自動「使用」扣抵，餘額為累計結果。到期日到了仍未使用完的補休，依規定應折算工資發給。到期日欄位：<span style={{color:'var(--danger)'}}>紅字</span>＝已過期，<span style={{color:'#B8860B'}}>橘字</span>＝即將到期（設定頁可調整提醒天數）。</div>
+      <div className="hint" style={{marginBottom:12}}>每筆加班換補休核准後會自動「轉入」，員工請補休假核准後會自動「使用」扣抵，餘額為累計結果。到期日到了仍未使用完的補休，依規定應折算工資發給。到期日欄位：<span style={{color:'var(--danger)'}}>紅字</span>＝已過期，<span style={{color:'#B8860B'}}>橘字</span>＝即將到期（設定頁可調整提醒日數）。</div>
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
@@ -4192,11 +4192,11 @@ function SettingsTab({onSaved, initialCategory}){
           <select value={s.leaveUnit} onChange={e=>setS({...s,leaveUnit:Number(e.target.value)})}>
             <option value={1}>1 小時</option>
             <option value={0.5}>0.5 小時</option>
-            <option value={4}>半天（4 小時）</option>
+            <option value={4}>半日（4 小時）</option>
           </select>
         </div>
         <div className="field"><label>補休使用期限（月）</label><input type="number" min="1" value={s.compTimeExpireMonths} onChange={e=>setS({...s,compTimeExpireMonths:e.target.value})} /></div>
-        <div className="field"><label>補休到期提醒（到期前幾天）</label><input type="number" min="1" value={s.compExpireReminderDays} onChange={e=>setS({...s,compExpireReminderDays:e.target.value})} /></div>
+        <div className="field"><label>補休到期提醒（到期前幾日）</label><input type="number" min="1" value={s.compExpireReminderDays} onChange={e=>setS({...s,compExpireReminderDays:e.target.value})} /></div>
       </div>
       <div className="hint">補休期限自核准日起算，依勞基法第32條之1，補休期限屆滿或契約終止仍未休完的時數，應依原加班費標準折算工資。</div>
 

@@ -365,13 +365,66 @@
 
 <script type="text/plain" id="app-src">
 const {useState, useEffect, useMemo, useRef} = React;
-// 時數／天數一律取小數一位，末尾的 .0 去掉
+// 時數／日數一律取小數一位，末尾的 .0 去掉
 function trim1(v){ const x = Math.round((Number(v)||0)*10)/10; return String(x); }
 // 假別下拉的剩餘額度標籤。iOS Safari 的原生選單寬度是系統決定的、CSS 改不到，
-// 文字一長就折行，所以只給一個單位：滿一天以上講天，不足一天才講小時。
+// 文字一長就折行，所以只給一個單位：滿一日以上講日，不足一日才講小時。
 function remainText(hours){
   const h = Number(hours) || 0;
-  return h >= 8 ? `（剩 ${trim1(h/8)} 天）` : `（剩 ${trim1(h)} 小時）`;
+  return h >= 8 ? `（剩 ${trim1(h/8)} 日）` : `（剩 ${trim1(h)} 小時）`;
+}
+// 額度條的數字：主行給「小時」（系統實際存放與結算的原始單位），副行給日數換算。
+// ⚠️ 日數刻意用「X 日 Y 小時」而不是小數日，因為 1 日 = 8 小時，除不盡的時候小數日一定要四捨五入
+//    （10 小時 = 1.25 日 → 顯示 1.3 日），員工照著 1.3 日去請就變成 10.4 小時、反而被後端擋下來。
+//    混合寫法完全不做進位，數字永遠精確，也不會誤導額度。
+// 特休「核定日數」本身是原始值（roundLeaveDays 依勞動部規則產出，永遠只有 1 位小數），
+// 時數是 日數×8 換算來的，所以核定值永遠是 0.8 小時的倍數、兩個方向都精確。
+// 會除不盡的是「已休／剩餘」——請假以 0.5 或 1 小時為單位累加，10 小時 ÷ 8 = 1.25 日就回不去 1 位小數。
+// 因此：能整除到 1 位小數就寫小數日（跟特休核定表、勞動部試算系統的數字完全一致），
+//       除不盡才拆成「X 日 Y 小時」。兩種情況都不做任何進位，顯示的額度永遠等於後端會放行的額度。
+function dayPart(hours){
+  const h = Number(hours) || 0;
+  if(h < 8) return '';                        // 不滿一日就只講小時，不必再寫「0 日」
+  const exact = Math.round(h/8*10)/10;        // 試著換成 1 位小數的日
+  if(Math.abs(exact*8 - h) < 1e-9) return `${trim1(exact)} 日`;
+  const d = Math.floor(h/8 + 1e-9);
+  const rem = Math.round((h - d*8)*10)/10;
+  return `${d} 日 ${trim1(rem)} 小時`;
+}
+// 剩餘額度出現「畸零時數」時的解套提示。
+// 特休核定日數是 0.1 日的倍數 → 時數是 0.8 小時的倍數，最小單位設 1 小時的話，
+// 一小時一小時請到最後一定會剩不足一單位的零頭（191.2 小時請到 191 還剩 0.2），
+// 湊不出倍數就永遠送不出去。後端 createRequest 對「時數剛好等於剩餘」放行（清零例外），
+// 這顆按鈕就是把那個數字一鍵帶進時數欄，員工不用自己算。
+function ClearLeftover({remain, unit, onUse}){
+  const r = Math.round((Number(remain)||0) * 10) / 10;
+  if(r <= 0) return null;
+  const isMultiple = Math.round((r / unit) * 100) % 100 === 0;
+  if(isMultiple) return null;                     // 剩餘剛好是整數倍就沒這個問題
+  return (
+    <div style={{marginTop:8, padding:'8px 10px', borderRadius:8,
+                 background:'rgba(0,173,181,.10)', border:'1px dashed var(--gold,#00ADB5)',
+                 fontSize:11.5, lineHeight:1.6}}>
+      剩餘 <b>{r} 小時</b>不是最小單位（{unit} 小時）的倍數，零頭無法用一般方式請完。
+      <button type="button" onClick={()=>onUse(String(r))}
+        style={{display:'block', marginTop:6, width:'100%', padding:'7px 10px', borderRadius:6,
+                border:'1px solid var(--gold,#00ADB5)', background:'transparent',
+                color:'var(--gold,#00ADB5)', fontSize:12, fontWeight:700, cursor:'pointer'}}>
+        一次休完剩餘 {r} 小時
+      </button>
+      <div style={{opacity:.7, marginTop:5}}>不休完也不會損失——年度終結時未休完的特休依法折發工資。</div>
+    </div>
+  );
+}
+// 額度條裡的一格數字：主行小時、副行日數換算
+function Amount({label, hours, strong, danger}){
+  const sub = dayPart(hours);
+  return (
+    <span style={{display:'inline-block', fontVariantNumeric:'tabular-nums'}}>
+      <span style={{fontWeight: strong?700:400, color: danger?'#c05a4f':'inherit'}}>{label} {trim1(hours)} 小時</span>
+      {sub && <><br/><span style={{opacity:.6, fontSize:11}}>{sub}</span></>}
+    </span>
+  );
 }
 
 /* ⚠️ 部署 Code.gs 為網頁應用程式後，把網址貼在這裡 */
@@ -1563,8 +1616,9 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
     <div className="page">
       {balances && (
         <div className="balance-row">
-          <div className="balance-cell"><div className="num">{trim1(balances.annualRemain)}</div><div className="lbl">特休剩餘　{trim1(balances.annualRemain/8)} 天</div></div>
-          <div className="balance-cell"><div className="num">{balances.compRemain}</div><div className="lbl">補休剩餘（小時）</div></div>
+          {/* 大字一律是「小時」（系統實際結算的單位），小字用 dayPart() 的日＋小時混合寫法，不做四捨五入 */}
+          <div className="balance-cell"><div className="num">{trim1(balances.annualRemain)}</div><div className="lbl">特休剩餘（小時）{dayPart(balances.annualRemain) && <><br/>{dayPart(balances.annualRemain)}</>}</div></div>
+          <div className="balance-cell"><div className="num">{trim1(balances.compRemain)}</div><div className="lbl">補休剩餘（小時）{dayPart(balances.compRemain) && <><br/>{dayPart(balances.compRemain)}</>}</div></div>
         </div>
       )}
       {balances && (balances.compExpiredHours > 0 || balances.compExpiringHours > 0) && (
@@ -1658,7 +1712,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
               </select>
               {leaveBox.leaveType==='生理假' && menstrualStatus && (
                 <div className="hint" style={{marginTop:6}}>
-                  依勞基法第14條之1，生理假每年前3天（24小時）全薪，超過部分比照病假折半發給。你今年已使用 {menstrualStatus.usedHours} 小時，還有 {menstrualStatus.remainingFullPayHours} 小時全薪額度。
+                  依勞基法第14條之1，生理假每年前3 日（24小時）全薪，超過部分比照病假折半發給。你今年已使用 {menstrualStatus.usedHours} 小時，還有 {menstrualStatus.remainingFullPayHours} 小時全薪額度。
                 </div>
               )}
 
@@ -1668,7 +1722,6 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 const granted = Number(balances.annualGranted)||0;
                 const used = Number(balances.annualUsed)||0;
                 const remain = Math.max(0, Number(balances.annualRemain)||0);
-                const day = h => (Math.round(h/8*10)/10);
                 if(granted <= 0) return (
                   <div style={{marginTop:8, padding:'10px 12px', border:'1px solid var(--line,#3a3a3a)', borderRadius:8, fontSize:12, opacity:.75}}>
                     本年度尚無特休核定時數，請洽管理部
@@ -1678,13 +1731,20 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 const full = remain <= 0;
                 return (
                   <div style={{marginTop:8, padding:'10px 12px', border:'1px solid var(--line,#3a3a3a)', borderRadius:8}}>
-                    <div style={{display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:5}}>
-                      <span>特休　本年度核定 {day(granted)} 日</span>
-                      <span style={{fontVariantNumeric:'tabular-nums'}}>已休 {day(used)} 日 · 剩 {day(remain)} 日</span>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8, fontSize:12, marginBottom:6}}>
+                      <span style={{fontWeight:700}}>特休</span>
+                      <span style={{opacity:.75, fontVariantNumeric:'tabular-nums', textAlign:'right'}}>
+                        本年度核定 {trim1(granted)} 小時{dayPart(granted) && <><br/>{dayPart(granted)}</>}
+                      </span>
                     </div>
                     <div style={{height:6, borderRadius:3, background:'rgba(128,128,128,.25)', overflow:'hidden'}}>
                       <div style={{height:'100%', width:pct+'%', background: full ? '#c05a4f' : 'var(--gold,#00ADB5)'}}></div>
                     </div>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, fontSize:12, marginTop:6}}>
+                      <span style={{opacity:.75}}><Amount label="已休" hours={used} /></span>
+                      <span style={{textAlign:'right'}}><Amount label="剩" hours={remain} strong danger={full} /></span>
+                    </div>
+                    <ClearLeftover remain={remain} unit={unit} onUse={h=>setLeaveBox({...leaveBox, hours:h})} />
                     {full && <div style={{fontSize:11.5, color:'#c05a4f', marginTop:5}}>特休已休完，本次申請會被系統擋下</div>}
                   </div>
                 );
@@ -1694,7 +1754,6 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
               {quotas && quotas[leaveBox.leaveType] && (()=>{
                 const q = quotas[leaveBox.leaveType];
                 const used = Number(q.已用)||0, cap = Number(q.上限)||0;
-                const day = h => (Math.round(h/8*10)/10);
                 // 事假與家庭照顧假共用全年 14 日上限（性平法第 20 條），所以「剩餘」要取兩個限制的
                 // 較小值，才會跟上方下拉選單的數字一致，也才不會顯示一個送出時反而被擋下來的額度。
                 const combined = quotas['家庭照顧假'] ? (Number(quotas['家庭照顧假'].併入事假合計)||0) : 0;
@@ -1706,22 +1765,29 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 const full = remain <= 0;
                 return (
                   <div style={{marginTop:8, padding:'10px 12px', border:'1px solid var(--line,#3a3a3a)', borderRadius:8}}>
-                    <div style={{display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:5}}>
-                      <span>{leaveBox.leaveType}　{q.週期}上限 {day(cap)} 日</span>
-                      <span style={{fontVariantNumeric:'tabular-nums'}}>已用 {day(used)} 日 · 剩 {day(remain)} 日</span>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8, fontSize:12, marginBottom:6}}>
+                      <span style={{fontWeight:700}}>{leaveBox.leaveType}</span>
+                      <span style={{opacity:.75, fontVariantNumeric:'tabular-nums', textAlign:'right'}}>
+                        {q.週期}上限 {trim1(cap)} 小時{dayPart(cap) && <><br/>{dayPart(cap)}</>}
+                      </span>
                     </div>
                     <div style={{height:6, borderRadius:3, background:'rgba(128,128,128,.25)', overflow:'hidden'}}>
                       <div style={{height:'100%', width:pct+'%', background: full ? '#c05a4f' : 'var(--gold,#00ADB5)'}}></div>
                     </div>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, fontSize:12, marginTop:6}}>
+                      <span style={{opacity:.75}}><Amount label="已用" hours={used} /></span>
+                      <span style={{textAlign:'right'}}><Amount label="剩" hours={remain} strong danger={full} /></span>
+                    </div>
+                    <ClearLeftover remain={remain} unit={unit} onUse={h=>setLeaveBox({...leaveBox, hours:h})} />
                     {full && <div style={{fontSize:11.5, color:'#c05a4f', marginTop:5}}>額度已用完，本次申請會被系統擋下</div>}
                     {leaveBox.leaveType==='家庭照顧假' && (
                       <div style={{fontSize:11.5, opacity:.7, marginTop:5}}>
-                        家庭照顧假的日數併入事假計算，兩者合計全年以 14 日為限（目前合計 {day(combined)} 日）
+                        家庭照顧假的日數併入事假計算，兩者合計全年以 14 日（112 小時）為限，目前合計 {trim1(combined)} 小時{dayPart(combined) ? "（" + dayPart(combined) + "）" : ""}
                       </div>
                     )}
                     {leaveBox.leaveType==='事假' && (
                       <div style={{fontSize:11.5, opacity:.7, marginTop:5}}>
-                        家庭照顧假的日數也併入這個額度計算（目前合計 {day(combined)} 日）
+                        家庭照顧假的日數也併入這個額度計算，目前合計 {trim1(combined)} 小時{dayPart(combined) ? "（" + dayPart(combined) + "）" : ""}
                       </div>
                     )}
                   </div>
@@ -1734,8 +1800,11 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                   {showLeaveRules ? '收起請假規定' : '各假別請假規定一覽'}
                 </button>
                 {showLeaveRules && (
-                  <div style={{marginTop:8, fontSize:11.5, lineHeight:1.7, opacity:.85}}>
-                    <div style={{display:'grid', gridTemplateColumns:'auto auto 1fr', gap:'3px 10px'}}>
+                  /* 用實體卡片包住：加底色、外框與內距，避免展開後跟下方「班別時間」那段說明文字糊在一起 */
+                  <div style={{marginTop:8, padding:'12px 14px', fontSize:11.5, lineHeight:1.7,
+                               background:'rgba(128,128,128,.10)', border:'1px solid var(--line,#3a3a3a)', borderRadius:10}}>
+                    <div style={{fontSize:12, fontWeight:700, letterSpacing:'.05em', opacity:.8, marginBottom:8}}>各假別請假規定</div>
+                    <div style={{display:'grid', gridTemplateColumns:'auto auto 1fr', gap:'4px 12px', opacity:.9}}>
                       <b>假別</b><b>上限</b><b>說明</b>
                       <span>事假</span><span>全年 14 日</span><span>不給工資（勞工請假規則 7 條）</span>
                       <span>病假</span><span>全年 30 日</span><span>工資折半，超過部分不給薪（請假規則 4 條）</span>
@@ -1747,7 +1816,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                       <span>公假 / 公傷病假</span><span>依實際需要</span><span>全薪</span>
                       <span>災防假</span><span>—</span><span>不支薪，但不影響全勤與考績</span>
                     </div>
-                    <div style={{marginTop:8, opacity:.75}}>
+                    <div style={{marginTop:10, paddingTop:9, borderTop:'1px solid var(--line,#3a3a3a)', opacity:.75}}>
                       生理假、家庭照顧假、婚喪假、公假、公傷病假<b>不會扣全勤獎金</b>（性別平等工作法 21 條）。
                       病假、事假、遲到、早退則依時數比例扣。
                     </div>
@@ -1755,7 +1824,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 )}
               </div>
             </div>
-            <div className="hint" style={{marginBottom:10}}>班別時間 {shiftStart}~{shiftEnd}，請假時段需在此範圍內</div>
+            <div className="hint" style={{marginTop:4, marginBottom:10}}>班別時間 {shiftStart}~{shiftEnd}，請假時段需在此範圍內</div>
             <div className="field">
               <label>開始時間</label>
               <button type="button" className="ghost-btn" style={{textAlign:'center', display:'flex', justifyContent:'center', alignItems:'center', gap:8, background:'#1B2027', color:'var(--text)', border:'1px solid var(--line)'}} onClick={()=>setPickerFor('start')}>
@@ -1770,7 +1839,9 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 <span className="material-icons" style={{fontSize:18}}>event</span>
               </button>
             </div>
-            <div className="field"><label>請假時數（依起訖時間自動計算，最小單位 {unit} 小時，可手動調整）</label><input type="number" step={unit} min={unit} value={leaveBox.hours} onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} style={{textAlign:'center'}} /></div>
+            {/* step 刻意用 any 而不是 unit：清零那一筆（例如剩 0.2 小時）不是最小單位的倍數，
+                用 step={unit} 會被瀏覽器自己擋掉，連送都送不出去。倍數檢核由後端負責，且允許清零例外。 */}
+            <div className="field"><label>請假時數（依起訖時間自動計算，最小單位 {unit} 小時，可手動調整）</label><input type="number" step="any" min="0" value={leaveBox.hours} onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} style={{textAlign:'center'}} /></div>
             <div className="field"><label>代理人（選填）</label>
               <select value={leaveBox.delegateId} onChange={e=>setLeaveBox({...leaveBox, delegateId:e.target.value})} style={{textAlign:'center', textAlignLast:'center'}}>
                 <option value="">不指定</option>
@@ -2157,7 +2228,7 @@ function PayslipModal({onClose, showToast}){
     const h = n(hours);
     if(h<=0) return '';
     const days = Math.round((h/8)*10)/10;
-    return `${h}小時（${days}天）`;
+    return `${h}小時（${days} 日）`;
   }
   const familyCareHours = Math.min(n(leaveDetail?.familyCareHours), n(entry.personalLeave));
   const personalOnlyHours = Math.max(0, n(entry.personalLeave) - familyCareHours);
@@ -2257,7 +2328,7 @@ function PayslipModal({onClose, showToast}){
               <SectionHeader label="應發合計" amount={money(calc.payableTotal)} total={true} />
               <div style={{borderTop:'1px solid var(--line)', margin:'8px 0'}}></div>
               <div className="pl-row">
-                <span className="lbl">勞保費{data.calc.insFullMonth===false && <span style={{fontSize:11}}>（按{data.calc.insLaborDays}天計）</span>}</span>
+                <span className="lbl">勞保費{data.calc.insFullMonth===false && <span style={{fontSize:11}}>（按{data.calc.insLaborDays} 日計）</span>}</span>
                 <span className="val" style={{color:'var(--red)'}}>{negMoney(data.calc.laborFee)}</span>
               </div>
               <div className="pl-row">
@@ -2273,7 +2344,7 @@ function PayslipModal({onClose, showToast}){
                       {leaveItems.map(it=>(
                         <div className="pl-sub" key={it.label}><span>{it.label}</span><span>{negMoney(it.value)}</span></div>
                       ))}
-                      {(n(entry.sickLeave)>0 || n(entry.menstrualLeave)>0) && <div className="pl-note">病假、生理假：年度合計前30天半薪，超過不給薪</div>}
+                      {(n(entry.sickLeave)>0 || n(entry.menstrualLeave)>0) && <div className="pl-note">病假、生理假：年度合計前30 日半薪，超過不給薪</div>}
                     </div>
                   )}
                 </>
