@@ -1672,8 +1672,13 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
   }
 
   function reqSummary(r){
-    if(r.type==='請假') return `${r.leaveType}　${withWeekday(r.startTime)} ~ ${withWeekday(r.endTime)}　${r.hours}小時${r.delegateName?'　代理人：'+r.delegateName:''}`;
+    // 代理人不併進這一行：加了星期之後起訖已經很長，再接代理人會在手機上折行折得很難讀。
+    // 由呼叫端用 <reqDelegate> 另起一行顯示。
+    if(r.type==='請假') return `${r.leaveType}　${withWeekday(r.startTime)} ~ ${withWeekday(r.endTime)}　${r.hours}小時`;
     return `加班日期 ${withWeekday(String(r.startTime).split(' ')[0])}　${r.hours}小時`;
+  }
+  function reqDelegate(r){
+    return r.delegateName ? <><br/>代理人：{r.delegateName}</> : null;
   }
 
   return (
@@ -1713,7 +1718,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                 <div className="type">{r.name}　<span style={{color:'var(--gold)'}}>{r.type==='請假'?r.leaveType:'加班換補休'}</span></div>
                 <span className="status-badge pending">待審核</span>
               </div>
-              <div className="meta">{reqSummary(r)}{r.reason && <><br/>事由：{r.reason}</>}{r.attachmentUrl && <><br/><a href={r.attachmentUrl} target="_blank" rel="noopener" style={{color:'var(--gold)'}}>查看附件</a></>}<br/>申請於 {r.createdAt}</div>
+              <div className="meta">{reqSummary(r)}{reqDelegate(r)}{r.reason && <><br/>事由：{r.reason}</>}{r.attachmentUrl && <><br/><a href={r.attachmentUrl} target="_blank" rel="noopener" style={{color:'var(--gold)'}}>查看附件</a></>}<br/>申請於 {withWeekday(r.createdAt)}</div>
               <div className="req-actions">
                 <button className="btn-approve" onClick={()=>setReviewBox({req:r, mode:'approve', comment:''})}>核准</button>
                 <button className="btn-reject" onClick={()=>setReviewBox({req:r, mode:'reject', comment:''})}>駁回</button>
@@ -1734,6 +1739,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
           </div>
           <div className="meta">
             {reqSummary(r)}
+            {reqDelegate(r)}
             {r.reason && <><br/>事由：{r.reason}</>}
             {r.attachmentUrl && <><br/><a href={r.attachmentUrl} target="_blank" rel="noopener" style={{color:'var(--gold)'}}>查看附件</a></>}
             {STATUS_HINT[r.status] && <><br/><span style={{color:'var(--gold)'}}>{STATUS_HINT[r.status]}</span></>}
@@ -1983,7 +1989,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
             <h3><span className="material-icons">{reviewBox.mode==='approve'?'check_circle':'cancel'}</span>{reviewBox.mode==='approve'?'核准':'駁回'}申請</h3>
             <div className="card req-item" style={{marginBottom:12}}>
               <div className="type">{reviewBox.req.name}　{reviewBox.req.type==='請假'?reviewBox.req.leaveType:'加班換補休'}</div>
-              <div className="meta">{reqSummary(reviewBox.req)}{reviewBox.req.reason && <><br/>事由：{reviewBox.req.reason}</>}{reviewBox.req.attachmentUrl && <><br/><a href={reviewBox.req.attachmentUrl} target="_blank" rel="noopener" style={{color:'var(--gold)'}}>查看附件</a></>}</div>
+              <div className="meta">{reqSummary(reviewBox.req)}{reqDelegate(reviewBox.req)}{reviewBox.req.reason && <><br/>事由：{reviewBox.req.reason}</>}{reviewBox.req.attachmentUrl && <><br/><a href={reviewBox.req.attachmentUrl} target="_blank" rel="noopener" style={{color:'var(--gold)'}}>查看附件</a></>}</div>
             </div>
             <div className="field"><label>審核意見（選填）</label><textarea rows="2" value={reviewBox.comment} onChange={e=>setReviewBox({...reviewBox, comment:e.target.value})}></textarea></div>
             <div className="modal-actions">
