@@ -716,6 +716,13 @@ function printWithFilename(name){
   setTimeout(()=>window.print(), 0);
   setTimeout(restore, 3000);
 }
+/* 是否為「非正式員工」（外包／兼職）。
+   這類人談不上「離職」，但停止合作要處理的事情完全一樣，
+   所以介面上把「離職日」改稱「合作終止日」—— 換說法，不換機制。
+   負責人（委任關係）也不適用「離職」的說法，但他不會被終止，維持原字樣即可。 */
+function isCasual(emp){
+  return !!emp && emp.employeeType === '非正式員工';
+}
 function trimNum(v, decimals){
   const num = Number(v)||0;
   const fixed = num.toFixed(decimals);
@@ -1593,9 +1600,17 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
         <div className="grid-2">
           <div className="field"><label>到職日</label><input type="date" value={editing.hireDate} onChange={e=>setEditing({...editing, hireDate:e.target.value})} /></div>
           <div className="field">
-            <label>離職日</label>
-            <input type="date" value={editing.resignDate||''} onChange={e=>{ setEditing({...editing, resignDate:e.target.value, status: e.target.value ? '離職' : editing.status}); setResignPreview(null); }} />
-            <div className="hint" style={{marginTop:4}}>有填離職日時，勞保費當月按在職日數比例計算，健保費則看月底當天是否仍在職（在職才收整月保費）</div>
+            {/* 標籤依員工類型換字，底層仍是同一個欄位與同一套邏輯。
+                外包／兼職談不上「離職」，但停止合作要處理的事情完全一樣（從清單消失、
+                當月保費按日計算、特休結算），所以改說法而不是另外做一個「停用」開關 ——
+                多一個狀態就多一種互相矛盾的可能（曾發生「狀態=離職但離職日空白」）。 */}
+            <label>{isCasual(editing) ? '合作終止日' : '離職日'}</label>
+            <input type="date" value={editing.resignDate||''} onChange={e=>{ setEditing({...editing, resignDate:e.target.value, status: e.target.value ? '離職' : '在職'}); setResignPreview(null); }} />
+            <div className="hint" style={{marginTop:4}}>
+              {isCasual(editing)
+                ? '填了這個日期之後，這位就不會再出現在員工清單、出缺勤彙總與薪資計算裡。已產生的歷史薪資紀錄不受影響。清空日期即可恢復。'
+                : '有填離職日時，勞保費當月按在職日數比例計算，健保費則看月底當天是否仍在職（在職才收整月保費）'}
+            </div>
             {editing.resignDate && editing.hireDate && !isNew && (
               <div style={{marginTop:6}}>
                 <button type="button" className="ghost sm" disabled={resignPreviewLoading} onClick={loadResignPreview}>
@@ -1813,7 +1828,7 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
                       <td style={{whiteSpace:'normal'}}>
                         <button className="ghost sm" onClick={()=>onEdit(emp)}><span className="material-icons" style={{fontSize:14}}>edit</span>編輯</button>{' '}
                         <button className="ghost sm" onClick={()=>setAccountBox({employeeId:emp.id, name:emp.name, account:emp.phone||'', password: Math.random().toString(36).slice(2,8)})}><span className="material-icons" style={{fontSize:14}}>vpn_key</span>帳號</button>{' '}
-                        <button className="danger sm" onClick={()=>{ alert(`請在編輯視窗中手動填寫「${emp.name}」的離職日，儲存後即會標記為離職。`); onEdit(emp); }}><span className="material-icons" style={{fontSize:14}}>person_remove</span>離職</button>
+                        <button className="danger sm" onClick={()=>{ const lb = isCasual(emp) ? '合作終止日' : '離職日'; alert(`請在編輯視窗中填寫「${emp.name}」的${lb}，儲存後就會從清單移除（歷史薪資紀錄不受影響）。`); onEdit(emp); }}><span className="material-icons" style={{fontSize:14}}>person_remove</span>{isCasual(emp) ? '終止合作' : '離職'}</button>
                       </td>
                     </tr>
                   ))}
