@@ -1389,7 +1389,11 @@ function App(){
 
   const rows = useMemo(()=> employees.map(emp=>{
     const entry = payrollEntries[emp.id] || emptyEntry();
-    return {emp, entry, calc: calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||{menstrual:0,sick:0}, month)};
+    // hasRecord：該月是否真的有薪資紀錄。薪資表是輸入用的，全員都要列出（沒紀錄就是空白待填）；
+    // 但匯款明細表、薪資條這類「對外產出」的畫面必須靠它過濾，
+    // 否則選到還沒結算的月份，會用員工主檔當下的結構算出一整份不存在的付款清單。
+    return {emp, entry, hasRecord: !!payrollEntries[emp.id],
+      calc: calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||{menstrual:0,sick:0}, month)};
   }), [employees, payrollEntries, settings, menstrualBaseline, month]);
 
   const needsMonth = ['records','requests','attendance','payroll','payslip','transfer'].includes(tab);
@@ -2998,6 +3002,11 @@ function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseli
   const payDate06 = getActualPayDateJS(py, pm + 1, 6, holidaySet);
   const payDate26 = getActualPayDateJS(py, pm + 1, 26, holidaySet);
   const list = selected==='all' ? employees : employees.filter(e=>e.id===selected);
+  // 只有「該月真的有薪資紀錄」的人才產出薪資條，與前台 getMyPayslip 的 hasRecord 判斷一致。
+  // 沒有這道防呆的話，切到還沒結算的月份會用員工主檔「當下」的薪資結構即時算出一整批
+  // 薪資條 —— 那是一份根本還沒發生的薪資，卻可以直接列印出去交給員工。
+  const withRecord = list.filter(e=>payrollEntries[e.id]);
+  const missing = list.filter(e=>!payrollEntries[e.id]);
   return (
     <div>
       <div className="toolbar no-print">
@@ -3011,15 +3020,36 @@ function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseli
           <input type="checkbox" checked={hideZero} onChange={e=>setHideZero(e.target.checked)} style={{width:'auto'}} />
           隱藏金額為0的項目
         </label>
-        <button className="ghost sm" onClick={()=>{
+        <button className="ghost sm" disabled={withRecord.length===0}
+          title={withRecord.length===0 ? '這個月份沒有薪資紀錄，沒有東西可以列印' : ''}
+          onClick={()=>{
           const [yy,mo] = month.split('-');
           const who = selected==='all' ? '全部員工' : ((employees.find(e=>e.id===selected)||{}).name || '');
           printWithFilename(`${yy}年${mo}月份-薪資條-${who}`);
         }}>列印薪資條</button>
       </div>
       {list.length===0 && <div className="empty card">尚無員工資料</div>}
-      {list.map(emp=>{
-        const entry = payrollEntries[emp.id] || emptyEntry();
+
+      {list.length>0 && withRecord.length===0 && (
+        <div className="card" style={{textAlign:'center', padding:'34px 20px'}}>
+          <span className="material-icons" style={{fontSize:38, color:'var(--muted)'}}>event_busy</span>
+          <div style={{fontWeight:700, fontSize:15, margin:'10px 0 6px'}}>{month} 還沒有薪資紀錄，沒有薪資條可以產出</div>
+          <div className="hint" style={{lineHeight:1.7, maxWidth:'46em', margin:'0 auto'}}>
+            薪資於<b>次月</b>發放，{month} 的薪資要到次月 1–6 日才會結算。
+            請先到「薪資表」輸入並儲存，這裡才會出現內容。
+          </div>
+        </div>
+      )}
+
+      {withRecord.length>0 && missing.length>0 && (
+        <div className="hint" style={{marginBottom:10}}>
+          <span className="material-icons" style={{fontSize:15, verticalAlign:'-2px'}}>info</span>{' '}
+          {missing.length} 人在 {month} 沒有薪資紀錄，未產出薪資條：{missing.map(e=>e.name).join('、')}
+        </div>
+      )}
+
+      {withRecord.map(emp=>{
+        const entry = payrollEntries[emp.id];
         const calc = calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||{menstrual:0,sick:0}, month);
         return <Payslip key={emp.id} emp={emp} entry={entry} calc={calc} month={month} payDate06={payDate06} payDate26={payDate26} hideZero={hideZero} />;
       })}
@@ -3032,11 +3062,14 @@ function TransferTab({rows, month}){
   const [period, setPeriod] = useState('06');
   const [holidays, setHolidays] = useState([]);
   useEffect(()=>{ apiGet('getHolidays').then(setHolidays).catch(()=>{}); }, []);
+  // 只列有薪資紀錄的人：匯款明細表是要拿去銀行的付款清單，
+  // 還沒結算的月份不該生出任何一列，更不該有金額。
+  const paidRows = useMemo(()=> rows.filter(r=>r.hasRecord), [rows]);
   const byCompany = useMemo(()=>{
     const g = {};
-    rows.forEach(r => { const key = r.emp.company||'其他'; (g[key] = g[key]||[]).push(r); });
+    paidRows.forEach(r => { const key = r.emp.company||'其他'; (g[key] = g[key]||[]).push(r); });
     return g;
-  }, [rows]);
+  }, [paidRows]);
 
   // 薪資是「次月」發放（6 日發正常薪資、26 日發業務獎金），遇假日往前提早。
   // 原本這裡只印「26日發放」，月份會被誤解成計薪月份，實際上 2026-06 是 2026-07-26 才發。
@@ -3082,7 +3115,16 @@ function TransferTab({rows, month}){
         <button className="ghost sm" onClick={printTransfer}>列印 / 存 PDF</button>
       </div>
 
-      {companyEntries.length===0 && <div className="empty card">本期尚無需匯款資料</div>}
+      {/* 「還沒結算」與「結算了但這期沒人要領」是兩件事，訊息要分開講，
+          否則看到「尚無需匯款資料」會誤以為這個月真的不用匯款 */}
+      {companyEntries.length===0 && (
+        paidRows.length===0
+          ? <div className="empty card">
+              <b>{month} 還沒有薪資紀錄</b>
+              <div className="hint" style={{marginTop:6}}>薪資於次月發放，請先到「薪資表」輸入並儲存，這裡才會產生匯款清單。</div>
+            </div>
+          : <div className="empty card">本期（{Number(period)} 號）沒有需要匯款的人員，金額皆為 0。</div>
+      )}
 
       {companyEntries.map(({company, active, total})=>(
         <div className="card" key={company} style={{overflowX:'auto'}}>
