@@ -4335,11 +4335,26 @@ function DashboardTab({setTab}){
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [remind, setRemind] = useState(null); // 薪資作業提醒，失敗不影響其他統計顯示
+  const [markBusy, setMarkBusy] = useState(false);
 
   function load(){
     setLoading(true);
     apiGet('getDashboardStats').then(setStats).catch(e=>alert(e.message)).finally(()=>setLoading(false));
     apiGet('getPayrollReminders').then(setRemind).catch(()=>setRemind(null));
+  }
+
+  // 標記／取消標記「這一期薪資作業已完成」。
+  // 標記存在後端的設定表（不是 localStorage），換裝置換瀏覽器都看得到同一份狀態。
+  async function markStage(undo){
+    if(!remind || remind.階段==='idle') return;
+    setMarkBusy(true);
+    try{
+      await apiPost('markPayrollStageDone', {month: remind.上個月, stage: remind.階段, undo: !!undo});
+      // 重新抓一次而不是本地改狀態：完成時間與標記者由後端決定
+      const fresh = await apiGet('getPayrollReminders');
+      setRemind(fresh);
+    }catch(e){ alert(e.message); }
+    finally{ setMarkBusy(false); }
   }
   useEffect(load, []);
 
@@ -4364,13 +4379,26 @@ function DashboardTab({setTab}){
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
-      {remind && (
-        <div className="card" style={{marginBottom:18, borderLeft:'4px solid '+STAGE_STYLE[remind.階段].color}}>
+      {remind && (()=>{
+        // 已標記完成的階段，整張卡片轉為低調的「已完成」樣式；
+        // 但「未鎖定月份」「假單待審逾期」照常顯示 —— 那是查表算出來的事實，
+        // 不該被一顆按鈕蓋掉，否則會變成把真正的問題藏起來。
+        const done = !!remind.已完成;
+        const tone = done ? {color:'var(--green, #4f9b6f)', icon:'task_alt'} : STAGE_STYLE[remind.階段];
+        return (
+        <div className="card" style={{marginBottom:18, borderLeft:'4px solid '+tone.color, opacity: done ? .82 : 1}}>
           <div style={{display:'flex', alignItems:'flex-start', gap:12}}>
-            <span className="material-icons" style={{fontSize:28, color:STAGE_STYLE[remind.階段].color}}>{STAGE_STYLE[remind.階段].icon}</span>
+            <span className="material-icons" style={{fontSize:28, color:tone.color}}>{tone.icon}</span>
             <div style={{flex:1}}>
-              <div style={{fontSize:15, fontWeight:700, color:STAGE_STYLE[remind.階段].color}}>{remind.標題}</div>
-              <div className="hint" style={{marginTop:4}}>{remind.說明}</div>
+              <div style={{fontSize:15, fontWeight:700, color:tone.color}}>
+                {remind.標題}
+                {done && <span style={{fontWeight:400, fontSize:12.5, marginLeft:8}}>已標記完成</span>}
+              </div>
+              <div className="hint" style={{marginTop:4}}>
+                {done
+                  ? <>由 {remind.完成標記者} 於 {remind.完成時間} 標記完成。這一期不會再提醒，下個月會自動重新開始。</>
+                  : remind.說明}
+              </div>
 
               {remind.未鎖定月份.length>0 && (
                 <div style={{marginTop:10}}>
@@ -4391,14 +4419,26 @@ function DashboardTab({setTab}){
                 </div>
               )}
 
-              <div style={{marginTop:10, display:'flex', gap:8}}>
+              <div style={{marginTop:10, display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
                 <button className="ghost sm" onClick={()=>setTab('payroll')}>前往薪資計算</button>
                 {remind.假單待審逾期.length>0 && <button className="ghost sm" onClick={()=>setTab('requests')}>前往假單審核</button>}
+                <span className="grow"></span>
+                {remind.階段!=='idle' && (
+                  done
+                    ? <button className="ghost sm" disabled={markBusy}
+                        onClick={()=>markStage(true)}>{markBusy?'處理中...':'取消完成標記'}</button>
+                    : <button className="sm" disabled={markBusy}
+                        onClick={()=>markStage(false)}>
+                        <span className="material-icons" style={{fontSize:15}}>done</span>
+                        {markBusy?'處理中...':'這一期已完成'}
+                      </button>
+                )}
               </div>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {loading || !stats ? <div className="hint">載入中...</div> : (
         <>
