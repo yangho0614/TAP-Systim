@@ -85,6 +85,10 @@
   .sig-cell{ height:20mm; min-width:20mm; }
 
   /* 每位員工一張卡片，畫面上的區塊 = 印出來的一頁 */
+  /* 已離職／終止合作的員工列：整列淡化但仍可讀，操作按鈕維持正常對比 */
+  .emp-inactive > td{ opacity:.55; }
+  .emp-inactive > td:last-child{ opacity:1; }
+  .badge.off{ background:#E4E7EA; color:#5c646e; }
   .reg-card{ margin-bottom:18px; padding:0; }
   /* 抬頭放在每張卡片裡：列印時每一頁都要看得出是哪家公司、哪個年度的清冊 */
   .reg-head{ padding:10px 14px 8px; border-bottom:1px solid var(--line); }
@@ -1227,9 +1231,15 @@ function App(){
     setCheckingSession(false);
   }, []);
 
-  function reloadEmployees(){
+  const [showInactive, setShowInactive] = useState(false);
+  function reloadEmployees(inc){
+    /* ⚠️ 已離職／已終止合作的人預設會被後端濾掉。若前台完全拿不到他們，
+       就永遠打不開編輯視窗、也就沒辦法清空日期把人叫回來 —— 實際踩過：
+       設了合作終止日之後那個人直接從系統消失，只能靠後端函式救回。 */
+    const withInactive = inc === undefined ? showInactive : inc;
     setEmployeesLoading(true);
-    return apiGet('getEmployees').then(setEmployees).catch(e=>alert(e.message)).finally(()=>setEmployeesLoading(false));
+    return apiGet('getEmployees', withInactive ? {includeInactive:'true'} : {})
+      .then(setEmployees).catch(e=>alert(e.message)).finally(()=>setEmployeesLoading(false));
   }
   function reloadPayroll(m){
     setPayrollLoading(true);
@@ -1463,7 +1473,7 @@ function App(){
         <div className="content">
           {tab==='dashboard' && <DashboardTab setTab={setTab}/>}
           {tab==='guide' && <GuideTab setTab={setTab}/>}
-          {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees} onEdit={openEditEmployee} onNew={openNewEmployee} accountBox={accountBox} setAccountBox={setAccountBox} createAccountSubmit={createAccountSubmit}/>}
+          {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees} onEdit={openEditEmployee} onNew={openNewEmployee} accountBox={accountBox} setAccountBox={setAccountBox} createAccountSubmit={createAccountSubmit} showInactive={showInactive} setShowInactive={v=>{ setShowInactive(v); reloadEmployees(v); }}/>}
           {tab==='records' && <RecordsTab employees={employees} month={month}/>}
           {tab==='requests' && <RequestsTab month={month} employees={employees}/>}
           {tab==='annual' && <AnnualLeaveTab employees={employees}/>}
@@ -1781,7 +1791,7 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
   );
 }
 
-function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, setAccountBox, createAccountSubmit}){
+function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, setAccountBox, createAccountSubmit, showInactive, setShowInactive}){
   const companiesByCo = [...new Set(employees.map(e=>e.company).filter(Boolean))];
 
   return (
@@ -1789,8 +1799,13 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
       <div className="toolbar">
         <button onClick={onNew}><span className="material-icons">person_add</span>新增員工</button>
         <span className="grow"></span>
-        <button className="ghost sm" onClick={reload}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
-        <span className="hint">共 {employees.length} 位在職員工</span>
+        <label style={{display:'flex', alignItems:'center', gap:5, fontSize:13, marginBottom:0}}
+          title="已離職或已終止合作的人預設不顯示。要把人叫回來，勾選後開啟他的編輯視窗、清空日期再儲存即可">
+          <input type="checkbox" checked={!!showInactive} onChange={e=>setShowInactive(e.target.checked)} style={{width:'auto'}} />
+          顯示已離職／已終止合作
+        </label>
+        <button className="ghost sm" onClick={()=>reload()}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
+        <span className="hint">共 {employees.filter(e=>e.status!=='離職').length} 位在職{showInactive && employees.some(e=>e.status==='離職') ? `，另有 ${employees.filter(e=>e.status==='離職').length} 位已離職／終止` : ''}</span>
       </div>
 
       {loading ? <div className="hint">載入中...</div> : (
@@ -1814,9 +1829,9 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
                 </thead>
                 <tbody>
                   {employees.filter(e=>(e.company||'(未分類)')===co).map(emp=>(
-                    <tr key={emp.id}>
+                    <tr key={emp.id} className={emp.status==='離職' ? 'emp-inactive' : ''}>
                       <td className="left">{emp.department}</td>
-                      <td className="left" style={{cursor:'pointer'}} onClick={()=>onEdit(emp)}><b>{emp.name}</b>{emp.employeeType && emp.employeeType !== '正式員工' && <span className="badge warn" style={{marginLeft:6}}>{emp.employeeType}</span>}{emp.exemptFromAttendance && (!emp.employeeType || emp.employeeType === '正式員工') && <span className="badge warn" style={{marginLeft:6}}>免打卡</span>}</td>
+                      <td className="left" style={{cursor:'pointer'}} onClick={()=>onEdit(emp)}><b>{emp.name}</b>{emp.status === '離職' && <span className="badge off" style={{marginLeft:6}}>{isCasual(emp) ? '已終止合作' : '已離職'}{emp.resignDate ? ' ' + emp.resignDate : ''}</span>}{emp.employeeType && emp.employeeType !== '正式員工' && <span className="badge warn" style={{marginLeft:6}}>{emp.employeeType}</span>}{emp.exemptFromAttendance && (!emp.employeeType || emp.employeeType === '正式員工') && <span className="badge warn" style={{marginLeft:6}}>免打卡</span>}</td>
                       <td className="left mono">{emp.phone}</td>
                       <td>{emp.shift ? emp.shift.name : <span className="hint">預設</span>}</td>
                       <td>{emp.hireDate || '-'}</td>
@@ -1828,7 +1843,18 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
                       <td style={{whiteSpace:'normal'}}>
                         <button className="ghost sm" onClick={()=>onEdit(emp)}><span className="material-icons" style={{fontSize:14}}>edit</span>編輯</button>{' '}
                         <button className="ghost sm" onClick={()=>setAccountBox({employeeId:emp.id, name:emp.name, account:emp.phone||'', password: Math.random().toString(36).slice(2,8)})}><span className="material-icons" style={{fontSize:14}}>vpn_key</span>帳號</button>{' '}
-                        <button className="danger sm" onClick={()=>{ const lb = isCasual(emp) ? '合作終止日' : '離職日'; alert(`請在編輯視窗中填寫「${emp.name}」的${lb}，儲存後就會從清單移除（歷史薪資紀錄不受影響）。`); onEdit(emp); }}><span className="material-icons" style={{fontSize:14}}>person_remove</span>{isCasual(emp) ? '終止合作' : '離職'}</button>
+                        {emp.status === '離職' ? (
+                          /* 已離職／終止合作者的一鍵恢復。後端會同時把狀態改回在職並清空日期 ——
+                             兩者必須一起改，只改一個會留下矛盾狀態，下次存檔又會消失。 */
+                          <button className="ghost sm" onClick={async()=>{
+                            const lb = isCasual(emp) ? '終止合作' : '離職';
+                            if(!confirm(`要把「${emp.name}」恢復嗎？\n\n會清除${lb}日期並改回在職，之後就會重新出現在各項清單裡。`)) return;
+                            try{ await apiPost('setEmployeeStatus', {id:emp.id, status:'在職', dryRun:false}); reload(); }
+                            catch(err){ alert(err.message); }
+                          }}><span className="material-icons" style={{fontSize:14}}>undo</span>恢復</button>
+                        ) : (
+                          <button className="danger sm" onClick={()=>{ const lb = isCasual(emp) ? '合作終止日' : '離職日'; alert(`請在編輯視窗中填寫「${emp.name}」的${lb}，儲存後就會從清單移除（歷史薪資紀錄不受影響）。\n\n之後可勾選上方「顯示已離職／已終止合作」把人找回來。`); onEdit(emp); }}><span className="material-icons" style={{fontSize:14}}>person_remove</span>{isCasual(emp) ? '終止合作' : '離職'}</button>
+                        )}
                       </td>
                     </tr>
                   ))}
