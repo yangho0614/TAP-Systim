@@ -4390,13 +4390,14 @@ function DashboardTab({setTab}){
           <div style={{display:'flex', alignItems:'flex-start', gap:12}}>
             <span className="material-icons" style={{fontSize:28, color:tone.color}}>{tone.icon}</span>
             <div style={{flex:1}}>
+              {/* 已完成時不要再用祈使句當標題（「請補入…」做完了還在叫人做很怪），
+                  改用後端給的中性名稱，前面直接標「已完成」。 */}
               <div style={{fontSize:15, fontWeight:700, color:tone.color}}>
-                {remind.標題}
-                {done && <span style={{fontWeight:400, fontSize:12.5, marginLeft:8}}>已標記完成</span>}
+                {done ? <>已完成：{remind.項目名稱 || remind.標題}</> : remind.標題}
               </div>
               <div className="hint" style={{marginTop:4}}>
                 {done
-                  ? <>由 {remind.完成標記者} 於 {remind.完成時間} 標記完成。這一期不會再提醒，下個月會自動重新開始。</>
+                  ? <>{remind.完成標記者} 在 {remind.完成時間} 標記的。這個月不會再提醒你，也不會再寄信；下個月時間到了會自動重新提醒。</>
                   : remind.說明}
               </div>
 
@@ -4423,14 +4424,20 @@ function DashboardTab({setTab}){
                 <button className="ghost sm" onClick={()=>setTab('payroll')}>前往薪資計算</button>
                 {remind.假單待審逾期.length>0 && <button className="ghost sm" onClick={()=>setTab('requests')}>前往假單審核</button>}
                 <span className="grow"></span>
+                {/* 按鈕文字直接寫「按下去會發生什麼」，不要用「取消／還原」這種要反著想的詞 */}
                 {remind.階段!=='idle' && (
                   done
                     ? <button className="ghost sm" disabled={markBusy}
-                        onClick={()=>markStage(true)}>{markBusy?'處理中...':'取消完成標記'}</button>
+                        title="標錯了？改回未完成，卡片會恢復提醒"
+                        onClick={()=>markStage(true)}>
+                        <span className="material-icons" style={{fontSize:15}}>undo</span>
+                        {markBusy?'處理中...':'改回未完成'}
+                      </button>
                     : <button className="sm" disabled={markBusy}
+                        title="標記為已完成，這個月就不再提醒，下個月自動恢復"
                         onClick={()=>markStage(false)}>
                         <span className="material-icons" style={{fontSize:15}}>done</span>
-                        {markBusy?'處理中...':'這一期已完成'}
+                        {markBusy?'處理中...':'我做完了，別再提醒'}
                       </button>
                 )}
               </div>
