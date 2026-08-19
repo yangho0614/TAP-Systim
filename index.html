@@ -26,13 +26,20 @@
     --text:#EEEEEE; --muted:#9CA3AC;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  /* ⚠️ background-color 一定要單獨寫。加到主畫面後 iOS 用「純色」背景填狀態列與 home indicator
+     那兩條 safe area，漸層（background-image）不算，只寫漸層會退回預設的白色。 */
+  html{ background-color:#222831; }
   html,body{margin:0;padding:0;}
   body{
-    background:radial-gradient(circle at 50% -10%, var(--bg-2), var(--bg-1) 60%);
+    background-color:var(--bg-1);
+    background-image:radial-gradient(circle at 50% -10%, var(--bg-2), var(--bg-1) 60%);
     color:var(--text); font-family:'Noto Sans TC',sans-serif; min-height:100vh; min-height:100dvh;
   }
   .material-icons{vertical-align:middle; line-height:1;}
-  .app{ max-width:480px; margin:0 auto; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; padding-bottom:76px; }
+  /* tabbar 是 fixed，靠 padding-bottom 讓位。--tabbar-h 由 JS 實測 tabbar 高度後寫入（見 tabbarRef），
+     猜錯的話不是「底下空一截」就是「內容被 tabbar 蓋住」。76px 只是量到之前的保底值。 */
+  .app{ max-width:480px; margin:0 auto; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column;
+    padding-bottom:var(--tabbar-h, 76px); }
   .app:not(:has(.tabbar)){ justify-content:center; padding-bottom:0; }
 
   /* 頂欄 */
@@ -55,6 +62,11 @@
 
   .page{ flex:1; padding:6px 16px 24px 16px; }
   .punch-hero{ margin:0 -16px -24px -16px; border-radius:16px 16px 0 0; }
+  /* ⚠️ 地圖高度不能寫死。Safari 分頁模式有網址列吃掉高度，640px 剛好填滿；加到主畫面後
+     可視範圍多出約 300px，底部就空出一截。改用 flex 撐滿剩餘空間，兩種模式都對。
+     （inline style 的 minHeight:640 仍在，小螢幕不足時保底並改用捲動） */
+  .page:has(> .punch-hero){ display:flex; flex-direction:column; }
+  .page > .punch-hero{ flex:1 1 auto; }
   @media (min-width:900px){ .punch-hero{ margin:0 -32px -32px -32px; } }
   .page h2{ font-size:16px; font-weight:700; margin:14px 2px 10px 2px; display:flex; align-items:center; gap:7px; }
 
@@ -1499,7 +1511,7 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
           </div>
         </div>
       )}
-      <div className="punch-hero" style={{position:'relative', overflow:'hidden', minHeight:640, background:'var(--bg-1)'}}>
+      <div className="punch-hero" style={{position:'relative', overflow:'hidden', minHeight:480, background:'var(--bg-1)'}}>
         <PunchMap companyLat={settings?.lat} companyLng={settings?.lng} radius={settings?.radius} deviceLat={deviceLoc?.lat} deviceLng={deviceLoc?.lng} companyName={session?.employee?.company} />
 
         <button onClick={showMyLocation} disabled={locState==='loading'} style={{
@@ -2632,6 +2644,20 @@ function App(){
   const [toast, setToast] = useState(null);
   const [pwOpen, setPwOpen] = useState(false);
 
+  // tabbar 是 fixed，靠 .app 的 padding-bottom 讓位。那個高度不能寫死也不好用 CSS 硬算：
+  // 它會隨 home indicator（safe-area-inset）、字級與桌機的 media query 變動，猜錯就是
+  // 「底下空一截」或「內容被 tabbar 蓋住」。直接量它，寫進 --tabbar-h。
+  const tabbarRef = useRef(null);
+  useEffect(()=>{
+    const el = tabbarRef.current;
+    if(!el) return;
+    const apply = ()=> document.documentElement.style.setProperty('--tabbar-h', el.offsetHeight + 'px');
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return ()=>{ ro.disconnect(); document.documentElement.style.removeProperty('--tabbar-h'); };
+  }, [session]);   // 登入前沒有 tabbar，登入後才掛得上
+
   function showToast(msg, type){
     setToast({msg, type});
     setTimeout(()=>setToast(null), 3500);
@@ -2763,7 +2789,7 @@ function App(){
           {tab==='schedule' && <CalendarPage session={session} showToast={showToast} />}
           {tab==='news' && <NewsPage showToast={showToast} onMarkedRead={()=>setUnreadAnnounceCount(0)} />}
 
-          <div className="tabbar">
+          <div className="tabbar" ref={tabbarRef}>
             <div className="tabbar-inner">
               {TABS.map(t=>(
                 <div key={t.id} className={'tab'+(tab===t.id?' active':'')} onClick={()=>setTab(t.id)}>
