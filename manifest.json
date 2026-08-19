@@ -1,0 +1,17 @@
+{
+  "name": "出缺勤打卡系統",
+  "short_name": "出缺勤打卡系統",
+  "description": "mammyshop 媽咪小站 員工專區：打卡、請假、薪資條、公告",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#222831",
+  "theme_color": "#222831",
+  "lang": "zh-Hant-TW",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

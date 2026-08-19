@@ -4,7 +4,18 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>員工專區</title>
-<link rel="icon" id="favicon-link" href="" />
+<link rel="icon" id="favicon-link" href="icons/favicon-32.png" />
+
+<!-- 加到主畫面（PWA）。目的不只是好看：iOS Safari 對一般網頁的定位授權大約一天就過期，
+     從主畫面啟動的 web app 有獨立的權限儲存，允許過就長期保留，不必每天重按一次。
+     ⚠️ 主畫面版是獨立的儲存空間，localStorage 不與 Safari 共用，首次要重新登入一次。 -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#222831" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="出缺勤打卡系統" />
+<!-- status bar 用 black 而非 black-translucent：後者會讓內容鑽到瀏海底下，現有版面沒有預留 safe-area -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
