@@ -1405,12 +1405,18 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
   const [modal, setModal] = useState(null); // 'in'|'out'|'outgo'|'return'
   const [modalState, setModalState] = useState('confirm');
   const [deviceLoc, setDeviceLoc] = useState(null);
+  const [locState, setLocState] = useState('idle'); // idle|loading
 
-  useEffect(()=>{
-    let cancelled = false;
-    getLocation().then(loc=>{ if(!cancelled && loc.lat) setDeviceLoc(loc); });
-    return ()=>{ cancelled = true; };
-  }, []);
+  // ⚠️ 刻意「不」在進頁面時自動定位。iOS Safari 對一般網頁的定位授權大約一天就過期，
+  //    自動定位等於每天一進打卡頁（就算只是看一眼今天打了沒）都被要求授權一次。
+  //    位置只在兩種時機取得：使用者主動按「顯示我的位置」，或真正按下打卡確認時。
+  async function showMyLocation(){
+    setLocState('loading');
+    const loc = await getLocation();
+    setLocState('idle');
+    if(loc.lat) setDeviceLoc(loc);
+    else showToast(loc.error || '無法取得定位', 'err');
+  }
 
   const LABEL = {in:'上班打卡', out:'下班打卡', outgo:'外出', 'return':'返回'};
   const ACTION = {in:'clockIn', out:'clockOut', outgo:'clockOutgo', 'return':'clockReturn'};
@@ -1484,6 +1490,19 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
       )}
       <div className="punch-hero" style={{position:'relative', overflow:'hidden', minHeight:640, background:'var(--bg-1)'}}>
         <PunchMap companyLat={settings?.lat} companyLng={settings?.lng} radius={settings?.radius} deviceLat={deviceLoc?.lat} deviceLng={deviceLoc?.lng} companyName={session?.employee?.company} />
+
+        <button onClick={showMyLocation} disabled={locState==='loading'} style={{
+          position:'absolute', right:14, top:'31%', display:'flex', alignItems:'center', gap:6,
+          background:'rgba(57,62,70,0.86)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)',
+          border:'1px solid var(--line)', borderRadius:999, padding:'8px 13px 8px 11px',
+          color: deviceLoc ? 'var(--gold)' : 'var(--text)', fontSize:12.5, fontWeight:600,
+          boxShadow:'0 6px 16px rgba(0,0,0,.38)', cursor:'pointer', opacity: locState==='loading' ? .7 : 1, zIndex:2
+        }}>
+          {locState==='loading'
+            ? <span className="spinner"></span>
+            : <span className="material-icons" style={{fontSize:17}}>my_location</span>}
+          {locState==='loading' ? '定位中…' : (deviceLoc ? '重新定位' : '顯示我的位置')}
+        </button>
 
         <div style={{position:'absolute', left:8, right:8, top:8, background:'rgba(57,62,70,0.8)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)', border:'1px solid var(--line)', borderRadius:14, padding:'12px 14px', boxShadow:'0 8px 20px rgba(0,0,0,.4)'}}>
           <div className="status-grid" style={{marginTop:0}}>
