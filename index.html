@@ -714,12 +714,15 @@ const STATUS_HINT = {'待審核':'等待主管審核', '初核通過':'主管已
 /* ========================= 登入畫面 ========================= */
 /* ========================= 自訂日期時間選擇器 ========================= */
 function CustomDateTimePicker({value, onConfirm, onClose, dateOnly}){
-  const initial = value ? new Date(dateOnly ? value+'T00:00' : value) : new Date();
+  const raw = value ? new Date(dateOnly ? value+'T00:00' : value) : new Date();
+  // 分鐘先對齊到 5 分鐘格再取各欄位：58 分會進位成下一小時（甚至跨日），所以日期必須跟著算完的結果取
+  const initial = new Date(raw);
+  if(!dateOnly) initial.setMinutes(Math.round(raw.getMinutes()/5)*5, 0, 0);
   const [viewY, setViewY] = useState(initial.getFullYear());
   const [viewM, setViewM] = useState(initial.getMonth()); // 0-11
   const [selDate, setSelDate] = useState(`${initial.getFullYear()}-${String(initial.getMonth()+1).padStart(2,'0')}-${String(initial.getDate()).padStart(2,'0')}`);
   const [selHour, setSelHour] = useState(initial.getHours());
-  const [selMin, setSelMin] = useState(Math.round(initial.getMinutes()/5)*5 % 60);
+  const [selMin, setSelMin] = useState(initial.getMinutes());
   const hourRef = useRef(null);
   const minRef = useRef(null);
   const ROW_H = 40;
@@ -803,7 +806,7 @@ function CustomDateTimePicker({value, onConfirm, onClose, dateOnly}){
               <div ref={hourRef} onScroll={onHourScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center', position:'relative', zIndex:1}}>
                 <div style={{height:ROW_H}}></div>
                 {Array.from({length:24}, (_,h)=>(
-                  <div key={h} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'start', fontSize: h===selHour?18:14, fontWeight: h===selHour?700:400, color: h===selHour?'var(--text)':'var(--muted)'}}>
+                  <div key={h} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'center', fontSize: h===selHour?18:14, fontWeight: h===selHour?700:400, color: h===selHour?'var(--text)':'var(--muted)'}}>
                     {String(h).padStart(2,'0')}
                   </div>
                 ))}
@@ -813,7 +816,7 @@ function CustomDateTimePicker({value, onConfirm, onClose, dateOnly}){
               <div ref={minRef} onScroll={onMinScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center', position:'relative', zIndex:1}}>
                 <div style={{height:ROW_H}}></div>
                 {Array.from({length:12}, (_,i)=>i*5).map(m=>(
-                  <div key={m} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'start', fontSize: m===selMin?18:14, fontWeight: m===selMin?700:400, color: m===selMin?'var(--text)':'var(--muted)'}}>
+                  <div key={m} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'center', fontSize: m===selMin?18:14, fontWeight: m===selMin?700:400, color: m===selMin?'var(--text)':'var(--muted)'}}>
                     {String(m).padStart(2,'0')}
                   </div>
                 ))}
