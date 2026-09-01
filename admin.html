@@ -2297,7 +2297,8 @@ function AttendanceTab({month, onApply, allLocked}){
                       {g('gap') && <>
                         <td className="center" title={`當月應出勤 ${e.requiredDays||0} 天`}>{trimNum(e.requiredHours,1)}</td>
                         <Z v={e.creditedHours} />
-                        <td className={'center gap-val' + (n(e.gapHours)>0 ? ' has' : ' zero-dim')}>
+                        <td className={'center gap-val' + (n(e.gapHours)>0 ? ' has' : ' zero-dim')}
+                            title="應出勤扣掉「實際出勤＋已核准請假」。未達 1 小時的零碎差額不列入（由全勤獎金機制按比例扣），所以這個數字會等於展開後逐日清單的總和">
                           {trimNum(e.gapHours,1)}
                           {n(e.gapHours)>0 && n(e.gapHours)>n(e.gapHoursAfterPending) && (
                             <span className="gap-pend" title="其中這些時數已經有假單在審核中，批准後就會補平">
@@ -5291,6 +5292,15 @@ function SettingsTab({onSaved, initialCategory}){
           <input type="number" value={s.minimumWage} onChange={e=>setS({...s,minimumWage:e.target.value})} />
           <div className="hint" style={{marginTop:4}}>
             供儀表板與員工編輯視窗警示用，不影響薪資計算。每年基本工資調整時改這裡即可，不必動程式。
+          </div>
+        </div>
+        <div className="field">
+          <label>出勤紀錄起算日</label>
+          <input type="date" value={(s.attendanceStartDate||'').slice(0,10)} onChange={e=>setS({...s,attendanceStartDate:e.target.value})} />
+          <div className="hint" style={{marginTop:4}}>
+            這一天以前<b>不做出勤時數對帳</b>。打卡系統正式啟用前，系統裡沒有紀錄不代表沒來上班，
+            不設定的話上線前的每個工作日都會被算成缺勤。留空＝不限制。
+            <br/>本系統第一筆打卡是 <b>2026-08-14</b>，之前的出勤以紙本打卡片為準。
           </div>
         </div>
       </div>
