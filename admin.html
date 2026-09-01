@@ -430,7 +430,8 @@
   .grp-chip.on{background:rgba(0,173,181,.10); border-color:rgba(0,173,181,.45); color:var(--brand);}
   .grp-chip.on:hover{background:rgba(0,173,181,.16); color:var(--brand);}
   .grp-chip.on .grp-dot{opacity:1;}
-  /* 分組表頭配色：出勤=品牌色、扣薪假=警示色、有薪假=紫、加班=琥珀 */
+  /* 分組表頭配色：對帳=石板灰、出勤=品牌色、扣薪假=警示色、有薪假=紫、加班=琥珀 */
+  .sum-tbl th.grp-gap{background:rgba(60,70,84,.10); color:#3c4654;}
   .sum-tbl th.grp-att{background:rgba(0,173,181,.12); color:#00767C;}
   .sum-tbl th.grp-un{background:rgba(161,61,61,.10); color:var(--danger);}
   .sum-tbl th.grp-pd{background:rgba(107,83,184,.10); color:#5a45a0;}
@@ -446,6 +447,42 @@
                        background:rgba(160,106,16,.14); color:#8a5a0d; font-size:11px; font-weight:700;}
   .sum-tbl .occ-tag{display:inline-block; margin:1px 2px; padding:1px 7px; border-radius:5px;
                     background:rgba(107,83,184,.12); color:#5a45a0; font-size:11.5px; font-weight:700;}
+
+  /* ---- 出勤時數對帳（2026-09-01）----
+     缺口＝應出勤－已認列。這是薪資結算前最該先看的一欄，所以配色比其他警示重：
+     整列左緣一條紅邊，掃過去就知道是誰。 */
+  .sum-tbl td.gap-val{font-weight:800; font-variant-numeric:tabular-nums;}
+  .sum-tbl td.gap-val.has{color:var(--danger);}
+  .sum-tbl tr.gap-row td:first-child{box-shadow:inset 3px 0 0 var(--danger);}
+  .sum-tbl .gap-pend{display:inline-block; margin-left:5px; padding:1px 6px; border-radius:5px;
+                     background:rgba(160,106,16,.14); color:#8a5a0d; font-size:10.5px; font-weight:700;}
+  /* 對帳橫幅：整頁最上面，收合欄位群組也還看得到總數 */
+  .gap-banner{display:flex; align-items:flex-start; gap:12px; padding:13px 16px; border-radius:10px;
+              margin-bottom:10px; font-size:13px; line-height:1.65;}
+  .gap-banner .material-icons{font-size:21px; flex-shrink:0; margin-top:1px;}
+  .gap-banner .gb-body{flex:1; min-width:0;}
+  .gap-banner .gb-title{font-weight:800; font-size:13.5px;}
+  .gap-banner .gb-sub{color:var(--muted); font-size:12px; margin-top:2px;}
+  .gap-banner.warn{background:rgba(161,61,61,.07); border:1px solid rgba(161,61,61,.22);}
+  .gap-banner.warn .material-icons, .gap-banner.warn .gb-title{color:var(--danger);}
+  .gap-banner.ok{background:rgba(0,173,181,.07); border:1px solid rgba(0,173,181,.22);}
+  .gap-banner.ok .material-icons, .gap-banner.ok .gb-title{color:#00767C;}
+  .gap-banner .gb-names{margin-top:5px; display:flex; flex-wrap:wrap; gap:5px;}
+  .gap-banner .gb-name{padding:2px 9px; border-radius:20px; background:#fff; border:1px solid rgba(161,61,61,.28);
+                       color:var(--danger); font-size:11.5px; font-weight:700; font-variant-numeric:tabular-nums;}
+  /* 展開列裡的缺口日期清單：與假單明細同一套 grid 寬度，兩區才會齊頭 */
+  .gap-days{margin-bottom:14px;}
+  .gap-days .gd-title{font-size:11px; font-weight:700; letter-spacing:.08em; color:var(--danger);
+                      padding-left:10px; margin-bottom:5px;}
+  .gd-row{display:grid; grid-template-columns:7.4em 5.4em 5em minmax(0,1fr); gap:10px; max-width:720px;
+          padding:6px 10px; border-radius:7px; font-size:12.5px; align-items:baseline;}
+  .gd-row:nth-child(odd){background:rgba(161,61,61,.06);}
+  .gd-date{font-weight:700; font-variant-numeric:tabular-nums;}
+  .gd-why{padding:1px 8px; border-radius:5px; font-size:11px; font-weight:700; justify-self:start; white-space:nowrap;
+          background:rgba(161,61,61,.14); color:var(--danger);}
+  .gd-why.punch{background:rgba(160,106,16,.16); color:#8a5a0d;}
+  .gd-hr{text-align:right; font-variant-numeric:tabular-nums; font-weight:700; color:var(--danger);}
+  .gd-note{color:var(--muted); font-variant-numeric:tabular-nums;}
 
   /* 展開的逐筆假單。⚠️ 表頭與資料列是兩個獨立的 grid，軌道必須完全一致才會對齊；
      最後一欄用 auto 會讓兩邊依各自內容算出不同寬度，中間的 1fr 吸收差額就對不上。
@@ -1479,7 +1516,7 @@ function App(){
           {tab==='guide' && <GuideTab setTab={setTab}/>}
           {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees} onEdit={openEditEmployee} onNew={openNewEmployee} accountBox={accountBox} setAccountBox={setAccountBox} createAccountSubmit={createAccountSubmit} showInactive={showInactive} setShowInactive={v=>{ setShowInactive(v); reloadEmployees(v); }}/>}
           {tab==='records' && <RecordsTab employees={employees} month={month}/>}
-          {tab==='requests' && <RequestsTab month={month} employees={employees}/>}
+          {tab==='requests' && <RequestsTab month={month} employees={employees} setTab={setTab}/>}
           {tab==='annual' && <AnnualLeaveTab employees={employees}/>}
           {tab==='comp' && <CompLedgerTab employees={employees}/>}
           {/* allLocked 一起傳進去：這顆「套用」跟薪資頁那顆是同一支函式，
@@ -2107,8 +2144,9 @@ function AttendanceTab({month, onApply, allLocked}){
   const [applying, setApplying] = useState(false);
   const [makeupBox, setMakeupBox] = useState(null); // {employeeId, name, dates}
   // 欄位分組摺疊：預設展開出勤與兩組請假、收起加班，一屏看得完不必橫向捲
-  const [openG, setOpenG] = useState({att:true, unpaid:true, paid:true, ot:false});
+  const [openG, setOpenG] = useState({gap:true, att:true, unpaid:true, paid:true, ot:false});
   const [openRow, setOpenRow] = useState({});
+  const [onlyGap, setOnlyGap] = useState(false);   // 橫幅上的「只看對不上的人」
   const g = k => !!openG[k];
   const toggleG = k => setOpenG(o=>({...o, [k]:!o[k]}));
   const toggleRow = id => setOpenRow(o=>({...o, [id]:!o[id]}));
@@ -2124,6 +2162,15 @@ function AttendanceTab({month, onApply, allLocked}){
     return r1(n(t['特休']) + n(t['補休']) + occasional(e).reduce((s,x)=>s+x.hours,0));
   }
   function r1(v){ return Math.round((Number(v)||0)*10)/10; }
+  /* 出勤時數對帳：應出勤 −（實際出勤 ＋ 請假）＝ 缺口。
+     缺口通常代表漏請假，但也可能是漏打卡或系統沒記到，所以畫面一律用「對不上」「疑似」的措辭，
+     不寫成曠職 —— 判定曠職要人工確認過，而且會直接扣到錢。 */
+  const gapRows = summary.filter(e=>n(e.gapHours) > 0);
+  const gapTotal = r1(gapRows.reduce((s,e)=>s+n(e.gapHours), 0));
+  // 待審核的假單批下去以後還會剩多少：兩個數字都要講，只講其中一個都會誤導 ——
+  // 只看已核准會虛胖（假單其實送了、還沒批），只看含待審核會漏掉「批了也還是不夠」的人
+  const gapAfterPending = r1(summary.reduce((s,e)=>s+n(e.gapHoursAfterPending), 0));
+  const shown = onlyGap ? gapRows : summary;
   // 0 用淡字而不是留白：留白會讓人分不清「沒請假」和「資料還沒帶進來」
   const Z = ({v, cls}) => <td className={'center ' + (cls||'') + (n(v)===0 ? ' zero-dim' : '')}>{trimNum(v,1)}</td>;
 
@@ -2132,14 +2179,17 @@ function AttendanceTab({month, onApply, allLocked}){
 
   function doExportCSV(){
     // CSV 一律匯出全部欄位（含收合起來的群組），畫面上的摺疊只是為了控制寬度，不該影響匯出內容
-    const headers = ['姓名','出勤日數','遲到次數','遲到分鐘','早退次數','早退分鐘',
+    const headers = ['姓名','應出勤日數','應出勤(hr)','已認列(hr)','缺口(hr)','缺口(批完待審後)(hr)','對不上的日期',
+      '出勤日數','遲到次數','遲到分鐘','早退次數','早退分鐘',
       '事假(hr)','病假(hr)','家庭照顧假(hr)','生理假(hr)','災防假(hr)','扣薪假小計(hr)',
       '特休(hr)','補休(hr)','其他有薪假(hr)','其他有薪假明細','有薪假小計(hr)','待審核筆數','待審核時數(hr)',
       '平日1.34倍(hr)','平日1.67倍(hr)','單日超時日數','單日超時日期','休息日出勤(hr)','國定假日出勤(hr)','例假日出勤(hr)','總工時(hr)','平日加班上限是否超過','定位異常日數'];
     const rows = summary.map(e=>{
       const t = e.leaveByType || {};
       const occ = occasional(e);
-      return [e.name,e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,
+      return [e.name,e.requiredDays,e.requiredHours,e.creditedHours,e.gapHours,e.gapHoursAfterPending,
+        (e.gapDates||[]).map(x=>x.date+' '+x.reason+' 少'+x.gapHours+'h').join('、'),
+        e.presentDays,e.lateCount,e.lateMinutes,e.earlyLeaveCount,e.earlyLeaveMinutes,
         e.personalLeave,e.sickLeave,e.familyCareLeave,e.menstrualLeave,e.disasterLeave,unpaidSum(e),
         n(t['特休']),n(t['補休']),occ.reduce((s,x)=>s+x.hours,0),occ.map(x=>x.type+' '+x.hours).join('、'),paidSum(e),
         e.pendingLeaveCount||0,e.pendingLeaveHours||0,
@@ -2164,8 +2214,42 @@ function AttendanceTab({month, onApply, allLocked}){
         </button>
         {allLocked && <span className="hint" style={{fontSize:11.5}}>本月已鎖定</span>}
       </div>
+      {!loading && summary.length > 0 && (
+        gapRows.length > 0 ? (
+          <div className="gap-banner warn">
+            <span className="material-icons">rule</span>
+            <div className="gb-body">
+              <div className="gb-title">
+                {gapRows.length} 人的出勤時數對不上，合計少 {trimNum(gapTotal,1)} 小時
+              </div>
+              <div className="gb-sub">
+                {gapAfterPending > 0
+                  ? <>把審核中的假單全部批准後，還會剩 <b style={{color:'var(--danger)'}}>{trimNum(gapAfterPending,1)}</b> 小時對不上 —— 這些是真的沒有假單。</>
+                  : <>審核中的假單全部批准後就會補平，不必另外追。</>}
+                　點姓名可以看是缺哪幾天。
+              </div>
+              <div className="gb-names">
+                {gapRows.map(e=>(
+                  <span key={e.employeeId} className="gb-name">{e.name} 少 {trimNum(e.gapHours,1)}h</span>
+                ))}
+              </div>
+            </div>
+            <button className={onlyGap ? 'sm' : 'ghost sm'} onClick={()=>setOnlyGap(v=>!v)}>
+              {onlyGap ? '顯示全部人' : '只看對不上的'}
+            </button>
+          </div>
+        ) : (
+          <div className="gap-banner ok">
+            <span className="material-icons">task_alt</span>
+            <div className="gb-body">
+              <div className="gb-title">全部對得上</div>
+              <div className="gb-sub">每個人的「實際出勤＋已核准請假」都填滿了應出勤時數，沒有缺漏的假單。</div>
+            </div>
+          </div>
+        )
+      )}
       <div className="grp-bar">
-        {[{k:'att',t:'出勤'},{k:'unpaid',t:'扣薪假'},{k:'paid',t:'有薪假'},{k:'ot',t:'加班'}].map(x=>(
+        {[{k:'gap',t:'對帳'},{k:'att',t:'出勤'},{k:'unpaid',t:'扣薪假'},{k:'paid',t:'有薪假'},{k:'ot',t:'加班'}].map(x=>(
           <button key={x.k} type="button" className={'grp-chip' + (g(x.k)?' on':'')} onClick={()=>toggleG(x.k)}>
             <span className="grp-dot"></span>{x.t}
           </button>
@@ -2178,12 +2262,14 @@ function AttendanceTab({month, onApply, allLocked}){
             <thead>
               <tr>
                 <th className="center" rowSpan="2">姓名</th>
+                {g('gap') && <th className="center grp-gap" colSpan="3">時數對帳（小時）</th>}
                 {g('att') && <th className="center grp-att" colSpan="5">出勤</th>}
                 {g('unpaid') && <th className="center grp-un" colSpan="6">扣薪假（小時）</th>}
                 {g('paid') && <th className="center grp-pd" colSpan="4">有薪假（小時）</th>}
                 {g('ot') && <th className="center grp-ot" colSpan="7">加班（小時）</th>}
               </tr>
               <tr>
+                {g('gap') && <><th className="center">應出勤</th><th className="center">已認列</th><th className="center">缺口</th></>}
                 {g('att') && <><th className="center">出勤日數</th><th className="center">遲到次數</th><th className="center">遲到分鐘</th><th className="center">早退次數</th><th className="center">早退分鐘</th></>}
                 {g('unpaid') && <><th className="center">事假</th><th className="center">病假</th><th className="center">家庭照顧</th><th className="center">生理</th><th className="center">災防</th><th className="center">小計</th></>}
                 {g('paid') && <><th className="center">特休</th><th className="center">補休</th><th className="center">其他有薪假</th><th className="center">小計</th></>}
@@ -2191,20 +2277,35 @@ function AttendanceTab({month, onApply, allLocked}){
               </tr>
             </thead>
             <tbody>
-              {summary.map(e=>{
+              {shown.map(e=>{
                 const t = e.leaveByType || {};
                 const occ = occasional(e);
                 const detail = e.leaveDetail || [];
+                const gapDays = e.gapDates || [];
+                // 有缺口的人一定要能展開（就算他一張假單都沒有 —— 那正是最該看的情況）
+                const canOpen = detail.length > 0 || gapDays.length > 0;
                 const open = !!openRow[e.employeeId];
-                const colCount = 1 + (g('att')?5:0) + (g('unpaid')?6:0) + (g('paid')?4:0) + (g('ot')?7:0);
+                const colCount = 1 + (g('gap')?3:0) + (g('att')?5:0) + (g('unpaid')?6:0) + (g('paid')?4:0) + (g('ot')?7:0);
                 return (
                   <React.Fragment key={e.employeeId}>
-                    <tr className={detail.length ? 'row-exp' : ''} onClick={detail.length ? (()=>toggleRow(e.employeeId)) : undefined}>
+                    <tr className={(canOpen ? 'row-exp' : '') + (n(e.gapHours)>0 ? ' gap-row' : '')} onClick={canOpen ? (()=>toggleRow(e.employeeId)) : undefined}>
                       <td className="center emp-cell">
                         <b>{e.name}</b>
-                        {detail.length > 0 && <span className={'exp-arrow' + (open?' open':'')}>›</span>}
+                        {canOpen && <span className={'exp-arrow' + (open?' open':'')}>›</span>}
                         {e.pendingLeaveCount > 0 && <span className="pend-badge" title={`待審核 ${trimNum(e.pendingLeaveHours,1)} 小時，未計入下方合計`}>待審 {e.pendingLeaveCount}</span>}
                       </td>
+                      {g('gap') && <>
+                        <td className="center" title={`當月應出勤 ${e.requiredDays||0} 天`}>{trimNum(e.requiredHours,1)}</td>
+                        <Z v={e.creditedHours} />
+                        <td className={'center gap-val' + (n(e.gapHours)>0 ? ' has' : ' zero-dim')}>
+                          {trimNum(e.gapHours,1)}
+                          {n(e.gapHours)>0 && n(e.gapHours)>n(e.gapHoursAfterPending) && (
+                            <span className="gap-pend" title="其中這些時數已經有假單在審核中，批准後就會補平">
+                              待審可補 {trimNum(r1(n(e.gapHours)-n(e.gapHoursAfterPending)),1)}
+                            </span>
+                          )}
+                        </td>
+                      </>}
                       {g('att') && <>
                         <Z v={e.presentDays} /><Z v={e.lateCount} /><Z v={e.lateMinutes} /><Z v={e.earlyLeaveCount} /><Z v={e.earlyLeaveMinutes} />
                       </>}
@@ -2238,22 +2339,41 @@ function AttendanceTab({month, onApply, allLocked}){
                         <Z v={e.workedHoursTotal} />
                       </>}
                     </tr>
-                    {open && detail.length > 0 && (
+                    {open && canOpen && (
                       <tr className="detail-row">
                         <td colSpan={colCount}>
+                          {gapDays.length > 0 && (
+                            <div className="gap-days">
+                              <div className="gd-title">對不上的日子（{gapDays.length} 天，共 {trimNum(e.gapHours,1)} 小時）</div>
+                              {gapDays.map(d=>(
+                                <div className="gd-row" key={d.date}>
+                                  <span className="gd-date">{d.date.slice(5)}（{DOW_SHORT[new Date(d.date+'T00:00:00').getDay()]}）</span>
+                                  <span className={'gd-why' + (d.reason==='漏打下班卡' ? ' punch' : '')}>{d.reason}</span>
+                                  <span className="gd-hr">少 {trimNum(d.gapHours,1)}h</span>
+                                  <span className="gd-note">
+                                    {d.workedHours>0 && `出勤 ${trimNum(d.workedHours,1)}h`}
+                                    {d.leaveHours>0 && `${d.workedHours>0?'／':''}已核准假 ${trimNum(d.leaveHours,1)}h`}
+                                    {d.pendingHours>0 && `${(d.workedHours>0||d.leaveHours>0)?'／':''}審核中 ${trimNum(d.pendingHours,1)}h`}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {detail.length > 0 && <>
                           <div className="lv-head">
                             <span>狀態</span><span>假別</span><span className="lv-hr">時數</span><span>日期／時段</span>
                           </div>
                           <div className="lv-list">
                             {detail.map(d=><LeaveDetailRow key={d.requestId} d={d} />)}
                           </div>
+                          </>}
                         </td>
                       </tr>
                     )}
                   </React.Fragment>
                 );
               })}
-              {summary.length===0 && <tr><td colSpan="23" className="hint" style={{textAlign:'center'}}>本月尚無資料</td></tr>}
+              {shown.length===0 && <tr><td colSpan="26" className="hint" style={{textAlign:'center'}}>{onlyGap ? '沒有時數對不上的人' : '本月尚無資料'}</td></tr>}
             </tbody>
           </table>
         )}
@@ -3943,8 +4063,11 @@ function AccountsTab({employees}){
 }
 
 /* ========================= 假單審核 ========================= */
-function RequestsTab({month, employees}){
+function RequestsTab({month, employees, setTab}){
   const [list, setList] = useState([]);
+  // 出勤時數對帳：審單的當下就要看得到「這個月還有誰的時數對不上」，
+  // 否則要等到月底結算才發現漏了假單，那時人早就忘記那天發生什麼事了。
+  const [gapInfo, setGapInfo] = useState(null);
   // 申請單本身沒有存員工類型，用員工ID對照員工主檔取得（避免另外打一支 API）
   const empTypeById = useMemo(()=>{
     const m = {};
@@ -3962,6 +4085,19 @@ function RequestsTab({month, employees}){
     apiGet('listAllRequests', {month, status: statusFilter}).then(setList).catch(e=>alert(e.message)).finally(()=>setLoading(false));
   }
   useEffect(()=>{ setEmpFilter(''); load(); }, [month, statusFilter]);
+  // 對帳資料獨立載入，失敗就整條橫幅不顯示 —— 假單審核本身不能被它拖住
+  useEffect(()=>{
+    setGapInfo(null);
+    apiGet('getMonthlySummary', {month}).then(rows=>{
+      const gaps = (rows||[]).filter(e=>n(e.gapHours)>0);
+      setGapInfo({
+        people: gaps.length,
+        hours: Math.round(gaps.reduce((s,e)=>s+n(e.gapHours),0)*10)/10,
+        afterPending: Math.round((rows||[]).reduce((s,e)=>s+n(e.gapHoursAfterPending),0)*10)/10,
+        names: gaps.map(e=>e.name + ' 少 ' + trimNum(e.gapHours,1) + 'h')
+      });
+    }).catch(()=>{});
+  }, [month]);
 
   async function doReview(){
     setBusy(true);
@@ -4007,6 +4143,21 @@ function RequestsTab({month, employees}){
         <span className="grow"></span>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
+      {gapInfo && gapInfo.people > 0 && (
+        <div className="gap-banner warn">
+          <span className="material-icons">rule</span>
+          <div className="gb-body">
+            <div className="gb-title">{month} 有 {gapInfo.people} 人的出勤時數對不上，合計少 {trimNum(gapInfo.hours,1)} 小時</div>
+            <div className="gb-sub">
+              {gapInfo.afterPending > 0
+                ? <>把下面審核中的假單全部批准後，還會剩 <b style={{color:'var(--danger)'}}>{trimNum(gapInfo.afterPending,1)}</b> 小時沒有假單可以對應，要找當事人確認。</>
+                : <>下面審核中的假單批准後就會全部補平。</>}
+            </div>
+            <div className="gb-names">{gapInfo.names.map(t=><span key={t} className="gb-name">{t}</span>)}</div>
+          </div>
+          <button className="ghost sm" onClick={()=>setTab('attendance')}>看是缺哪幾天</button>
+        </div>
+      )}
       <div className="hint" style={{marginBottom:12}}>員工的請假與加班換補休申請。部門主管可在前台審核；你也可以在此直接核准或駁回（含沒有設定主管的部門）。</div>
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
@@ -4420,8 +4571,24 @@ function DashboardTab({setTab}){
                 </div>
               )}
 
+              {/* 出勤時數對不上：結算前最後一道檢查。用「對不上」而不是「曠職」——
+                  成因可能是漏請假、漏打卡或系統沒記到，判定曠職要人工確認過，而且會直接扣到錢。 */}
+              {(remind.出勤對不上||[]).length>0 && (
+                <div style={{marginTop:10}}>
+                  <div style={{fontSize:12, fontWeight:600, color:'var(--danger)'}}>
+                    {remind.上個月} 有 {remind.出勤對不上.length} 人的出勤時數對不上，合計少 {trimNum(remind.出勤對不上合計,1)} 小時
+                  </div>
+                  <div className="hint" style={{marginTop:2}}>
+                    {remind.出勤對不上.map(x=>x.姓名+' 少 '+trimNum(x.缺口小時,1)+'h'
+                      + (x.批完待審後仍缺>0 ? '' : '（假單審核中）')).join('、')}
+                    　— 應出勤時數減掉「實際出勤＋已核准請假」的差額，結算前要逐一確認
+                  </div>
+                </div>
+              )}
+
               <div style={{marginTop:10, display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
                 <button className="ghost sm" onClick={()=>setTab('payroll')}>前往薪資計算</button>
+                {(remind.出勤對不上||[]).length>0 && <button className="ghost sm" onClick={()=>setTab('attendance')}>前往出缺勤彙總</button>}
                 {remind.假單待審逾期.length>0 && <button className="ghost sm" onClick={()=>setTab('requests')}>前往假單審核</button>}
                 <span className="grow"></span>
                 {/* 按鈕文字直接寫「按下去會發生什麼」，不要用「取消／還原」這種要反著想的詞 */}

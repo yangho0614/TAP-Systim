@@ -112,6 +112,22 @@
   .status-cell{ background:var(--panel-2); border-radius:10px; padding:8px 4px; text-align:center; }
   .status-cell .lbl{ font-size:10.5px; color:var(--muted); }
   .status-cell .val{ font-family:'Roboto Mono',monospace; font-size:14px; font-weight:700; margin-top:2px; }
+  /* 出勤缺漏提醒：語氣是「幫你補救」不是「抓你曠職」——
+     缺口的成因也可能是忘了打卡或系統沒記到，用字要留餘地。 */
+  .gap-card{ border-color:var(--red); background:rgba(192,90,79,0.09); cursor:pointer; }
+  .gap-card .gap-hd{ display:flex; align-items:center; gap:9px; }
+  .gap-card .gap-hd .material-icons{ color:var(--red); font-size:21px; }
+  .gap-card .gap-ttl{ font-weight:700; font-size:14px; }
+  .gap-card .gap-mon{ margin-top:9px; }
+  .gap-card .gap-mon + .gap-mon{ margin-top:11px; padding-top:11px; border-top:1px solid rgba(192,90,79,0.28); }
+  .gap-card .gap-mlbl{ font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .gap-card .gap-days{ display:flex; flex-wrap:wrap; gap:5px; }
+  .gap-card .gap-day{ padding:3px 9px; border-radius:20px; background:rgba(192,90,79,0.16);
+                      color:var(--text); font-size:12px; font-variant-numeric:tabular-nums; }
+  .gap-card .gap-day .why{ color:var(--red); font-weight:700; margin-left:4px; }
+  .gap-card .gap-note{ margin-top:9px; font-size:12px; color:var(--muted); line-height:1.7; }
+  .gap-card .gap-go{ margin-top:10px; display:flex; align-items:center; gap:4px;
+                     color:var(--gold); font-size:13px; font-weight:700; }
   .pending-card{ border-color:var(--gold); cursor:pointer; }
   .pending-card .material-icons{ color:var(--gold); }
 
@@ -1130,6 +1146,7 @@ function HomePage({session, setSession, status, pendingCount, goForms, goNews, s
   const [balances, setBalances] = useState(null);
   const [pinnedAnnounces, setPinnedAnnounces] = useState([]);
   const [weather, setWeather] = useState(null);
+  const [gapMonths, setGapMonths] = useState([]);   // 出勤時數對不上的月份（本月＋上個月）
   const [cropFile, setCropFile] = useState(null);
   const fileInputRef = useRef(null);
   const dateStr = `${now.getMonth()+1}月${now.getDate()}日　星期${'日一二三四五六'[now.getDay()]}`;
@@ -1142,6 +1159,9 @@ function HomePage({session, setSession, status, pendingCount, goForms, goNews, s
       if(d.announcements) setPinnedAnnounces((d.announcements.items||[]).filter(a=>a.showOnHome));
       if(d.weather) setWeather(d.weather);
     }).catch(()=>{});
+    // 出勤對帳另外打一支、不併進首屏那一包：它要掃整月打卡與假單，比首屏其他東西慢，
+    // 併進去會拖到時鐘與今日打卡的顯示。拿不到就整張卡不出現。
+    apiGet('getMyAttendanceGap').then(d=>{ setGapMonths((d && d.months) || []); }).catch(()=>{});
   }, []);
 
   function onAvatarFileChange(e){
@@ -1206,6 +1226,42 @@ function HomePage({session, setSession, status, pendingCount, goForms, goNews, s
           )}
         </div>
       </div>
+
+      {gapMonths.length > 0 && (
+        <div className="card gap-card" onClick={goForms}>
+          <div className="gap-hd">
+            <span className="material-icons">event_busy</span>
+            <div className="gap-ttl">有出勤紀錄對不上，要麻煩你確認</div>
+          </div>
+          {gapMonths.map(m=>{
+            // 「還在審核中」要跟「完全沒送」分開講，否則已經送出假單的人看到提醒會一頭霧水
+            const waiting = Number(m.pendingCoveredHours) || 0;
+            return (
+              <div className="gap-mon" key={m.month}>
+                <div className="gap-mlbl">
+                  {m.month.replace('-', ' 年 ')} 月　共 {trim1(m.gapHours)} 小時沒有出勤紀錄也沒有假單
+                  {waiting > 0 && `（其中 ${trim1(waiting)} 小時的假單已送出、還在審核中）`}
+                </div>
+                <div className="gap-days">
+                  {m.gapDates.map(d=>(
+                    <span className="gap-day" key={d.date}>
+                      {Number(d.date.slice(5,7))}/{Number(d.date.slice(8,10))}
+                      （{'日一二三四五六'[new Date(d.date+'T00:00:00').getDay()]}）
+                      <span className="why">{d.reason==='漏打下班卡' ? '沒打下班卡' : '缺 ' + trim1(d.gapHours) + 'h'}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          <div className="gap-note">
+            這幾天可能是忘了打卡、忘了請假，或是系統沒記到。請補送假單；
+            如果那天你確實有上班、只是忘了打卡，直接告知管理部補登就好，不用送假單。
+            沒有處理的話，結算薪資時會以未出勤計算。
+          </div>
+          <div className="gap-go">前往表單請假<span className="material-icons" style={{fontSize:17}}>chevron_right</span></div>
+        </div>
+      )}
 
       {balances && (balances.compExpiredHours > 0 || balances.compExpiringHours > 0) && (
         <div className="card" style={{borderColor:'var(--gold)', background:'rgba(212,175,55,0.08)'}}>
