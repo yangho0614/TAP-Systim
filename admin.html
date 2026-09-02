@@ -2229,6 +2229,33 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
     if(d.pendingLeaveHours>0) return {k:'miss', t:'沒有紀錄'};
     return {k:'miss', t:'沒有紀錄'};
   }
+  /* 打卡狀態欄的標籤。這一格同時要表達兩件不同的事，混在一起講就會誤導：
+       ① 打卡當下寫進試算表的**原始記錄**（「遲到255分鐘」「未取得定位資訊」）—— 是憑證，不會改
+       ② 薪資實際採用的分鐘數（扣掉已核准假單涵蓋的時段之後）
+
+     ⚠️ 「已請假涵蓋」只能加在**遲到／早退**的狀態上。之前是只要 isAbnormalStatus 就加，
+        結果「未取得定位資訊」也被標成「已請假涵蓋」—— 那跟請假一點關係都沒有。
+     ⚠️ 部分被涵蓋時要把兩個數字都講出來。8/27 的例子：特休 08:30~12:05、打卡 12:55，
+        原始記錄是「遲到255分鐘」（相對 08:30 算的），但實際只計 40 分鐘。
+        只顯示 255 會讓人以為要扣 255 分鐘的全勤。 */
+  function punchStatusTag(statusText, adjustedMin, kind){
+    const txt = String(statusText || '');
+    if(!isAbnormalStatus(txt)) return null;
+    const m = txt.match(kind === '遲到' ? /遲到(\d+)分鐘/ : /早退(\d+)分鐘/);
+    if(!m) return <span className="cal-tag punch">{txt}</span>;   // 不是遲到早退（例如定位異常），原樣顯示
+    const raw = Number(m[1]), adj = n(adjustedMin);
+    if(adj >= raw) return <span className="cal-tag punch">{txt}</span>;
+    if(adj <= 0) return (
+      <span className="cal-tag covered" title={`打卡當下記為${txt}，但這段時間已被當日的已核准假單涵蓋，薪資計算不算${kind}`}>
+        {txt} · 已請假涵蓋
+      </span>
+    );
+    return (
+      <span className="cal-tag punch" title={`打卡當下記為${txt}，其中一部分已被已核准假單涵蓋，薪資實際計 ${adj} 分鐘`}>
+        {txt} · 實計 {adj} 分鐘
+      </span>
+    );
+  }
   function leaveTags(d, mini){
     return d.leaves.map((lv,i)=>(
       <span key={i} className={'cal-tag lv' + (lv.status==='已核准'?'':' wait') + (mini?' cal-mini':'')}
@@ -2351,18 +2378,8 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
                       {/* 打卡狀態上的「遲到 N 分鐘」是打卡當下寫進試算表的原始記錄，
                           事後補請假不會去改它（那是原始憑證）。但薪資用的是經假單調整後的
                           分鐘數，所以這裡要標出「已請假涵蓋」，否則每次看到都會以為又被扣了。 */}
-                      {rec && !rec.voided && isAbnormalStatus(rec.checkInStatus) && (
-                        <span className={'cal-tag ' + (n(d.lateMinutes)>0 ? 'punch' : 'covered')}
-                              title={n(d.lateMinutes)>0 ? '' : '這段時間已被當日的已核准假單涵蓋，薪資計算不會再算一次遲到'}>
-                          {rec.checkInStatus}{n(d.lateMinutes)>0 ? '' : ' · 已請假涵蓋'}
-                        </span>
-                      )}
-                      {rec && !rec.voided && isAbnormalStatus(rec.checkOutStatus) && (
-                        <span className={'cal-tag ' + (n(d.earlyMinutes)>0 ? 'punch' : 'covered')}
-                              title={n(d.earlyMinutes)>0 ? '' : '這段時間已被當日的已核准假單涵蓋，薪資計算不會再算一次早退'}>
-                          {rec.checkOutStatus}{n(d.earlyMinutes)>0 ? '' : ' · 已請假涵蓋'}
-                        </span>
-                      )}
+                      {rec && !rec.voided && punchStatusTag(rec.checkInStatus, d.lateMinutes, '遲到')}
+                      {rec && !rec.voided && punchStatusTag(rec.checkOutStatus, d.earlyMinutes, '早退')}
                       </div>
                     </td>
                     <td className="note">
