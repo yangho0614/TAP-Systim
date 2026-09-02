@@ -2747,8 +2747,35 @@ function App(){
       }
       setHomeData({balances: d.balances, announcements: d.announcements,
                    weather: d.weather, gap: d.attendanceGap});
-    }).catch(()=>{});
+      // profile 是唯一「拿不到就會出事」的一段（mustChangePassword 靠它自我修正），
+      // 所以留一條退路：合併端點沒給就走舊的單支查詢。
+      if(!d.profile) refreshProfile();
+    }).catch(()=>{
+      // 合併端點整個失敗時退回舊路徑，員工至少還能正常使用
+      apiGet('getSettings').then(setSettings).catch(()=>{});
+      refreshProfile();
+      refreshStatus();
+      refreshPending();
+      refreshAnnounceUnread();
+    });
   }, [session?.token]);
+
+  function refreshProfile(){
+    if(!session?.employeeId) return;
+    apiGet('getMyProfile').then(data=>{
+      setSession(prev=>{
+        if(!prev) return prev;
+        const next = {...prev, employee: data.employee, isManager: data.isManager,
+          mustChangePassword: data.mustChangePassword === true};
+        try{ localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(next)); }catch(e){}
+        return next;
+      });
+    }).catch(()=>{});
+  }
+  function refreshPending(){
+    if(!session?.isManager) { setPending([]); return; }
+    apiGet('listPendingApprovals').then(setPending).catch(()=>{});
+  }
 
   function refreshAnnounceUnread(){
     if(!session?.employeeId) return;
@@ -2759,11 +2786,6 @@ function App(){
     if(!session?.employeeId) return;
     apiGet('getTodayStatus', {employeeId: session.employeeId}).then(setStatus).catch(e=>showToast(e.message,'err'));
   }
-  function refreshPending(){
-    if(!session?.isManager) { setPending([]); return; }
-    apiGet('listPendingApprovals').then(setPending).catch(()=>{});
-  }
-
   function onLoggedIn(data){ setSession(data); setTab('home'); }
   async function changeTheme(themeId){
     try{
