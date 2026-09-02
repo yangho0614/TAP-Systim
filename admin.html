@@ -533,7 +533,7 @@
   .cal-tbl tr.gap td{background:rgba(161,61,61,.13);}
   .cal-tbl tr.gap td:first-child{border-left:3px solid var(--danger);}
   .cal-tbl tr.gap.sel td{background:rgba(0,173,181,.09);}
-  .cal-tbl tr.today td{border-top:2px solid var(--brand);}
+  .cal-tag.today{background:var(--brand); color:#fff;}
   /* 全域是 th,td{text-align:right}，這裡每一欄都要明寫，不能靠預設 */
   .cal-tbl td.d{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; text-align:left;
                 overflow:hidden; text-overflow:ellipsis;}
@@ -2209,7 +2209,7 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
                 const live = d.records.filter(r=>!r.voided);
                 const rec = live[0] || d.records[0] || null;
                 const cls = [d.dayType!=='work' ? 'offday' : '', d.gapHours>0 ? 'gap' : '',
-                             sel[d.date] ? 'sel' : '', d.date===todayStr ? 'today' : ''].filter(Boolean).join(' ');
+                             sel[d.date] ? 'sel' : ''].filter(Boolean).join(' ');
                 return (
                   <tr key={d.date} className={cls}>
                     <td className="cal-sel-col">
@@ -2218,6 +2218,7 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
                     <td className="d">
                       {Number(d.date.slice(5,7))}/{Number(d.date.slice(8,10))}
                       <span className="dw">({CAL_DOW[d.dow]})</span>
+                      {d.date===todayStr && <span className="cal-tag today" style={{marginLeft:6}}>今天</span>}
                       {d.dayType!=='work' && !d.holidayName &&
                         <span className="cal-tag off" style={{marginLeft:6}}>{CAL_DAYTYPE[d.dayType]}</span>}
                       {d.holidayName &&
