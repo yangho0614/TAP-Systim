@@ -1247,7 +1247,7 @@ function HomePage({session, setSession, status, pendingCount, homeData, goForms,
         <div className="card gap-card" onClick={goForms}>
           <div className="gap-hd">
             <span className="material-icons">event_busy</span>
-            <div className="gap-ttl">有出勤紀錄對不上，要麻煩你確認</div>
+            <div className="gap-ttl">出勤異常，請確認</div>
           </div>
           {/* ⚠️ 兩種缺漏要分開講，因為**該做的事完全不同**：
                 「沒有出勤紀錄」→ 可能是請假忘了送單，或確實有上班但沒打卡，要補紀錄
