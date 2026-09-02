@@ -513,7 +513,7 @@
   .cal-tbl tr.gap td{background:rgba(161,61,61,.05);}
   .cal-tbl tr.gap.sel td{background:rgba(0,173,181,.09);}
   .cal-tbl tr.today td{box-shadow:inset 0 2px 0 var(--brand);}
-  .cal-tbl td.d{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .cal-tbl td.d{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; text-align:left;}
   .cal-tbl td.d .dw{font-weight:400; color:var(--muted); margin-left:3px;}
   .cal-tbl td.t{font-family:'Roboto Mono',monospace; font-variant-numeric:tabular-nums; text-align:center; white-space:nowrap;}
   .cal-tbl td.t.none{color:var(--muted); opacity:.4;}
@@ -2229,7 +2229,7 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
                   {rec && (rec.checkOut
                     ? <div className="cal-t">{rec.checkOut.slice(11,16)}</div>
                     : <div className="cal-t miss">未打下班</div>)}
-                  {st && <span className={'cal-tag cal-mini ' + st.k}>{st.t}</span>}
+                  {st && !(st.k==='punch' && rec) && <span className={'cal-tag cal-mini ' + st.k}>{st.t}</span>}
                   {leaveTags(d, true)}
                 </div>
               );
