@@ -3311,16 +3311,20 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
     {key:'allow', label:'津貼明細'},
     {key:'ot',    label:'加班時數'},
     {key:'bonus', label:'獎金'},
-    {key:'leave', label:'請假時數'}
+    {key:'leave', label:'請假時數'},
+    /* 遲到早退在 2026-09-02 以前只默默進「應扣小計」，表上沒有任何欄位 ——
+       李嘉芬 8 月被扣 1,721 元，畫面上看不出那筆是什麼、也無從核對。 */
+    {key:'late',  label:'遲到早退'}
   ];
   const [openGroups, setOpenGroups] = useState(null);
   const groupCounts = useMemo(()=>{
-    const c = {allow:0, ot:0, bonus:0, leave:0};
+    const c = {allow:0, ot:0, bonus:0, leave:0, late:0};
     rows.forEach(({emp, entry})=>{
       if(n(emp.mealAllowance)||n(emp.transportAllowance)||n(emp.positionAllowance)||n(emp.fullAttendanceBonus)) c.allow++;
       if(n(entry.otWeekday134)||n(entry.otWeekday167)||n(entry.otRestDayHours)||n(entry.otHolidayHours)) c.ot++;
       if(n(entry.festivalBonus)||n(entry.yearEndBonus)||n(entry.performanceBonus)||n(entry.otherBonus)) c.bonus++;
       if(n(entry.personalLeave)||n(entry.sickLeave)||n(entry.menstrualLeave)||n(entry.disasterLeave)||n(entry.familyCareLeave)) c.leave++;
+      if(n(entry.lateMinutes)||n(entry.earlyMinutes)) c.late++;
     });
     return c;
   }, [rows]);
@@ -3347,7 +3351,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
   function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
   function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
   const totals = useMemo(()=>{
-    const t = {base:0, overtime:0, allowance:0, bonus:0, payable:0, labor:0, health:0, leaveDeduct:0, otherDeduct:0, deduct:0, pay06:0, pay26:0, grand:0};
+    const t = {base:0, overtime:0, allowance:0, bonus:0, payable:0, labor:0, health:0, leaveDeduct:0, lateEarlyDeduct:0, otherDeduct:0, deduct:0, pay06:0, pay26:0, grand:0};
     rows.forEach(({emp, entry, calc})=>{
       t.base += calc.effBaseSalary;
       t.overtime += calc.overtimePay;
@@ -3357,6 +3361,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
       t.labor += calc.laborFee;
       t.health += calc.healthFee;
       t.leaveDeduct += calc.leaveDeduct;
+      t.lateEarlyDeduct += (calc.lateEarlyDeduct || 0);
       t.otherDeduct += n(entry.otherDeduction);
       t.deduct += calc.deductTotal;
       t.pay06 += calc.pay06;
@@ -3573,6 +3578,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             </th>
             <th className="col-add" rowSpan="2">應付小計</th>
             {shown('leave') && <th className="col-deduct" colSpan="4">請假時數</th>}
+            {shown('late') && <th className="col-deduct" colSpan="3">遲到早退</th>}
             <th className="col-deduct" rowSpan="2">勞保</th>
             <th className="col-deduct" rowSpan="2">健保</th>
             <th className="col-deduct" rowSpan="2">其他扣款</th>
@@ -3583,6 +3589,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             {shown('ot') && <><th className="col-add">平日1.34</th><th className="col-add">平日1.67</th><th className="col-add">休息日</th><th className="col-add">國定假日</th></>}
             {shown('bonus') && <><th className="col-add">三節</th><th className="col-add">年終</th><th className="col-add">績效</th><th className="col-add">其他</th></>}
             {shown('leave') && <><th className="col-deduct">事假</th><th className="col-deduct">病假</th><th className="col-deduct">生理假</th><th className="col-deduct">災防</th></>}
+            {shown('late') && <><th className="col-deduct">遲到(分)</th><th className="col-deduct">早退(分)</th><th className="col-deduct">扣款</th></>}
           </tr>
         </thead>
         <tbody>
@@ -3654,6 +3661,20 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               </td>
               <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} />{refBelow(refDisasterLeave)}</td>
               </>}
+              {shown('late') && <>
+              <td className="col-deduct"><NumCell value={entry.lateMinutes} onChange={v=>setEntry(emp.id,{lateMinutes:v})} disabled={entry.locked} /></td>
+              <td className="col-deduct"><NumCell value={entry.earlyMinutes} onChange={v=>setEntry(emp.id,{earlyMinutes:v})} disabled={entry.locked} /></td>
+              <td className="col-deduct num-neg">
+                {money(calc.lateEarlyDeduct)}
+                {/* 有分鐘卻沒扣款只有兩種可能，講清楚是哪一種，不然看起來像算錯 */}
+                {!entry.locked && !n(calc.lateEarlyDeduct) && (n(entry.lateMinutes)+n(entry.earlyMinutes))>0 && (
+                  <div className="hint" style={{fontSize:10, marginTop:2}}>系統設定為不扣</div>
+                )}
+                {entry.locked && (n(entry.lateMinutes)+n(entry.earlyMinutes))>0 && (
+                  <div className="hint" style={{fontSize:10, marginTop:2}}>已鎖定，沿用當時金額</div>
+                )}
+              </td>
+              </>}
               <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays} 日比例計算`:''}>{money(calc.laborFee)}</td>
               <td className="col-deduct" title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
               <td className="col-deduct">
@@ -3677,6 +3698,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             <td></td>
             <td className="num-pos">{money(totals.payable)}</td>
             {shown('leave') && <td colSpan="4"></td>}
+            {shown('late') && <><td colSpan="2"></td><td className="num-neg">{money(totals.lateEarlyDeduct)}</td></>}
             <td>{money(totals.labor)}</td>
             <td>{money(totals.health)}</td>
             <td></td>
