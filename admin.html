@@ -1199,8 +1199,13 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
      員工實際被扣的是進位後的整數，Σ round 才是真正發生的金額；
      round Σ 算出來的是一個誰也沒付、誰也沒收的數字。
      ⚠️ 進位的單位要與薪資條的「行」一致：病假、生理假各是一行（半薪與不給薪合併）。
+     ⚠️ **已鎖定的月份不套用**（2026-09-03 Evan：「1-7 月不能動了」）。
+        那些薪資已經發出去了，顯示金額一旦變動就會與當時的銀行轉帳紀錄對不起來。
+        歷史紀錄的正確性優先於「加起來好看」—— 1~7 月的薪資條可能仍有 1 元對不齊，
+        但那是當初實際發生的事，本來就該保留。
+        （系統本來就有這個慣例：遲到扣款、曠職扣款在鎖定月份也都直接給 0。）
      ⚠️ 這三份計算（GAS／Worker／這裡）必須完全一致，改一處就要改三處。 */
-  const yuan = v => Math.round(Number(v) || 0);
+  const yuan = isLocked ? (v => Number(v) || 0) : (v => Math.round(Number(v) || 0));
   const overtimePay = yuan(weekdayOtPay) + yuan(restDay.pay) + yuan(holiday.pay) + yuan(mandatoryRestPay);
   const monthlyOtHours = n(entry.otWeekday134) + n(entry.otWeekday167) + n(entry.otRestDayHours); // 依勞動部見解，休息日出勤時數也算入延長工作時間月上限
 
