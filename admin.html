@@ -2478,9 +2478,18 @@ function RecordsTab({employees, month}){
             <input type="checkbox" checked={showVoided} onChange={e=>setShowVoided(e.target.checked)} style={{width:'auto'}} />顯示已作廢
           </label>
         </>}
+        {/* 這兩顆接在篩選後面，不要用 grow 推到最右邊 ——
+            寬螢幕上要把滑鼠橫拉過整個畫面才按得到。
+            選定員工時預填該員工，省掉在視窗裡再選一次。 */}
+        <button className="ghost sm" onClick={()=>setManual({
+          employeeId: selectedEmp ? selectedEmp.id : '',
+          name: selectedEmp ? selectedEmp.name : '',
+          companyFilter: filterCompany,
+          date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
+        <button className="ghost sm" onClick={load}>
+          <span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理
+        </button>
         <span className="grow"></span>
-        <button className="ghost sm" onClick={()=>setManual({employeeId:'', name:'', companyFilter:'全部', date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
-        <button className="ghost sm" onClick={load}>重新整理</button>
       </div>
       {selectedEmp ? (
         <EmployeeAttendanceView
