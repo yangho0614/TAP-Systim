@@ -6104,7 +6104,10 @@ function SettingsTab({onSaved, initialCategory}){
         </div>
         <div className="field">
           <label>出勤紀錄起算日</label>
-          <input type="date" value={(s.attendanceStartDate||'').slice(0,10)} onChange={e=>setS({...s,attendanceStartDate:e.target.value})} />
+          {/* ⚠️ 一定要 String() 包起來。Sheets 把日期存成日期型態後，這個值可能是數字或 Date，
+              直接 .slice() 會拋 TypeError，而 React 的 render 錯誤會讓**整頁白掉**，
+              不是只有這一格壞掉。設定頁的值全部來自試算表，都要當成「型別不確定」處理。 */}
+          <input type="date" value={String(s.attendanceStartDate||'').slice(0,10)} onChange={e=>setS({...s,attendanceStartDate:e.target.value})} />
           <div className="hint" style={{marginTop:4}}>
             這一天以前<b>不做出勤時數對帳</b>。打卡系統正式啟用前，系統裡沒有紀錄不代表沒來上班，
             不設定的話上線前的每個工作日都會被算成缺勤。留空＝不限制。
