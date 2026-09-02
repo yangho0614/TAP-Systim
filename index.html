@@ -126,6 +126,12 @@
                       color:var(--text); font-size:12px; font-variant-numeric:tabular-nums; }
   .gap-card .gap-day .why{ color:var(--red); font-weight:700; margin-left:4px; }
   .gap-card .gap-note{ margin-top:9px; font-size:12px; color:var(--muted); line-height:1.7; }
+  /* 分類區塊：每一類自己帶一句「該做什麼」，混在一起講員工不知道從哪下手 */
+  .gap-card .gap-grp{ margin-top:10px; }
+  .gap-card .gap-grp + .gap-grp{ margin-top:12px; padding-top:11px; border-top:1px solid rgba(192,90,79,0.22); }
+  .gap-card .gap-grp-t{ font-size:12.5px; font-weight:700; color:var(--text); margin-bottom:5px; }
+  .gap-card .gap-grp-n{ margin-top:6px; font-size:11.5px; color:var(--muted); line-height:1.75; }
+  .gap-card .gap-grp-n b{ color:var(--text); }
   .gap-card .gap-go{ margin-top:10px; display:flex; align-items:center; gap:4px;
                      color:var(--gold); font-size:13px; font-weight:700; }
   .pending-card{ border-color:var(--gold); cursor:pointer; }
@@ -1243,32 +1249,79 @@ function HomePage({session, setSession, status, pendingCount, homeData, goForms,
             <span className="material-icons">event_busy</span>
             <div className="gap-ttl">有出勤紀錄對不上，要麻煩你確認</div>
           </div>
+          {/* ⚠️ 兩種缺漏要分開講，因為**該做的事完全不同**：
+                「沒有出勤紀錄」→ 可能是請假忘了送單，或確實有上班但沒打卡，要補紀錄
+                「遲到造成時數不足」→ 人有來，補請事假沒有意義（扣的錢一模一樣，
+                  還白白吃掉事假額度），只有想用特休換回工資才需要送單
+              混在一起寫「請補送假單」，等於叫人做白工。 */}
           {gapMonths.map(m=>{
-            // 「還在審核中」要跟「完全沒送」分開講，否則已經送出假單的人看到提醒會一頭霧水
             const waiting = Number(m.pendingCoveredHours) || 0;
+            // 有薪假餘額（特休＋補休）：決定要不要跟他說「可以用特休換」
+            const paidLeaveLeft = (Number(balances?.annualRemain) || 0) + (Number(balances?.compRemain) || 0);
+            const dayLabel = d => {
+              const dt = new Date(d.date+'T00:00:00');
+              return `${dt.getMonth()+1}/${dt.getDate()}（${'日一二三四五六'[dt.getDay()]}）`;
+            };
+            const noRec = m.gapDates.filter(d=>d.reason==='無出勤紀錄');
+            const noPunchOut = m.gapDates.filter(d=>d.reason==='漏打下班卡');
+            const shortHours = m.gapDates.filter(d=>d.reason==='時數不足');
+            const sum = arr => trim1(arr.reduce((a,d)=>a+Number(d.gapHours||0),0));
             return (
               <div className="gap-mon" key={m.month}>
                 <div className="gap-mlbl">
-                  {m.month.replace('-', ' 年 ')} 月　共 {trim1(m.gapHours)} 小時沒有出勤紀錄也沒有假單
+                  {m.month.replace('-', ' 年 ')} 月　共 {trim1(m.gapHours)} 小時對不上
                   {waiting > 0 && `（其中 ${trim1(waiting)} 小時的假單已送出、還在審核中）`}
                 </div>
-                <div className="gap-days">
-                  {m.gapDates.map(d=>(
-                    <span className="gap-day" key={d.date}>
-                      {Number(d.date.slice(5,7))}/{Number(d.date.slice(8,10))}
-                      （{'日一二三四五六'[new Date(d.date+'T00:00:00').getDay()]}）
-                      <span className="why">{d.reason==='漏打下班卡' ? '沒打下班卡' : '缺 ' + trim1(d.gapHours) + 'h'}</span>
-                    </span>
-                  ))}
-                </div>
+
+                {noRec.length > 0 && (
+                  <div className="gap-grp">
+                    <div className="gap-grp-t">沒有出勤紀錄 · {noRec.length} 天 {sum(noRec)} 小時</div>
+                    <div className="gap-days">
+                      {noRec.map(d=><span className="gap-day" key={d.date}>{dayLabel(d)}</span>)}
+                    </div>
+                    <div className="gap-grp-n">
+                      如果是<b>請假忘了送單</b>，請補送；如果你確實有上班、只是沒打到卡，
+                      請告知管理部補登。沒有處理的話，這幾天會以未出勤計算。
+                    </div>
+                  </div>
+                )}
+
+                {noPunchOut.length > 0 && (
+                  <div className="gap-grp">
+                    <div className="gap-grp-t">漏打下班卡 · {noPunchOut.length} 天</div>
+                    <div className="gap-days">
+                      {noPunchOut.map(d=><span className="gap-day" key={d.date}>{dayLabel(d)}</span>)}
+                    </div>
+                    <div className="gap-grp-n">這是打卡問題不是請假問題，請告知管理部補上下班時間。</div>
+                  </div>
+                )}
+
+                {shortHours.length > 0 && (
+                  <div className="gap-grp">
+                    <div className="gap-grp-t">遲到造成時數不足 · {shortHours.length} 天 {sum(shortHours)} 小時</div>
+                    <div className="gap-days">
+                      {shortHours.map(d=>(
+                        <span className="gap-day" key={d.date}>
+                          {dayLabel(d)}<span className="why">缺 {trim1(d.gapHours)}h</span>
+                        </span>
+                      ))}
+                    </div>
+                    {/* ⚠️ 「可以用特休換」只在他真的還有特休或補休時才講。
+                        餘額是 0 的人看到這句只會白跑一趟送單、被系統擋下來，
+                        然後覺得系統在耍他。沒得換的時候就直說「已經扣了，不用做什麼」。 */}
+                    <div className="gap-grp-n">
+                      ⚠️ <b>這幾天不需要補請事假</b> —— 遲到本來就依實際分鐘數扣工資，
+                      補了事假扣的錢一樣，還會用掉你的事假額度。<br/>
+                      {paidLeaveLeft > 0
+                        ? <>如果你想<b>用特休或補休換回這段工資</b>，才需要送假單（有薪、也不影響全勤）。
+                            你目前還有 {trim1(paidLeaveLeft)} 小時可用。</>
+                        : <>你目前的特休與補休都已用完，這段工資已依規定扣除，<b>不需要再做任何動作</b>。</>}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
-          <div className="gap-note">
-            這幾天可能是忘了打卡、忘了請假，或是系統沒記到。請補送假單；
-            如果那天你確實有上班、只是忘了打卡，直接告知管理部補登就好，不用送假單。
-            沒有處理的話，結算薪資時會以未出勤計算。
-          </div>
           <div className="gap-go">前往表單請假<span className="material-icons" style={{fontSize:17}}>chevron_right</span></div>
         </div>
       )}
