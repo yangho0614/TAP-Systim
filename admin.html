@@ -616,7 +616,8 @@
   /* ---- 批次操作列（選了才出現，貼在底部） ---- */
   .cal-bar{position:sticky; bottom:0; z-index:3; margin-top:12px; display:flex; flex-wrap:wrap; align-items:center; gap:10px;
            padding:11px 14px; border-radius:10px; background:var(--brand-dark); color:#EEEEEE;
-           box-shadow:0 -2px 14px rgba(0,0,0,.18);}
+           border-top:3px solid var(--brand); box-shadow:0 -4px 18px rgba(0,0,0,.22);}
+  .sel-count{font-size:12.5px; font-weight:700; color:var(--brand);}
   .cal-bar .n{font-weight:800; font-size:14px;}
   .cal-bar label{margin:0; font-size:12px; color:#C9CDD2;}
   .cal-bar input[type=time]{padding:5px 7px; border-radius:6px; border:1px solid #4a525c; background:#fff; font-size:12.5px;}
@@ -2229,7 +2230,19 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
         <button className="ghost sm" onClick={()=>selectAll(d=>d.required && d.records.length===0 && d.leaveHours<=0, '應出勤但無紀錄')}>
           全選無紀錄
         </button>
-        {selDates.length>0 && <button className="ghost sm" onClick={()=>setSel({})}>清除選取</button>}
+        {/* 勾選後就在這排直接給批次入口。原本只有畫面最底部那條工具列有，
+            上面又還放著一顆「＋ 補登紀錄」（那是單筆的），兩個長得像、離得遠，很容易按錯。 */}
+        {selDates.length>0 && <>
+          <span className="tb-sep"></span>
+          <span className="sel-count">已選 {selDates.length} 天</span>
+          <button className="sm" onClick={()=>{
+            const bar = document.querySelector('.cal-bar');
+            if(bar) bar.scrollIntoView({behavior:'smooth', block:'end'});
+          }}>
+            <span className="material-icons" style={{fontSize:15}}>playlist_add</span>批次補登這 {selDates.length} 天
+          </button>
+          <button className="ghost sm" onClick={()=>setSel({})}>清除選取</button>
+        </>}
       </div>
       <div className="hint" style={{marginBottom:10}}>
         {data.name}　{data.shiftName} {data.workStart}~{data.workEnd}（午休 {data.lunchBreak} 分，每日 {trimNum(data.standardHours,1)} 小時）
