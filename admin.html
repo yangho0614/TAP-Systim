@@ -534,6 +534,7 @@
   .cal-tbl td.d{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; text-align:left;
                 overflow:hidden; text-overflow:ellipsis;}
   .cal-tbl td.st{text-align:left; white-space:normal; line-height:1.9;}
+  .cal-tbl td.note{text-align:left; white-space:normal; color:var(--muted); font-size:11.5px; line-height:1.6;}
   .cal-tbl td.src{text-align:center; color:var(--muted); font-size:11.5px;}
   .cal-tbl td.act{text-align:center; white-space:nowrap;}
   .cal-tbl td.d .dw{font-weight:400; color:var(--muted); margin-left:3px;}
@@ -2169,12 +2170,16 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
       {view==='list' ? (
         <div className="card" style={{overflowX:'auto', padding:0}}>
           <table className="cal-tbl">
+            {/* ⚠️ 只有「備註」不指定寬度。表格是 width:100%，沒指定寬度的欄會吃掉所有剩餘空間 ——
+                寬螢幕上原本是狀態欄在吃，結果中間空一大片。備註本來就該有（補登備註、作廢原因
+                都在這裡），讓它來吸收剩餘寬度，空間才有用途。 */}
             <colgroup>
               <col style={{width:'36px'}} />
               <col style={{width:'250px'}} />
               <col style={{width:'104px'}} /><col style={{width:'104px'}} />
               <col style={{width:'76px'}} /><col style={{width:'76px'}} />
               <col style={{width:'68px'}} />
+              <col style={{width:'300px'}} />
               <col />
               <col style={{width:'76px'}} />
               <col style={{width:'132px'}} />
@@ -2186,6 +2191,7 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
                 <th>上班</th><th>下班</th><th>外出</th><th>返回</th>
                 <th>工時</th>
                 <th style={{textAlign:'left'}}>狀態 / 請假</th>
+                <th style={{textAlign:'left'}}>備註</th>
                 <th>來源</th>
                 <th>操作</th>
               </tr>
@@ -2221,6 +2227,12 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
                       {rec && rec.voided && <span className="cal-tag void" style={{marginLeft:4}} title={'作廢原因：'+(rec.voidReason||'')}>已作廢</span>}
                       {rec && !rec.voided && isAbnormalStatus(rec.checkInStatus) && <span className="cal-tag punch" style={{marginLeft:4}}>{rec.checkInStatus}</span>}
                       {rec && !rec.voided && isAbnormalStatus(rec.checkOutStatus) && <span className="cal-tag punch" style={{marginLeft:4}}>{rec.checkOutStatus}</span>}
+                    </td>
+                    <td className="note">
+                      {rec && rec.note}
+                      {rec && rec.voided && (
+                        <div className="void-meta">{rec.voidedBy} 於 {rec.voidedAt} 作廢{rec.voidReason ? '：' + rec.voidReason : ''}</div>
+                      )}
                     </td>
                     <td className="src">{rec ? (rec.source||'') : ''}</td>
                     <td className="act">
