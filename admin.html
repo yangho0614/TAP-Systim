@@ -2134,7 +2134,7 @@ const CAL_DOW = ['日','一','二','三','四','五','六'];
 const CAL_WEEK = [1, 2, 3, 4, 5, 6, 0];
 const CAL_DAYTYPE = {rest:'休息日', mandatory:'例假日', holiday:'國定假日'};
 
-function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, onReload}){
+function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, onRestore, onReload}){
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState(()=>{ try{ return localStorage.getItem('att_cal_view') || 'list'; }catch(e){ return 'list'; } });
@@ -2156,7 +2156,10 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
       .catch(e=>alert(e.message))
       .finally(()=>setLoading(false));
   }
-  useEffect(()=>{ setSel({}); load(); }, [month, employeeId]);
+  /* reloadKey 也要放進依賴：工具列的「重新整理」按的是 RecordsTab 的 load()，
+     那支只重抓舊的打卡清單，不會通知這個元件 —— 少了它，按鈕在逐日檢視下等於失效，
+     而使用者會以為資料是最新的。 */
+  useEffect(()=>{ setSel({}); load(); }, [month, employeeId, reloadKey]);
   function switchView(v){ setView(v); try{ localStorage.setItem('att_cal_view', v); }catch(e){} }
 
   const days = (data && data.days) || [];
@@ -2608,8 +2611,11 @@ function RecordsTab({employees, month}){
   // 已作廢的紀錄預設隱藏（它們不算數），勾選才撈出來查看與還原
   const [showVoided, setShowVoided] = useState(false);
 
+  // 逐日檢視是另一個元件、另一支 API，靠這個 key 通知它一起重載
+  const [reloadKey, setReloadKey] = useState(0);
   function load(){
     setLoading(true);
+    setReloadKey(k=>k+1);
     apiGet('getRecords', {month, includeVoided: showVoided ? 'true' : 'false'})
       .then(setRecords).catch(e=>alert(e.message)).finally(()=>setLoading(false));
   }
@@ -2704,7 +2710,7 @@ function RecordsTab({employees, month}){
       </div>
       {selectedEmp ? (
         <EmployeeAttendanceView
-          employeeId={selectedEmp.id} month={month}
+          employeeId={selectedEmp.id} month={month} reloadKey={reloadKey}
           onEdit={r=>setEditing({id:r.id, date:r.date, name:r.name, checkIn:r.checkIn, checkOut:r.checkOut,
             note:r.note||'', lat:r.checkInLat||r.checkOutLat||'', lng:r.checkInLng||r.checkOutLng||''})}
           onVoid={voidRecordAsk} onRestore={restoreRecordAsk} onReload={load} />
