@@ -1304,7 +1304,7 @@ function HomePage({session, setSession, status, pendingCount, homeData, goForms,
 
                 {shortHours.length > 0 && (
                   <div className="gap-grp">
-                    <div className="gap-grp-t">遲到造成時數不足 · {shortHours.length} 天 {sum(shortHours)} 小時</div>
+                    <div className="gap-grp-t">遲到已累積。{shortHours.length} 天 {sum(shortHours)} 小時</div>
                     <div className="gap-days">
                       {shortHours.map(d=>(
                         <span className="gap-day" key={d.date}>
@@ -1316,10 +1316,10 @@ function HomePage({session, setSession, status, pendingCount, homeData, goForms,
                         餘額是 0 的人看到這句只會白跑一趟送單、被系統擋下來，
                         然後覺得系統在耍他。沒得換的時候就直說「已經扣了，不用做什麼」。 */}
                     <div className="gap-grp-n">
-                      ⚠️ <b>不用補請事假</b> —— 遲到已依分鐘扣薪，補事假扣的錢一樣。<br/>
+                      ⚠️ 遲到依照出缺勤辦法扣薪，
                       {paidLeaveLeft > 0
-                        ? <>想<b>用特休或補休換回這段工資</b>才需要送單，你還有 {trim1(paidLeaveLeft)} 小時。</>
-                        : <>你的特休與補休已用完，<b>不需要任何動作</b>。</>}
+                        ? <>您還有特休與補休 {trim1(paidLeaveLeft)} 小時，想<b>換回這段工資</b>才需要送單。</>
+                        : <>您的特休與補休已用完，<b>不需要任何動作</b>。</>}
                     </div>
                   </div>
                 )}
