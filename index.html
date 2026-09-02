@@ -752,33 +752,22 @@ const STATUS_HINT = {'待審核':'等待主管審核', '初核通過':'主管已
 
 /* ========================= 登入畫面 ========================= */
 /* ========================= 自訂日期時間選擇器 ========================= */
-/* unitHours：最小請假單位（系統設定 leaveUnit）；schedStart：該員工班表的上班時間 'HH:mm'。
-   時間只能選在「班表上班時間 ＋ N × 單位」的格線上 —— 不能單純看分鐘是不是 0 或 30，
-   因為班表是 08:30 開始的，整天假就是 08:30~17:30，分鐘本來就不是 0。
-   讓不合法的時間**根本選不到**，比選了才被後端擋回來好。 */
+/* 時間點本身**不必**對齊固定格線 —— 員工 09:40 出去、10:40 回來就是事實，
+   強迫他改成 09:30~10:30 反而與實際不符，遲到早退的扣抵時段也會跟著錯。
+   要對齊的是「長度」（09:40~10:40 ＝ 1 小時，合法），那個由後端與下方的即時提示把關。
+   所以這裡維持 5 分鐘一格，自由選。 */
 function CustomDateTimePicker({value, onConfirm, onClose, dateOnly, unitHours, schedStart}){
-  const unitMin = Math.max(1, Math.round((Number(unitHours) || 1) * 60));
-  const schedStartMin = (()=>{ const m = String(schedStart||'09:00').match(/^(\d{1,2}):(\d{2})/); return m ? Number(m[1])*60+Number(m[2]) : 9*60; })();
-  const isAligned = (minOfDay)=> ((((minOfDay - schedStartMin) % unitMin) + unitMin) % unitMin) === 0;
-  // 可選的分鐘。單位 ≥ 60 分時，一小時內只有一個合法的分鐘（例如 08:30 起算就是 :30）
-  const allowedMins = [];
-  for(let m=0; m<60; m++){
-    const diff = (((m - (schedStartMin % 60)) % 60) + 60) % 60;
-    if(unitMin >= 60 ? diff === 0 : diff % unitMin === 0) allowedMins.push(m);
-  }
-  // 可選的小時：該小時內至少要有一個合法的分鐘（單位 > 1 小時的情況才會篩掉東西）
-  const allowedHours = [];
-  for(let h=0; h<24; h++) if(allowedMins.some(m=>isAligned(h*60+m))) allowedHours.push(h);
+  const allowedHours = Array.from({length:24}, (_,h)=>h);
+  const allowedMins = Array.from({length:12}, (_,i)=>i*5);
 
   const raw = value ? new Date(dateOnly ? value+'T00:00' : value) : new Date();
-  /* 初始值對齊到最近的格線。
+  /* 初始值對齊到 5 分鐘格。
      ⚠️ 一定要用 setHours(時, 分) 一次設定 —— 只設分鐘的話，58 分進位會變成 00 分但小時不動，
         等於整整早了一小時（這個坑 2026-08-19 踩過一次）。 */
   const initial = new Date(raw);
   if(!dateOnly){
     const cur = raw.getHours()*60 + raw.getMinutes();
-    let snapped = schedStartMin + Math.round((cur - schedStartMin) / unitMin) * unitMin;
-    snapped = Math.max(0, Math.min(24*60 - 1, snapped));
+    const snapped = Math.max(0, Math.min(24*60 - 1, Math.round(cur/5)*5));
     initial.setHours(Math.floor(snapped/60), snapped%60, 0, 0);
   }
   const [viewY, setViewY] = useState(initial.getFullYear());
@@ -887,8 +876,8 @@ function CustomDateTimePicker({value, onConfirm, onClose, dateOnly, unitHours, s
               </div>
             </div>
             <div className="hint" style={{textAlign:'center', marginTop:10}}>
-              上下滑動選擇時間。請假以 <b>{unitHours || 1}</b> 小時為單位，
-              從上班時間 {schedStart || '09:00'} 起算，所以只能選到這些時間點
+              上下滑動選擇時間（每 5 分鐘一格）。
+              請假<b>時間長度</b>要是 {unitHours || 1} 小時的倍數，時間點本身不限
             </div>
           </>
         )}
