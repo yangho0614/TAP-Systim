@@ -484,6 +484,85 @@
   .gd-hr{text-align:right; font-variant-numeric:tabular-nums; font-weight:700; color:var(--danger);}
   .gd-note{color:var(--muted); font-variant-numeric:tabular-nums;}
 
+  /* ================= 單一員工的逐日出勤（列表／月曆兩種檢視，2026-09-02） =================
+     打卡紀錄頁原本只列得出「有紀錄的日子」，沒打卡的那天整列不存在 ——
+     而那正是最該被看見的。選定單一員工後改用這一套，整個月每一天都有位置。 */
+  .cal-head{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:10px;}
+  .cal-sum{display:flex; flex-wrap:wrap; gap:0; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff;}
+  .cal-sum .cell{padding:7px 14px; border-right:1px solid var(--line); min-width:86px;}
+  .cal-sum .cell:last-child{border-right:none;}
+  .cal-sum .k{font-size:10.5px; color:var(--muted); letter-spacing:.05em;}
+  .cal-sum .v{font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:1px;}
+  .cal-sum .v.bad{color:var(--danger);}
+  .cal-sum .v.todo{color:#8a5a0d;}
+  .cal-sum .v.ok{color:#00767C;}
+  /* 檢視切換 */
+  .cal-seg{display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+  .cal-seg button{background:#fff; color:var(--muted); border:none; border-radius:0; padding:6px 14px; font-size:12.5px; font-weight:700;}
+  .cal-seg button+button{border-left:1px solid var(--line);}
+  .cal-seg button.on{background:var(--brand); color:#fff;}
+  .cal-seg button:hover:not(.on){background:#EDEDED; color:var(--ink);}
+
+  /* ---- 列表檢視 ---- */
+  .cal-tbl{width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px;}
+  .cal-tbl th{position:sticky; top:0; z-index:1; background:#EDEDED; font-size:11px; letter-spacing:.05em; padding:7px 8px;}
+  .cal-tbl td{padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  .cal-tbl tr.sel td{background:rgba(0,173,181,.09);}
+  .cal-tbl tr.offday td{background:#FAFAFA; color:var(--muted);}
+  .cal-tbl tr.offday.sel td{background:rgba(0,173,181,.09);}
+  .cal-tbl tr.gap td{background:rgba(161,61,61,.05);}
+  .cal-tbl tr.gap.sel td{background:rgba(0,173,181,.09);}
+  .cal-tbl tr.today td{box-shadow:inset 0 2px 0 var(--brand);}
+  .cal-tbl td.d{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .cal-tbl td.d .dw{font-weight:400; color:var(--muted); margin-left:3px;}
+  .cal-tbl td.t{font-family:'Roboto Mono',monospace; font-variant-numeric:tabular-nums; text-align:center; white-space:nowrap;}
+  .cal-tbl td.t.none{color:var(--muted); opacity:.4;}
+  .cal-sel-col{width:34px; text-align:center;}
+  /* 各種標記 */
+  .cal-tag{display:inline-block; padding:1px 8px; border-radius:5px; font-size:11px; font-weight:700; white-space:nowrap;}
+  .cal-tag.miss{background:rgba(161,61,61,.14); color:var(--danger);}
+  .cal-tag.punch{background:rgba(160,106,16,.16); color:#8a5a0d;}
+  .cal-tag.todo{background:rgba(60,70,84,.10); color:#3c4654;}
+  .cal-tag.off{background:#EDEDED; color:var(--muted);}
+  .cal-tag.hol{background:rgba(107,83,184,.12); color:#5a45a0;}
+  .cal-tag.lv{background:rgba(0,173,181,.14); color:#00767C;}
+  .cal-tag.lv.wait{background:rgba(160,106,16,.16); color:#8a5a0d;}
+  .cal-tag.void{background:rgba(161,61,61,.10); color:var(--danger); text-decoration:line-through;}
+
+  /* ---- 月曆檢視 ---- */
+  .cal-grid{display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px;}
+  .cal-dow{text-align:center; font-size:11px; font-weight:800; letter-spacing:.1em; color:var(--muted); padding-bottom:2px;}
+  .cal-dow.we{color:var(--danger); opacity:.65;}
+  .cal-cell{min-height:96px; border:1px solid var(--line); border-radius:9px; padding:6px 7px; background:#fff;
+            display:flex; flex-direction:column; gap:3px; cursor:pointer; transition:box-shadow .12s, border-color .12s;}
+  .cal-cell.blank{border:none; background:transparent; cursor:default;}
+  .cal-cell:hover:not(.blank){border-color:var(--brand);}
+  .cal-cell.off{background:#F7F7F7;}
+  .cal-cell.gap{border-color:rgba(161,61,61,.55); background:rgba(161,61,61,.05);}
+  .cal-cell.todo{border-style:dashed; background:repeating-linear-gradient(135deg,#fff,#fff 6px,#F2F2F2 6px,#F2F2F2 12px);}
+  .cal-cell.sel{border-color:var(--brand); box-shadow:0 0 0 2px rgba(0,173,181,.35);}
+  .cal-cell.today .cal-n{background:var(--brand); color:#fff; border-radius:50%; width:20px; height:20px;
+                         display:inline-flex; align-items:center; justify-content:center;}
+  .cal-cell .cal-n{font-size:12.5px; font-weight:800; font-variant-numeric:tabular-nums;}
+  .cal-cell .cal-n.we{color:var(--danger);}
+  .cal-cell .cal-t{font-family:'Roboto Mono',monospace; font-size:11px; font-variant-numeric:tabular-nums; line-height:1.5;}
+  .cal-cell .cal-t.miss{color:var(--danger); font-weight:700;}
+  .cal-cell .cal-hn{font-size:10.5px; color:#5a45a0; font-weight:700;}
+  .cal-cell .cal-mini{font-size:10px; padding:0 5px; border-radius:4px; align-self:flex-start; font-weight:700;}
+  .cal-legend{display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:10px; font-size:11.5px; color:var(--muted);}
+  .cal-legend b{font-weight:700; color:var(--ink);}
+
+  /* ---- 批次操作列（選了才出現，貼在底部） ---- */
+  .cal-bar{position:sticky; bottom:0; z-index:3; margin-top:12px; display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+           padding:11px 14px; border-radius:10px; background:var(--brand-dark); color:#EEEEEE;
+           box-shadow:0 -2px 14px rgba(0,0,0,.18);}
+  .cal-bar .n{font-weight:800; font-size:14px;}
+  .cal-bar label{margin:0; font-size:12px; color:#C9CDD2;}
+  .cal-bar input[type=time]{padding:5px 7px; border-radius:6px; border:1px solid #4a525c; background:#fff; font-size:12.5px;}
+  .cal-bar .ow{display:flex; align-items:center; gap:5px; font-size:12px; color:#F0C674;}
+  .cal-bar button.ghost{color:#EEEEEE; border-color:#5a636e;}
+  .cal-bar button.ghost:hover{background:#5a636e; color:#fff;}
+
   /* 展開的逐筆假單。⚠️ 表頭與資料列是兩個獨立的 grid，軌道必須完全一致才會對齊；
      最後一欄用 auto 會讓兩邊依各自內容算出不同寬度，中間的 1fr 吸收差額就對不上。
      狀態放最前：最左邊形成一條顏色帶，待審核的幾筆往下掃就找得到。 */
@@ -1924,6 +2003,276 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
   );
 }
 
+/* ========================= 單一員工的逐日出勤（列表／月曆） =========================
+   打卡紀錄頁選定一個人之後改用這一套：整個月每一天都有位置，沒打卡的那天也在。
+   六日與國定假日照樣列出（假日出勤要看得見，加班費算法不同），只是淡化並且不算應出勤。
+   系統啟用日之前的日子標成「待補登」，可以直接勾起來批次補回去。 */
+const CAL_DOW = ['日','一','二','三','四','五','六'];
+const CAL_DAYTYPE = {rest:'休息日', mandatory:'例假日', holiday:'國定假日'};
+
+function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, onReload}){
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState(()=>{ try{ return localStorage.getItem('att_cal_view') || 'list'; }catch(e){ return 'list'; } });
+  const [sel, setSel] = useState({});          // {date:true}
+  const [bulk, setBulk] = useState({checkIn:'', checkOut:'', overwrite:false, busy:false});
+
+  function load(){
+    setLoading(true);
+    apiGet('getAttendanceCalendar', {month, employeeId})
+      .then(d=>{
+        setData(d);
+        // 批次補登的時間預設帶該員工班別的上下班，最常見的情況是照正常班補
+        setBulk(b=>({...b, checkIn: b.checkIn || (d.workStart||'09:00').slice(0,5), checkOut: b.checkOut || (d.workEnd||'18:00').slice(0,5)}));
+      })
+      .catch(e=>alert(e.message))
+      .finally(()=>setLoading(false));
+  }
+  useEffect(()=>{ setSel({}); load(); }, [month, employeeId]);
+  function switchView(v){ setView(v); try{ localStorage.setItem('att_cal_view', v); }catch(e){} }
+
+  const days = (data && data.days) || [];
+  const selDates = Object.keys(sel).filter(d=>sel[d]).sort();
+  const dayByDate = useMemo(()=>{ const m={}; days.forEach(d=>{ m[d.date]=d; }); return m; }, [days]);
+  const selHasRecord = selDates.filter(d=>dayByDate[d] && dayByDate[d].records.length>0);
+  const todayStr = new Date().toISOString().slice(0,10);
+
+  function toggle(date){ setSel(s=>({...s, [date]: !s[date]})); }
+  function selectAll(pred, label){
+    const next = {};
+    days.filter(pred).forEach(d=>{ next[d.date]=true; });
+    if(Object.keys(next).length===0){ alert('沒有符合「'+label+'」的日期'); return; }
+    setSel(next);
+  }
+
+  async function doBulk(){
+    if(!selDates.length) return;
+    if(!bulk.checkIn && !bulk.checkOut){ alert('上班與下班時間至少要填一個'); return; }
+    const willOverwrite = bulk.overwrite && selHasRecord.length>0;
+    const lines = [
+      `批次補登 ${data.name} 的打卡紀錄`, '',
+      `日期：${selDates.length} 天（${selDates[0]} ~ ${selDates[selDates.length-1]}）`,
+      `上班：${bulk.checkIn||'不填'}　下班：${bulk.checkOut||'不填'}`, ''
+    ];
+    if(selHasRecord.length>0){
+      lines.push(willOverwrite
+        ? `⚠ 其中 ${selHasRecord.length} 天已有紀錄，會被「覆蓋」：\n　 ${selHasRecord.join('、')}\n　 原本的打卡時間會被改掉，這是原始出勤憑證，請確認無誤。`
+        : `其中 ${selHasRecord.length} 天已有紀錄，會略過不動：\n　 ${selHasRecord.join('、')}`);
+      lines.push('');
+    }
+    lines.push('補登的紀錄會標記「管理員補登」，稽核時看得出來源。確定執行嗎？');
+    if(!confirm(lines.join('\n'))) return;
+
+    setBulk(b=>({...b, busy:true}));
+    try{
+      const r = await apiPost('batchPunchRecords', {
+        employeeId, dates: selDates,
+        checkInTime: bulk.checkIn, checkOutTime: bulk.checkOut,
+        overwrite: !!bulk.overwrite
+      });
+      const msg = [`新增 ${r.新增} 天`, r.覆蓋 ? `覆蓋 ${r.覆蓋} 天` : '',
+        r.略過 ? `略過 ${r.略過} 天（已有紀錄，未勾覆蓋）` : '',
+        (r.無效日期||[]).length ? `無效 ${r.無效日期.length} 天：${r.無效日期.join('、')}` : ''
+      ].filter(Boolean).join('　');
+      alert('批次補登完成\n\n' + msg);
+      setSel({}); load(); if(onReload) onReload();
+    }catch(e){ alert(e.message); }
+    finally{ setBulk(b=>({...b, busy:false})); }
+  }
+
+  if(loading) return <div className="card"><div className="hint">載入中...</div></div>;
+  if(!data) return null;
+  const s = data.summary;
+
+  // 一天的「主要狀態」：畫面上這一格要說什麼。順序即優先度。
+  function dayState(d){
+    if(d.records.some(r=>!r.voided && r.checkIn)){
+      if(d.incomplete && d.workedHours<=0) return {k:'punch', t:'漏打下班卡'};
+      return null;                                   // 有正常紀錄就不需要標籤
+    }
+    if(d.skipReason==='beforeStart') return {k:'todo', t:'待補登'};
+    if(d.skipReason==='beforeHire') return {k:'off', t:'到職前'};
+    if(d.skipReason==='afterResign') return {k:'off', t:'離職後'};
+    if(d.skipReason==='future') return null;
+    if(d.dayType!=='work') return null;
+    if(d.leaveHours>0) return null;                  // 整天請假，下面會顯示假別
+    if(d.pendingLeaveHours>0) return {k:'miss', t:'沒有紀錄'};
+    return {k:'miss', t:'沒有紀錄'};
+  }
+  function leaveTags(d, mini){
+    return d.leaves.map((lv,i)=>(
+      <span key={i} className={'cal-tag lv' + (lv.status==='已核准'?'':' wait') + (mini?' cal-mini':'')}
+            title={`${lv.leaveType} ${lv.hours} 小時（${lv.status}）　${lv.startTime} ~ ${lv.endTime}${lv.reason?'　'+lv.reason:''}`}>
+        {lv.leaveType} {trimNum(lv.hours,1)}h{lv.status==='已核准'?'':'（審核中）'}
+      </span>
+    ));
+  }
+
+  return (
+    <div>
+      <div className="cal-head">
+        <div className="cal-sum">
+          <div className="cell"><div className="k">應出勤</div><div className="v">{s.requiredDays} 天</div></div>
+          <div className="cell"><div className="k">應出勤時數</div><div className="v">{trimNum(s.requiredHours,1)}</div></div>
+          <div className="cell"><div className="k">已打卡</div><div className="v ok">{s.punchedDays} 天</div></div>
+          <div className="cell"><div className="k">實際工時</div><div className="v">{trimNum(s.workedHours,1)}</div></div>
+          <div className="cell"><div className="k">已核准假</div><div className="v">{trimNum(s.leaveHours,1)}</div></div>
+          <div className="cell"><div className="k">缺口</div><div className={'v ' + (s.gapHours>0?'bad':'ok')}>{trimNum(s.gapHours,1)}</div></div>
+          {s.pendingBackfillDates.length>0 &&
+            <div className="cell"><div className="k">待補登</div><div className="v todo">{s.pendingBackfillDates.length} 天</div></div>}
+        </div>
+        <div className="cal-seg">
+          <button className={view==='list'?'on':''} onClick={()=>switchView('list')}>
+            <span className="material-icons" style={{fontSize:15}}>view_list</span>列表
+          </button>
+          <button className={view==='cal'?'on':''} onClick={()=>switchView('cal')}>
+            <span className="material-icons" style={{fontSize:15}}>calendar_month</span>月曆
+          </button>
+        </div>
+        <span className="grow"></span>
+        <button className="ghost sm" onClick={()=>selectAll(d=>d.skipReason==='beforeStart' && d.records.length===0, '待補登')}>
+          全選待補登（{s.pendingBackfillDates.length}）
+        </button>
+        <button className="ghost sm" onClick={()=>selectAll(d=>d.required && d.records.length===0 && d.leaveHours<=0, '應出勤但無紀錄')}>
+          全選無紀錄
+        </button>
+        {selDates.length>0 && <button className="ghost sm" onClick={()=>setSel({})}>清除選取</button>}
+      </div>
+      <div className="hint" style={{marginBottom:10}}>
+        {data.name}　{data.shiftName} {data.workStart}~{data.workEnd}（午休 {data.lunchBreak} 分，每日 {trimNum(data.standardHours,1)} 小時）
+        {data.attendanceStartDate && <>　·　出勤紀錄起算日 <b>{data.attendanceStartDate}</b>，之前的日子不列入缺勤計算</>}
+      </div>
+
+      {view==='list' ? (
+        <div className="card" style={{overflowX:'auto', padding:0}}>
+          <table className="cal-tbl">
+            <thead>
+              <tr>
+                <th className="cal-sel-col"></th>
+                <th style={{textAlign:'left'}}>日期</th>
+                <th>上班</th><th>下班</th><th>外出</th><th>返回</th>
+                <th>工時</th>
+                <th style={{textAlign:'left'}}>狀態 / 請假</th>
+                <th>來源</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {days.map(d=>{
+                const st = dayState(d);
+                const live = d.records.filter(r=>!r.voided);
+                const rec = live[0] || d.records[0] || null;
+                const cls = [d.dayType!=='work' ? 'offday' : '', d.gapHours>0 ? 'gap' : '',
+                             sel[d.date] ? 'sel' : '', d.date===todayStr ? 'today' : ''].filter(Boolean).join(' ');
+                return (
+                  <tr key={d.date} className={cls}>
+                    <td className="cal-sel-col">
+                      <input type="checkbox" checked={!!sel[d.date]} onChange={()=>toggle(d.date)} />
+                    </td>
+                    <td className="d">
+                      {Number(d.date.slice(5,7))}/{Number(d.date.slice(8,10))}
+                      <span className="dw">({CAL_DOW[d.dow]})</span>
+                      {d.dayType!=='work' && <span className="cal-tag off" style={{marginLeft:6}}>{CAL_DAYTYPE[d.dayType]}</span>}
+                      {d.holidayName && <span className="cal-tag hol" style={{marginLeft:4}}>{d.holidayName}</span>}
+                    </td>
+                    <td className={'t ' + (rec && rec.checkIn ? '' : 'none')}>{rec && rec.checkIn ? rec.checkIn.slice(11) : '—'}</td>
+                    <td className={'t ' + (rec && rec.checkOut ? '' : 'none')}>{rec && rec.checkOut ? rec.checkOut.slice(11) : '—'}</td>
+                    <td className={'t ' + (rec && rec.outgo ? '' : 'none')}>{rec && rec.outgo ? rec.outgo.slice(11,16) : '—'}</td>
+                    <td className={'t ' + (rec && rec.returnTime ? '' : 'none')}>{rec && rec.returnTime ? rec.returnTime.slice(11,16) : '—'}</td>
+                    <td className={'t ' + (d.workedHours>0 ? '' : 'none')}>{d.workedHours>0 ? trimNum(d.workedHours,2) : '—'}</td>
+                    <td style={{textAlign:'left'}}>
+                      {st && <span className={'cal-tag ' + st.k} style={{marginRight:5}}>{st.t}</span>}
+                      {leaveTags(d)}
+                      {rec && rec.voided && <span className="cal-tag void" style={{marginLeft:4}} title={'作廢原因：'+(rec.voidReason||'')}>已作廢</span>}
+                      {rec && !rec.voided && isAbnormalStatus(rec.checkInStatus) && <span className="cal-tag punch" style={{marginLeft:4}}>{rec.checkInStatus}</span>}
+                      {rec && !rec.voided && isAbnormalStatus(rec.checkOutStatus) && <span className="cal-tag punch" style={{marginLeft:4}}>{rec.checkOutStatus}</span>}
+                    </td>
+                    <td style={{textAlign:'center', color:'var(--muted)', fontSize:11.5}}>{rec ? (rec.source||'') : ''}</td>
+                    <td style={{textAlign:'center', whiteSpace:'nowrap'}}>
+                      {rec ? (rec.voided
+                        ? <button className="ghost sm" onClick={()=>onRestore(rec.id, rec)}>還原</button>
+                        : <>
+                            <button className="ghost sm" onClick={()=>onEdit(rec)}>修改</button>
+                            <button className="ghost sm" style={{marginLeft:4}} onClick={()=>onVoid(rec.id, rec)}>作廢</button>
+                          </>)
+                        : (d.date<=todayStr && <button className="ghost sm" onClick={()=>setSel({[d.date]:true})}>補登</button>)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="card">
+          <div className="cal-grid" style={{marginBottom:6}}>
+            {CAL_DOW.map((w,i)=><div key={w} className={'cal-dow' + (i===0||i===6?' we':'')}>{w}</div>)}
+          </div>
+          <div className="cal-grid">
+            {/* 月初前面的空格：第一天是星期幾就空幾格，月曆才會對齊 */}
+            {days.length>0 && Array.from({length: days[0].dow}).map((_,i)=><div key={'b'+i} className="cal-cell blank"></div>)}
+            {days.map(d=>{
+              const st = dayState(d);
+              const live = d.records.filter(r=>!r.voided);
+              const rec = live[0] || null;
+              const cls = ['cal-cell', d.dayType!=='work' ? 'off' : '', d.gapHours>0 ? 'gap' : '',
+                           d.skipReason==='beforeStart' && d.records.length===0 ? 'todo' : '',
+                           sel[d.date] ? 'sel' : '', d.date===todayStr ? 'today' : ''].filter(Boolean).join(' ');
+              return (
+                <div key={d.date} className={cls} onClick={()=>toggle(d.date)}
+                     title={d.holidayName || (CAL_DAYTYPE[d.dayType]||'')}>
+                  <div style={{display:'flex', alignItems:'center', gap:4}}>
+                    <span className={'cal-n' + (d.dow===0||d.dow===6?' we':'')}>{Number(d.date.slice(8,10))}</span>
+                    {d.holidayName && <span className="cal-hn">{d.holidayName}</span>}
+                  </div>
+                  {rec && rec.checkIn && <div className="cal-t">{rec.checkIn.slice(11,16)}</div>}
+                  {rec && (rec.checkOut
+                    ? <div className="cal-t">{rec.checkOut.slice(11,16)}</div>
+                    : <div className="cal-t miss">未打下班</div>)}
+                  {st && <span className={'cal-tag cal-mini ' + st.k}>{st.t}</span>}
+                  {leaveTags(d, true)}
+                </div>
+              );
+            })}
+          </div>
+          <div className="cal-legend">
+            <span><b>點格子</b>＝選取（可多選，再用下方工具列批次補登）</span>
+            <span><span className="cal-tag miss">沒有紀錄</span> 應出勤卻沒打卡也沒假單</span>
+            <span><span className="cal-tag punch">漏打下班卡</span> 補登下班時間即可</span>
+            <span><span className="cal-tag todo">待補登</span> 系統啟用前</span>
+            <span>灰底＝六日／國定假日，不計入應出勤</span>
+          </div>
+        </div>
+      )}
+
+      {selDates.length>0 && (
+        <div className="cal-bar">
+          <span className="n">已選 {selDates.length} 天</span>
+          <span style={{fontSize:12, color:'#C9CDD2'}}>
+            {selDates.length<=6 ? selDates.map(d=>d.slice(5)).join('、') : selDates[0].slice(5)+' … '+selDates[selDates.length-1].slice(5)}
+          </span>
+          <span style={{width:1, height:22, background:'#4a525c'}}></span>
+          <label>上班</label>
+          <input type="time" value={bulk.checkIn} onChange={e=>setBulk({...bulk, checkIn:e.target.value})} />
+          <label>下班</label>
+          <input type="time" value={bulk.checkOut} onChange={e=>setBulk({...bulk, checkOut:e.target.value})} />
+          {selHasRecord.length>0 && (
+            <label className="ow" title="已有紀錄的日子預設會略過。勾了才會把原本的打卡時間覆蓋掉——那是原始出勤憑證，請確認後再勾。">
+              <input type="checkbox" checked={bulk.overwrite} onChange={e=>setBulk({...bulk, overwrite:e.target.checked})} />
+              覆蓋已有紀錄的 {selHasRecord.length} 天
+            </label>
+          )}
+          <span className="grow"></span>
+          <button className="ghost sm" onClick={()=>setSel({})}>取消</button>
+          <button onClick={doBulk} disabled={bulk.busy}>
+            {bulk.busy ? '寫入中...' : `批次補登 ${selDates.length} 天`}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RecordsTab({employees, month}){
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1970,15 +2319,17 @@ function RecordsTab({employees, month}){
   const empMap = {}; employees.forEach(e=>{ empMap[e.id] = e; });
   const companies = ['全部', ...Array.from(new Set(employees.map(e=>e.company||'(未分類)')))];
   const namesInCompany = filterCompany==='全部' ? employees : employees.filter(e=>(e.company||'(未分類)')===filterCompany);
-  const namesWithRecords = new Set(records.map(r=>r.name)); // 免打卡員工若本月確實有紀錄（例如手動補登），還是要能被篩選到
-  const eligibleForFilter = namesInCompany.filter(e=>!(e.exemptFromAttendance || (e.employeeType && e.employeeType!=='正式員工')) || namesWithRecords.has(e.name));
-  const names = ['全部', ...Array.from(new Set(eligibleForFilter.map(e=>e.name)))];
+  const idsWithRecords = new Set(records.map(r=>r.employeeId)); // 免打卡員工若本月確實有紀錄（例如手動補登），還是要能被篩選到
+  const eligibleForFilter = namesInCompany.filter(e=>!(e.exemptFromAttendance || (e.employeeType && e.employeeType!=='正式員工')) || idsWithRecords.has(e.id));
+  // ⚠️ 篩選值用員工 ID 不用姓名：逐日檢視要拿 employeeId 去查日曆，同名的話會查到別人
+  const nameOptions = eligibleForFilter.map(e=>({id:e.id, name:e.name}));
+  const selectedEmp = filterName !== '全部' ? empMap[filterName] : null;
 
   const filtered = records.filter(r=>{
     const emp = empMap[r.employeeId];
     const empCompany = emp ? (emp.company||'(未分類)') : '(未分類)';
     if(filterCompany!=='全部' && empCompany!==filterCompany) return false;
-    if(filterName!=='全部' && r.name!==filterName) return false;
+    if(filterName!=='全部' && r.employeeId!==filterName) return false;
     if(onlyAbnormal && !isAbnormalStatus(r.checkInStatus) && !isAbnormalStatus(r.checkOutStatus) && !isAbnormalStatus(r.outgoStatus) && !isAbnormalStatus(r.returnStatus)) return false;
     return true;
   });
@@ -2000,18 +2351,30 @@ function RecordsTab({employees, month}){
           {companies.map(c=><option key={c} value={c}>{c==='全部'?'全部公司':c}</option>)}
         </select>
         <select value={filterName} onChange={e=>setFilterName(e.target.value)} style={{width:'auto'}}>
-          {names.map(n=><option key={n} value={n}>{n==='全部'?'全部姓名':n}</option>)}
+          <option value="全部">全部姓名</option>
+          {nameOptions.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
         </select>
-        <label style={{display:'flex', alignItems:'center', gap:5, fontSize:13, color:'var(--ink)'}}>
-          <input type="checkbox" checked={onlyAbnormal} onChange={e=>setOnlyAbnormal(e.target.checked)} style={{width:'auto'}} />只顯示異常記錄
-        </label>
-        <label style={{display:'flex', alignItems:'center', gap:5, fontSize:13, color:'var(--ink)'}}>
-          <input type="checkbox" checked={showVoided} onChange={e=>setShowVoided(e.target.checked)} style={{width:'auto'}} />顯示已作廢
-        </label>
+        {/* 選定單一員工時改用逐日檢視，整月每一天都有位置 ——
+            那兩個篩選在逐日檢視下沒有意義（作廢與異常都直接標在該日那一列上） */}
+        {!selectedEmp && <>
+          <label style={{display:'flex', alignItems:'center', gap:5, fontSize:13, color:'var(--ink)'}}>
+            <input type="checkbox" checked={onlyAbnormal} onChange={e=>setOnlyAbnormal(e.target.checked)} style={{width:'auto'}} />只顯示異常記錄
+          </label>
+          <label style={{display:'flex', alignItems:'center', gap:5, fontSize:13, color:'var(--ink)'}}>
+            <input type="checkbox" checked={showVoided} onChange={e=>setShowVoided(e.target.checked)} style={{width:'auto'}} />顯示已作廢
+          </label>
+        </>}
         <span className="grow"></span>
         <button className="ghost sm" onClick={()=>setManual({employeeId:'', name:'', companyFilter:'全部', date: month+'-01', checkIn:'', checkOut:'', note:''})}>＋ 補登紀錄</button>
         <button className="ghost sm" onClick={load}>重新整理</button>
       </div>
+      {selectedEmp ? (
+        <EmployeeAttendanceView
+          employeeId={selectedEmp.id} month={month}
+          onEdit={r=>setEditing({id:r.id, date:r.date, name:r.name, checkIn:r.checkIn, checkOut:r.checkOut,
+            note:r.note||'', lat:r.checkInLat||r.checkOutLat||'', lng:r.checkInLng||r.checkOutLng||''})}
+          onVoid={voidRecordAsk} onRestore={restoreRecordAsk} onReload={load} />
+      ) : (
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table style={{tableLayout:'fixed', minWidth:1080}}>
@@ -2042,7 +2405,7 @@ function RecordsTab({employees, month}){
                     {r.voided ? (
                       <button className="ghost sm" onClick={()=>restoreRecordAsk(r.id, r)}>還原</button>
                     ) : (<>
-                      <button className="ghost sm" onClick={()=>setEditing({id:r.id, checkIn:r.checkIn, checkOut:r.checkOut, note:r.note, lat:r.checkInLat||r.checkOutLat||'', lng:r.checkInLng||r.checkOutLng||''})}>修改</button>{' '}
+                      <button className="ghost sm" onClick={()=>setEditing({id:r.id, date:r.date, name:r.name, checkIn:r.checkIn, checkOut:r.checkOut, note:r.note, lat:r.checkInLat||r.checkOutLat||'', lng:r.checkInLng||r.checkOutLng||''})}>修改</button>{' '}
                       <button className="danger sm" onClick={()=>voidRecordAsk(r.id, r)}>作廢</button>
                     </>)}
                   </td>
@@ -2054,6 +2417,7 @@ function RecordsTab({employees, month}){
           </table>
         )}
       </div>
+      )}
 
       {manual && (
         <div className="modal-bg">
@@ -2094,7 +2458,7 @@ function RecordsTab({employees, month}){
       {editing && (
         <div className="modal-bg">
           <div className="modal">
-            <h3>修改打卡紀錄</h3>
+            <h3>修改打卡紀錄{editing.date ? <span style={{fontWeight:400, fontSize:13, color:'var(--muted)', marginLeft:8}}>{editing.name} · {editing.date}</span> : null}</h3>
             <div className="grid-2">
               <div className="field"><label>上班時間</label><input type="datetime-local" defaultValue={(editing.checkIn||'').replace(' ','T').slice(0,16)} onChange={e=>setEditing({...editing, checkIn:e.target.value.replace('T',' ')+':00'})} /></div>
               <div className="field"><label>下班時間</label><input type="datetime-local" defaultValue={(editing.checkOut||'').replace(' ','T').slice(0,16)} onChange={e=>setEditing({...editing, checkOut:e.target.value.replace('T',' ')+':00'})} /></div>
