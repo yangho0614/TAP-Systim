@@ -509,9 +509,15 @@
      —— 日期欄因為要掛「休息日」「國定假日」標籤，結果變成整張表最寬的一欄，
      而它的內容只有「9/25 (五)」幾個字，看起來就是一片空白。
      狀態欄是唯一不指定寬度的，剩餘空間留給它（假別標籤可能有好幾個）。 */
-  .cal-tbl{width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:12.5px;}
-  .cal-tbl th{position:sticky; top:0; z-index:1; background:#EDEDED; font-size:11px; letter-spacing:.05em; padding:7px 8px;}
-  .cal-tbl td{padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  /* 框線一律沿用全域的 table{border-collapse:collapse} ＋ th,td{border:1px solid var(--line)}。
+     ⚠️ 這裡原本自作主張改成 border-collapse:separate 且只畫底線，結果整張表只有橫線、
+        跟後台其他表格的四邊框線長得不一樣。表格樣式不要各做各的。 */
+  .cal-tbl{width:100%; table-layout:fixed; font-size:12.5px;}
+  /* collapse ＋ sticky 表頭時，捲動中 th 的邊框會被一起帶走（框線畫在 cell 邊界上，
+     sticky 讓它脫離了原本的位置），所以用 inset shadow 補回上下兩條線。 */
+  .cal-tbl th{position:sticky; top:0; z-index:1; background:#EDEDED; font-size:11px; letter-spacing:.05em; padding:7px 8px;
+              box-shadow:inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line);}
+  .cal-tbl td{padding:6px 8px; vertical-align:middle;}
   .cal-tbl tr.sel td{background:rgba(0,173,181,.09);}
   /* 不用出勤的日子（六日／例假日／國定假日）用淺紅底，掃一眼就知道哪幾天不必上班。
      ⚠️ 紅色在這張表裡有兩種意思，必須分得開：
@@ -521,9 +527,9 @@
   .cal-tbl tr.offday td{background:rgba(192,90,79,.07); color:var(--muted);}
   .cal-tbl tr.offday.sel td{background:rgba(0,173,181,.09);}
   .cal-tbl tr.gap td{background:rgba(161,61,61,.13);}
-  .cal-tbl tr.gap td:first-child{box-shadow:inset 3px 0 0 var(--danger);}
+  .cal-tbl tr.gap td:first-child{border-left:3px solid var(--danger);}
   .cal-tbl tr.gap.sel td{background:rgba(0,173,181,.09);}
-  .cal-tbl tr.today td{box-shadow:inset 0 2px 0 var(--brand);}
+  .cal-tbl tr.today td{border-top:2px solid var(--brand);}
   /* 全域是 th,td{text-align:right}，這裡每一欄都要明寫，不能靠預設 */
   .cal-tbl td.d{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; text-align:left;
                 overflow:hidden; text-overflow:ellipsis;}
