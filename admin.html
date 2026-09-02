@@ -2316,6 +2316,16 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
           <div className="cell"><div className="k">實際工時</div><div className="v">{trimNum(s.workedHours,1)}</div></div>
           <div className="cell"><div className="k">已核准假</div><div className="v">{trimNum(s.leaveHours,1)}</div></div>
           <div className="cell"><div className="k">缺口</div><div className={'v ' + (s.gapHours>0?'bad':'ok')}>{trimNum(s.gapHours,1)}</div></div>
+          {/* ⚠️ 這一格不能省。缺口只算「差滿 1 小時」的日子，零碎的不列進待辦，
+              結果就是「實際工時 ＋ 缺口 ≠ 應出勤」—— 使用者自己一加就發現少了一截，
+              會開始懷疑整張表。這些分鐘沒有被忽略，它們都計入遲到早退了。 */}
+          {n(s.minorGapHours)>0 && (
+            <div className="cell"><div className="k">零碎差額</div>
+              <div className="v" title="每天不足、但未達 1 小時門檻的時數合計。不列入缺口待辦，但已計入遲到早退">
+                {trimNum(s.minorGapHours,1)}
+              </div>
+            </div>
+          )}
           <div className="cell"><div className="k">遲到／早退</div>
             <div className={'v ' + (calLateTotal>0 ? 'bad' : 'ok')}>{calLateTotal} 分</div></div>
           {s.pendingBackfillDates.length>0 &&
@@ -2352,6 +2362,14 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
           </button>
           <button className="ghost sm" onClick={()=>setSel({})}>清除選取</button>
         </>}
+      </div>
+      {/* 把等式寫出來，省得每次都要自己算「少的那些去哪了」 */}
+      <div className="hint" style={{marginBottom:6}}>
+        <b>應出勤 {trimNum(s.requiredHours,1)}</b>　＝　實際工時 {trimNum(s.workedHours,1)}
+        {n(s.leaveHours)>0 && <>　＋　已核准假 {trimNum(s.leaveHours,1)}</>}
+        {n(s.gapHours)>0 && <>　＋　缺口 {trimNum(s.gapHours,1)}</>}
+        {n(s.minorGapHours)>0 && <>　＋　零碎差額 {trimNum(s.minorGapHours,1)}</>}
+        {n(s.workedHours)+n(s.leaveHours) > n(s.requiredHours) && <>　（超出的部分是加班，不計入）</>}
       </div>
       <div className="hint" style={{marginBottom:10}}>
         {data.name}　{data.shiftName} {data.workStart}~{data.workEnd}（午休 {data.lunchBreak} 分，每日 {trimNum(data.standardHours,1)} 小時）
