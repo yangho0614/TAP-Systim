@@ -3801,7 +3801,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             <td>{money(totals.annualLeaveSettlement)}</td>
             <td className="num-pos">{money(totals.payable)}</td>
             {shown('leave') && <><td className="num-neg">{money(totals.personalLeave)}</td><td className="num-neg">{money(totals.sickLeave)}</td><td className="num-neg">{money(totals.menstrualLeave)}</td><td className="num-neg">{money(totals.disasterLeave)}</td></>}
-            {shown('late') && <><td className="num-neg">{money(totals.lateMoney)}</td><td className="num-neg">{money(totals.earlyMoney)}</td><td className="num-neg">{money(totals.lateEarlyDeduct)}</td><td></td><td className="num-neg">{money(totals.absentDeduct)}</td></>}
+            {shown('late') && <><td className="num-neg">{money(totals.lateMoney)}</td><td className="num-neg">{money(totals.earlyMoney)}</td><td className="num-neg">{money(totals.lateEarlyDeduct)}</td><td className="num-neg">{money(totals.absentDeduct)}</td><td className="num-neg">{money(totals.absentDeduct)}</td></>}
             <td>{money(totals.labor)}</td>
             <td>{money(totals.health)}</td>
             <td>{money(totals.otherDeduct)}</td>
