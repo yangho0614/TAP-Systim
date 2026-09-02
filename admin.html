@@ -40,6 +40,8 @@
   /* 假單起訖：上下兩行、等寬數字，兩行的日期與時間會垂直對齊 */
   .req-when{white-space:nowrap; font-variant-numeric:tabular-nums; line-height:1.65;}
   .req-when-in{display:inline-block; text-align:left;}
+  .other-month{display:inline-block; margin-left:6px; padding:0 6px; border-radius:5px;
+               background:rgba(160,106,16,.16); color:#8a5a0d; font-size:10.5px; font-weight:700;}
   .req-when .tilde{color:var(--muted);}
 
   /* 月份列：內容區的第一行，緊貼下方的篩選列 */
@@ -4650,13 +4652,23 @@ function RequestsTab({month, employees, setTab}){
           <button className="ghost sm" onClick={()=>setTab('attendance')}>看是缺哪幾天</button>
         </div>
       )}
-      <div className="hint" style={{marginBottom:12}}>員工的請假與加班換補休申請。部門主管可在前台審核；你也可以在此直接核准或駁回（含沒有設定主管的部門）。</div>
+      <div className="hint" style={{marginBottom:12}}>
+        員工的請假與加班換補休申請。部門主管可在前台審核；你也可以在此直接核准或駁回（含沒有設定主管的部門）。<br/>
+        <b>待審核的假單不受月份篩選限制，一律顯示</b>（標「N 月」的就是其他月份的單）——
+        補登到別的月份的單如果被月份濾掉，就永遠不會有人翻回去批。已核准的則嚴格依請假起始日歸月。
+      </div>
       <div className="card" style={{overflowX:'auto'}}>
         {loading ? <div className="hint">載入中...</div> : (
           <table>
             <thead><tr><th className="center">姓名</th><th className="center">員工類型</th><th className="center">類型</th><th className="center">假別</th><th className="center">起訖 / 加班日期</th><th className="center">時數</th><th className="center">代理人</th><th className="center">事由</th><th className="center">附件</th><th className="center">狀態</th><th className="center">審核人</th><th className="center">操作</th></tr></thead>
             <tbody>
-              {shownList.map(r=>(
+              {shownList.map(r=>{
+                // 待審核的單不受月份篩選限制（後端 listAllRequests 刻意如此，免得補登到其他
+                // 月份的單從清單消失、永遠沒人批）。但畫面上要標出來，否則選了 8 月卻看到
+                // 9 月的資料，看起來就像篩選壞掉。
+                const reqMonth = String(r.startTime || '').slice(0, 7);
+                const otherMonth = reqMonth && month && reqMonth !== month;
+                return (
                 <tr key={r.id}>
                   <td className="center"><b>{r.name}</b></td>
                   <td className="center">{(()=>{ const t = empTypeById[r.employeeId] || '—';
@@ -4670,7 +4682,10 @@ function RequestsTab({month, employees, setTab}){
                     {r.type==='請假' ? (
                       // 外層置中、內層靠左：第一行尾端多一個 ~，兩行直接置中的話左右都會錯開
                       <div className="req-when-in">
-                        <div>{withWeekday(r.startTime)} <span className="tilde">~</span></div>
+                        <div>
+                          {withWeekday(r.startTime)} <span className="tilde">~</span>
+                          {otherMonth && <span className="other-month" title={'這張是 '+reqMonth+' 的假單。待審核的單不受月份篩選限制，一律顯示，避免被漏批。'}>{Number(reqMonth.slice(5))} 月</span>}
+                        </div>
                         <div>{withWeekday(r.endTime)}</div>
                       </div>
                     ) : withWeekday(String(r.startTime).split(' ')[0])}
@@ -4693,7 +4708,8 @@ function RequestsTab({month, employees, setTab}){
                     )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {shownList.length===0 && <tr><td colSpan="12" className="hint" style={{textAlign:'center'}}>{list.length===0 ? '本月尚無申請單' : '這位員工本月沒有符合條件的申請單'}</td></tr>}
             </tbody>
           </table>
