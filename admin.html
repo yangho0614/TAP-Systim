@@ -630,6 +630,7 @@
   .cal-bar label{margin:0; font-size:12px; color:#C9CDD2;}
   .cal-bar input[type=time]{padding:5px 7px; border-radius:6px; border:1px solid #4a525c; background:#fff; font-size:12.5px;}
   .cal-bar .ow{display:flex; align-items:center; gap:5px; font-size:12px; color:#F0C674;}
+  .cal-bar .ow.ok{color:#7FD4C1;}
   .cal-bar button.ghost{color:#EEEEEE; border-color:#5a636e;}
   .cal-bar button.ghost:hover{background:#5a636e; color:#fff;}
   .cal-bar-note{flex-basis:100%; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
@@ -2148,7 +2149,15 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
   const days = (data && data.days) || [];
   const selDates = Object.keys(sel).filter(d=>sel[d]).sort();
   const dayByDate = useMemo(()=>{ const m={}; days.forEach(d=>{ m[d.date]=d; }); return m; }, [days]);
-  const selHasRecord = selDates.filter(d=>dayByDate[d] && dayByDate[d].records.length>0);
+  // 已有紀錄的日子分兩種，處理方式完全不同：
+  //   只缺一半（漏打下班卡）→ 補空白就好，不必勾覆蓋，已打好的那一半不會被動到
+  //   兩邊都有值        → 要動到它就是覆蓋，必須明確勾選
+  const selHasRecord = selDates.filter(d=>dayByDate[d] && dayByDate[d].records.filter(r=>!r.voided).length>0);
+  const selHalfMissing = selHasRecord.filter(d=>{
+    const r = dayByDate[d].records.filter(x=>!x.voided)[0];
+    return r && (!r.checkIn || !r.checkOut);
+  });
+  const selFullRecord = selHasRecord.filter(d=>selHalfMissing.indexOf(d)===-1);
   const todayStr = new Date().toISOString().slice(0,10);
 
   function toggle(date){ setSel(s=>({...s, [date]: !s[date]})); }
@@ -2162,19 +2171,22 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
   async function doBulk(){
     if(!selDates.length) return;
     if(!bulk.checkIn && !bulk.checkOut){ alert('上班與下班時間至少要填一個'); return; }
-    const willOverwrite = bulk.overwrite && selHasRecord.length>0;
     const lines = [
       `批次補登 ${data.name} 的打卡紀錄`, '',
       `日期：${selDates.length} 天（${selDates[0]} ~ ${selDates[selDates.length-1]}）`,
       `上班：${bulk.checkIn||'不填'}　下班：${bulk.checkOut||'不填'}`,
       `備註：${bulk.note || '管理員批次補登'}`, ''
     ];
-    if(selHasRecord.length>0){
-      lines.push(willOverwrite
-        ? `⚠ 其中 ${selHasRecord.length} 天已有紀錄，會被「覆蓋」：\n　 ${selHasRecord.join('、')}\n　 原本的打卡時間會被改掉，這是原始出勤憑證，請確認無誤。`
-        : `其中 ${selHasRecord.length} 天已有紀錄，會略過不動：\n　 ${selHasRecord.join('、')}`);
-      lines.push('');
+    if(selHalfMissing.length>0){
+      lines.push(`· ${selHalfMissing.length} 天只缺一半（例如有上班卡沒下班卡）：${selHalfMissing.join('、')}`);
+      lines.push(`　 只補空白的那一欄，已經打好的時間不會被動到。`);
     }
+    if(selFullRecord.length>0){
+      lines.push(bulk.overwrite
+        ? `⚠ ${selFullRecord.length} 天上下班都已有紀錄，會被「覆蓋」：${selFullRecord.join('、')}\n　 原本的打卡時間會被改掉，這是原始出勤憑證，請確認無誤。`
+        : `· ${selFullRecord.length} 天上下班都已有紀錄，會略過不動：${selFullRecord.join('、')}`);
+    }
+    if(selHalfMissing.length>0 || selFullRecord.length>0) lines.push('');
     lines.push('補登的紀錄會標記「管理員補登」，稽核時看得出來源。確定執行嗎？');
     if(!confirm(lines.join('\n'))) return;
 
@@ -2186,8 +2198,10 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
         note: bulk.note || '管理員批次補登',
         overwrite: !!bulk.overwrite
       });
-      const msg = [`新增 ${r.新增} 天`, r.覆蓋 ? `覆蓋 ${r.覆蓋} 天` : '',
-        r.略過 ? `略過 ${r.略過} 天（已有紀錄，未勾覆蓋）` : '',
+      const msg = [`新增 ${r.新增} 天`,
+        r.補上空白 ? `補上缺的那一欄 ${r.補上空白} 天` : '',
+        r.覆蓋 ? `覆蓋 ${r.覆蓋} 天` : '',
+        r.略過 ? `略過 ${r.略過} 天（上下班都已有紀錄，未勾覆蓋）` : '',
         (r.無效日期||[]).length ? `無效 ${r.無效日期.length} 天：${r.無效日期.join('、')}` : ''
       ].filter(Boolean).join('　');
       alert('批次補登完成\n\n' + msg);
@@ -2251,6 +2265,9 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
         </button>
         <button className="ghost sm" onClick={()=>selectAll(d=>d.required && d.records.length===0 && d.leaveHours<=0, '應出勤但無紀錄')}>
           全選無紀錄
+        </button>
+        <button className="ghost sm" onClick={()=>selectAll(d=>d.incomplete, '漏打下班卡')}>
+          全選漏打下班卡
         </button>
         {/* 勾選後就在這排直接給批次入口。原本只有畫面最底部那條工具列有，
             上面又還放著一顆「＋ 補登紀錄」（那是單筆的），兩個長得像、離得遠，很容易按錯。 */}
@@ -2425,10 +2442,16 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
           <input type="time" value={bulk.checkIn} onChange={e=>setBulk({...bulk, checkIn:e.target.value})} />
           <label>下班</label>
           <input type="time" value={bulk.checkOut} onChange={e=>setBulk({...bulk, checkOut:e.target.value})} />
-          {selHasRecord.length>0 && (
-            <label className="ow" title="已有紀錄的日子預設會略過。勾了才會把原本的打卡時間覆蓋掉——那是原始出勤憑證，請確認後再勾。">
+          {selHalfMissing.length>0 && (
+            <span className="ow ok" title={'這些日子只缺一半（例如有上班卡沒下班卡），會只補空白的那一欄：\n'+selHalfMissing.join('、')}>
+              <span className="material-icons" style={{fontSize:16}}>check_circle</span>
+              {selHalfMissing.length} 天只補缺的那一欄
+            </span>
+          )}
+          {selFullRecord.length>0 && (
+            <label className="ow" title={'這些日子上下班都已經有紀錄，預設略過。勾了才會把原本的打卡時間覆蓋掉——那是原始出勤憑證，請確認後再勾。\n'+selFullRecord.join('、')}>
               <input type="checkbox" checked={bulk.overwrite} onChange={e=>setBulk({...bulk, overwrite:e.target.checked})} />
-              覆蓋已有紀錄的 {selHasRecord.length} 天
+              覆蓋已有完整紀錄的 {selFullRecord.length} 天
             </label>
           )}
           <span className="grow"></span>
