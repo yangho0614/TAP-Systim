@@ -1100,7 +1100,8 @@ function emptyEntry(){
     locked:false, lockedAt:'', lockedBaseSalary:0, lockedMealAllowance:0, lockedTransportAllowance:0,
     lockedPositionAllowance:0, lockedFullAttendanceBonus:0, lockedInsuranceGrade:0, lockedDependentCount:0,
     lockedLaborFee:0, lockedHealthFee:0,
-    lateMinutes:0, lateCount:0, earlyMinutes:0, earlyCount:0, presentDays:0
+    lateMinutes:0, lateCount:0, earlyMinutes:0, earlyCount:0, presentDays:0,
+    absentHours:0
   };
 }
 // mode='tier'（預設，公司現行）：舊制 4/8/12 小時級距，做 1 小時也算 4 小時，優於法令
@@ -1233,6 +1234,8 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
       const excessCount = Math.max(0, lateEarlyCount - freeCount);
       deductRatio += excessCount * (percentPerCount/100);
     }
+    // ⚠️ 曠職一律全扣全勤，不按比例（與 Code.gs 一致）
+    if(n(entry.absentHours) > 0) deductRatio = 1;
     fullAttendanceDeductRatio = Math.max(0, Math.min(1, deductRatio));
 
     const parts = String(month||'').split('-').map(Number);
@@ -1275,9 +1278,11 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
      ⚠️ 這三份計算（GAS／Worker／這裡）必須完全一致，改一處就要改三處。
      ⚠️ 遲到分鐘已扣掉已核准假單涵蓋的時段與午休，補請假後自然歸零，不會重複扣。 */
   const lateEarlyHours = (n(entry.lateMinutes) + n(entry.earlyMinutes)) / 60;
+  const absentDeduct = (!isLocked && String(settings?.deductWageForAbsent || '否') === '是')
+    ? hourly * n(entry.absentHours) : 0;
   const lateEarlyDeduct = (!isLocked && String(settings?.deductWageForLateEarly || '否') === '是')
     ? hourly * lateEarlyHours : 0;
-  const deductTotal = laborFee + healthFee + leaveDeduct + lateEarlyDeduct + n(entry.otherDeduction);
+  const deductTotal = laborFee + healthFee + leaveDeduct + lateEarlyDeduct + absentDeduct + n(entry.otherDeduction);
 
   const pay06 = payableTotal - deductTotal;
   const pay26 = n(entry.businessExpense)+n(entry.salesPerformance)+n(entry.otherExpense26)+n(entry.salesBonus26)-n(entry.deduction26);
@@ -1291,6 +1296,7 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
     restDayCountedHours: restDay.countedHours, restDayOverCap: restDay.overCap, monthlyOtHours,
     allowanceTotal, bonusTotal, payableA, payableTotal,
     laborFee, healthFee, leaveDeduct, lateEarlyDeduct, lateEarlyHours: Math.round(lateEarlyHours*100)/100,
+    absentDeduct, absentHours: Math.round(n(entry.absentHours)*100)/100,
     deductTotal, menstrualPaidHours, menstrualHalfHours,
     sickHalfPayHours, sickUnpaidHours, menstrualHalfPayHours, menstrualUnpaidHours, sickCapExceeded,
     pay06, pay26, grandTotal, belowMinWage,
@@ -1589,7 +1595,8 @@ function App(){
     {key:'disasterLeave', label:'災防假'},
     {key:'lateMinutes', label:'遲到分鐘'}, {key:'lateCount', label:'遲到次數'},
     {key:'earlyMinutes', label:'早退分鐘'}, {key:'earlyCount', label:'早退次數'},
-    {key:'presentDays', label:'出勤日數'}
+    {key:'presentDays', label:'出勤日數'},
+    {key:'absentHours', label:'曠職時數'}
   ];
   function summaryToEntry(s){
     return {
@@ -1601,7 +1608,9 @@ function App(){
       disasterLeave: s.disasterLeave || 0,
       lateMinutes: s.lateMinutes || 0, lateCount: s.lateCount || 0,
       earlyMinutes: s.earlyLeaveMinutes || 0, earlyCount: s.earlyLeaveCount || 0,
-      presentDays: s.presentDays || 0
+      presentDays: s.presentDays || 0,
+      // 曠職＝整天無紀錄且無假單的日子（見 calcGapForEmployee），不含遲到早退的零碎缺口
+      absentHours: s.absentHours || 0
     };
   }
   // onlyEmpId 有值時只套用那一位（薪資表每列的「套用」鈕）。差異確認、實際寫入、
@@ -3324,7 +3333,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
       if(n(entry.otWeekday134)||n(entry.otWeekday167)||n(entry.otRestDayHours)||n(entry.otHolidayHours)) c.ot++;
       if(n(entry.festivalBonus)||n(entry.yearEndBonus)||n(entry.performanceBonus)||n(entry.otherBonus)) c.bonus++;
       if(n(entry.personalLeave)||n(entry.sickLeave)||n(entry.menstrualLeave)||n(entry.disasterLeave)||n(entry.familyCareLeave)) c.leave++;
-      if(n(entry.lateMinutes)||n(entry.earlyMinutes)) c.late++;
+      if(n(entry.lateMinutes)||n(entry.earlyMinutes)||n(entry.absentHours)) c.late++;
     });
     return c;
   }, [rows]);
@@ -3351,7 +3360,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
   function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
   function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
   const totals = useMemo(()=>{
-    const t = {base:0, overtime:0, allowance:0, bonus:0, payable:0, labor:0, health:0, leaveDeduct:0, lateEarlyDeduct:0, otherDeduct:0, deduct:0, pay06:0, pay26:0, grand:0};
+    const t = {base:0, overtime:0, allowance:0, bonus:0, payable:0, labor:0, health:0, leaveDeduct:0, lateEarlyDeduct:0, absentDeduct:0, otherDeduct:0, deduct:0, pay06:0, pay26:0, grand:0};
     rows.forEach(({emp, entry, calc})=>{
       t.base += calc.effBaseSalary;
       t.overtime += calc.overtimePay;
@@ -3362,6 +3371,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
       t.health += calc.healthFee;
       t.leaveDeduct += calc.leaveDeduct;
       t.lateEarlyDeduct += (calc.lateEarlyDeduct || 0);
+      t.absentDeduct += (calc.absentDeduct || 0);
       t.otherDeduct += n(entry.otherDeduction);
       t.deduct += calc.deductTotal;
       t.pay06 += calc.pay06;
@@ -3455,13 +3465,13 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
   }
 
   function doExport(){
-    const headers = ['公司','部門','姓名','投保級距','本薪','平日加班費','休息日加班費','國定假日加班費','加班費合計','津貼合計','獎金合計','特休結算','應付小計','勞保自付','健保自付','請假扣款','遲到早退扣款','其他扣款','應扣小計','06日應付','26日應付','應付總計'];
+    const headers = ['公司','部門','姓名','投保級距','本薪','平日加班費','休息日加班費','國定假日加班費','加班費合計','津貼合計','獎金合計','特休結算','應付小計','勞保自付','健保自付','請假扣款','遲到早退扣款','曠職扣款','其他扣款','應扣小計','06日應付','26日應付','應付總計'];
     const data = rows.map(({emp, entry, calc})=>[
       emp.company, emp.department, emp.name, emp.insuranceGrade, calc.effBaseSalary,
       Math.round(calc.weekdayOtPay), Math.round(calc.restDayPay), Math.round(calc.holidayPay), Math.round(calc.overtimePay),
       calc.allowanceTotal, calc.bonusTotal, n(entry.annualLeaveSettlement),
       Math.round(calc.payableTotal), calc.laborFee, calc.healthFee, Math.round(calc.leaveDeduct),
-      Math.round(calc.lateEarlyDeduct || 0), n(entry.otherDeduction),
+      Math.round(calc.lateEarlyDeduct || 0), Math.round(calc.absentDeduct || 0), n(entry.otherDeduction),
       Math.round(calc.deductTotal), Math.round(calc.pay06), Math.round(calc.pay26), Math.round(calc.grandTotal)
     ]);
     exportCSV(`薪資明細_${month}.csv`, headers, data);
@@ -3578,7 +3588,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             </th>
             <th className="col-add" rowSpan="2">應付小計</th>
             {shown('leave') && <th className="col-deduct" colSpan="4">請假時數</th>}
-            {shown('late') && <th className="col-deduct" colSpan="3">遲到早退</th>}
+            {shown('late') && <th className="col-deduct" colSpan="5">遲到早退／曠職</th>}
             <th className="col-deduct" rowSpan="2">勞保</th>
             <th className="col-deduct" rowSpan="2">健保</th>
             <th className="col-deduct" rowSpan="2">其他扣款</th>
@@ -3589,7 +3599,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             {shown('ot') && <><th className="col-add">平日1.34</th><th className="col-add">平日1.67</th><th className="col-add">休息日</th><th className="col-add">國定假日</th></>}
             {shown('bonus') && <><th className="col-add">三節</th><th className="col-add">年終</th><th className="col-add">績效</th><th className="col-add">其他</th></>}
             {shown('leave') && <><th className="col-deduct">事假</th><th className="col-deduct">病假</th><th className="col-deduct">生理假</th><th className="col-deduct">災防</th></>}
-            {shown('late') && <><th className="col-deduct">遲到(分)</th><th className="col-deduct">早退(分)</th><th className="col-deduct">扣款</th></>}
+            {shown('late') && <><th className="col-deduct">遲到(分)</th><th className="col-deduct">早退(分)</th><th className="col-deduct">遲到扣款</th><th className="col-deduct">曠職(時)</th><th className="col-deduct">曠職扣款</th></>}
           </tr>
         </thead>
         <tbody>
@@ -3674,6 +3684,19 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
                   <div className="hint" style={{fontSize:10, marginTop:2}}>已鎖定，沿用當時金額</div>
                 )}
               </td>
+              <td className="col-deduct">
+                <NumCell value={entry.absentHours} onChange={v=>setEntry(emp.id,{absentHours:v})} disabled={entry.locked} />
+                {n(entry.absentHours)>0 && (
+                  <div className="hint" style={{fontSize:10, marginTop:2}}>＝{Math.round(n(entry.absentHours)/8*100)/100} 日</div>
+                )}
+              </td>
+              <td className="col-deduct num-neg">
+                {money(calc.absentDeduct)}
+                {n(entry.absentHours)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全勤全扣</div>}
+                {!entry.locked && !n(calc.absentDeduct) && n(entry.absentHours)>0 && (
+                  <div className="hint" style={{fontSize:10, marginTop:2}}>系統設定為不扣</div>
+                )}
+              </td>
               </>}
               <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays} 日比例計算`:''}>{money(calc.laborFee)}</td>
               <td className="col-deduct" title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
@@ -3698,7 +3721,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             <td></td>
             <td className="num-pos">{money(totals.payable)}</td>
             {shown('leave') && <td colSpan="4"></td>}
-            {shown('late') && <><td colSpan="2"></td><td className="num-neg">{money(totals.lateEarlyDeduct)}</td></>}
+            {shown('late') && <><td colSpan="2"></td><td className="num-neg">{money(totals.lateEarlyDeduct)}</td><td></td><td className="num-neg">{money(totals.absentDeduct)}</td></>}
             <td>{money(totals.labor)}</td>
             <td>{money(totals.health)}</td>
             <td></td>
@@ -3776,6 +3799,12 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
                   <div className="hint" style={{fontSize:10, marginTop:2, color:'var(--danger)'}}
                        title={`遲到早退 ${calc.lateEarlyHours} 小時 × 時薪`}>
                     ＋遲到早退 {money(calc.lateEarlyDeduct)}
+                  </div>
+                )}
+                {calc.absentDeduct > 0 && (
+                  <div className="hint" style={{fontSize:10, marginTop:2, color:'var(--danger)'}}
+                       title={`曠職 ${calc.absentHours} 小時（${Math.round(calc.absentHours/8*100)/100} 日）× 時薪，全勤獎金另全扣`}>
+                    ＋曠職 {money(calc.absentDeduct)}
                   </div>
                 )}
               </td>
@@ -6348,6 +6377,27 @@ function SettingsTab({onSaved, initialCategory}){
           <select value={s.deductWageForLateEarly || '是'} onChange={e=>setS({...s, deductWageForLateEarly:e.target.value})}>
             <option value="是">扣（依實際分鐘數扣工資）</option>
             <option value="否">不扣（只影響全勤獎金）</option>
+          </select>
+        </Fld>
+        <Fld label="曠職是否扣工資"
+             hint="曠職＝整天沒打卡、也沒有已核准假單的日子；依時薪扣，全勤獎金另全扣。"
+             warn={s.deductWageForAbsent === '否'
+               ? '⚠ 目前設為不扣。曠職會變得比請事假划算——事假扣 100% 工資，曠職扣 0。'
+               : ''}
+             help={<>
+               <p><b>2026-09-02 以前系統對曠職完全不扣</b>：出勤對帳會叫、前台提醒卡也會叫，
+               但薪資一毛不動，等於「曠職比請事假划算」。</p>
+               <p>扣款依時薪計算。時薪＝本薪÷240，所以曠職一天（8 小時）剛好等於本薪÷30，
+               與「曠工一日扣一日工資」的慣例一致。</p>
+               <p>⚠️ <b>只認「整天無紀錄且無假單」的日子。</b>「時數不足」（遲到早退）已經依分鐘扣過工資，
+               「漏打下班卡」是人有來、要補登不是扣薪 —— 兩者都不算曠職，否則會同一件事扣兩次。</p>
+               <p>⚠️ 曠職一律<b>全扣</b>全勤獎金，不按比例。勞工請假規則第 9 條的「不得全有全無」
+               是針對請假，曠職不受該限制。</p>
+               <p>⚠️ 待審核的假單不免除曠職，批准後重新套用就會歸零。</p>
+             </>}>
+          <select value={s.deductWageForAbsent || '是'} onChange={e=>setS({...s, deductWageForAbsent:e.target.value})}>
+            <option value="是">扣（依時薪扣工資，全勤全扣）</option>
+            <option value="否">不扣</option>
           </select>
         </Fld>
         <Fld label="補請假期限（工作日）"
