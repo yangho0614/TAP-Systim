@@ -512,7 +512,11 @@
   /* 框線一律沿用全域的 table{border-collapse:collapse} ＋ th,td{border:1px solid var(--line)}。
      ⚠️ 這裡原本自作主張改成 border-collapse:separate 且只畫底線，結果整張表只有橫線、
         跟後台其他表格的四邊框線長得不一樣。表格樣式不要各做各的。 */
-  .cal-tbl{width:100%; table-layout:fixed; font-size:12.5px;}
+  /* ⚠️ 這張表**不要**撐滿容器。欄位數固定、內容也短，硬撐到 100% 只會讓沒指定寬度的那一欄
+     變成一個大洞（寬螢幕上特別明顯）。改成內容寬度、整張卡片跟著縮，多出來的空間就回到
+     頁面上變成正常的留白，而不是表格中間的空白。 */
+  .cal-tbl{width:auto; table-layout:fixed; font-size:12.5px;}
+  .cal-wrap{width:fit-content; max-width:100%; padding:0;}
   /* collapse ＋ sticky 表頭時，捲動中 th 的邊框會被一起帶走（框線畫在 cell 邊界上，
      sticky 讓它脫離了原本的位置），所以用 inset shadow 補回上下兩條線。 */
   .cal-tbl th{position:sticky; top:0; z-index:1; background:#EDEDED; font-size:11px; letter-spacing:.05em; padding:7px 8px;
@@ -2168,21 +2172,21 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
       </div>
 
       {view==='list' ? (
-        <div className="card" style={{overflowX:'auto', padding:0}}>
+        <div className="card cal-wrap" style={{overflowX:'auto'}}>
           <table className="cal-tbl">
             {/* ⚠️ 只有「備註」不指定寬度。表格是 width:100%，沒指定寬度的欄會吃掉所有剩餘空間 ——
                 寬螢幕上原本是狀態欄在吃，結果中間空一大片。備註本來就該有（補登備註、作廢原因
                 都在這裡），讓它來吸收剩餘寬度，空間才有用途。 */}
             <colgroup>
               <col style={{width:'36px'}} />
+              <col style={{width:'228px'}} />
+              <col style={{width:'96px'}} /><col style={{width:'96px'}} />
+              <col style={{width:'68px'}} /><col style={{width:'68px'}} />
+              <col style={{width:'62px'}} />
               <col style={{width:'250px'}} />
-              <col style={{width:'104px'}} /><col style={{width:'104px'}} />
-              <col style={{width:'76px'}} /><col style={{width:'76px'}} />
-              <col style={{width:'68px'}} />
-              <col style={{width:'300px'}} />
-              <col />
-              <col style={{width:'76px'}} />
-              <col style={{width:'132px'}} />
+              <col style={{width:'210px'}} />
+              <col style={{width:'70px'}} />
+              <col style={{width:'122px'}} />
             </colgroup>
             <thead>
               <tr>
