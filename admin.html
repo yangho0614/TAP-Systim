@@ -2075,7 +2075,7 @@ function EmployeeEditModal({editing, setEditing, isNew, saving, onSave, companie
         {editing.baseSalary>0 && (n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance)) < MIN_WAGE_MONTHLY && (
           <div className="hint" style={{color:'var(--danger)'}}>⚠ 本薪＋伙食＋交通＋職務加給合計 {money(n(editing.baseSalary)+n(editing.mealAllowance)+n(editing.transportAllowance)+n(editing.positionAllowance))} 元，低於2026年最低工資 {money(MIN_WAGE_MONTHLY)} 元，可能違反《最低工資法》（全勤獎金為條件式給予，不列入計算基準）</div>
         )}
-        <div className="fs-note">依2026年新制《勞工請假規則》第9條，婚假、喪假、公傷病假、公假、生理假、家庭照顧事假等法定假別不得作為扣發全勤獎金的理由。病假、事假、遲到、早退依「設定」頁的比例規則自動扣除（不是全有全無），這裡填的是正常整月應發的金額。</div>
+        <div className="fs-note">依2026年新制《勞工請假規則》第9條，婚假、喪假、公傷病假、公假、生理假、家庭照顧事假等法定假別不得作為扣發全勤獎金的理由。病假、事假、遲到、早退依「設定」頁的比例規則自動扣除（不是全有全無）；曠職則是全扣（不是請假，不受第9條限制）。這裡填的是正常整月應發的金額。</div>
         </div>
 
         <div className="fieldset">
@@ -3672,9 +3672,18 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} />{refBelow(refDisasterLeave)}</td>
               </>}
               {shown('late') && <>
-              <td className="col-deduct"><NumCell value={entry.lateMinutes} onChange={v=>setEntry(emp.id,{lateMinutes:v})} disabled={entry.locked} /></td>
-              <td className="col-deduct"><NumCell value={entry.earlyMinutes} onChange={v=>setEntry(emp.id,{earlyMinutes:v})} disabled={entry.locked} /></td>
-              <td className="col-deduct num-neg">
+              {/* 分鐘怎麼變成金額，中間那步要看得見，否則「652 分 → 1,721 元」是一個黑盒子。
+                  單位不統一是刻意的：遲到早退是分鐘級的事件，換算成 10.87 小時反而讀不出意義；
+                  曠職與請假同為小時級，跟「請假時數」那四欄一致。 */}
+              <td className="col-deduct">
+                <NumCell value={entry.lateMinutes} onChange={v=>setEntry(emp.id,{lateMinutes:v})} disabled={entry.locked} />
+                {n(entry.lateMinutes)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>＝{Math.round(n(entry.lateMinutes)/60*100)/100} 時</div>}
+              </td>
+              <td className="col-deduct">
+                <NumCell value={entry.earlyMinutes} onChange={v=>setEntry(emp.id,{earlyMinutes:v})} disabled={entry.locked} />
+                {n(entry.earlyMinutes)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>＝{Math.round(n(entry.earlyMinutes)/60*100)/100} 時</div>}
+              </td>
+              <td className="col-deduct num-neg" title={`時薪 ${money(Math.round(calc.hourly))} × ${calc.lateEarlyHours} 小時`}>
                 {money(calc.lateEarlyDeduct)}
                 {/* 有分鐘卻沒扣款只有兩種可能，講清楚是哪一種，不然看起來像算錯 */}
                 {!entry.locked && !n(calc.lateEarlyDeduct) && (n(entry.lateMinutes)+n(entry.earlyMinutes))>0 && (
@@ -3690,7 +3699,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
                   <div className="hint" style={{fontSize:10, marginTop:2}}>＝{Math.round(n(entry.absentHours)/8*100)/100} 日</div>
                 )}
               </td>
-              <td className="col-deduct num-neg">
+              <td className="col-deduct num-neg" title={`時薪 ${money(Math.round(calc.hourly))} × ${calc.absentHours} 小時`}>
                 {money(calc.absentDeduct)}
                 {n(entry.absentHours)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全勤全扣</div>}
                 {!entry.locked && !n(calc.absentDeduct) && n(entry.absentHours)>0 && (
@@ -4044,6 +4053,10 @@ function Payslip({emp, entry, calc, month, payDate06, payDate26, hideZero}){
           {show(n(entry.sickLeave)) && <tr><td className="left col-deduct">病假{calc.sickUnpaidHours>0 && <div style={{fontWeight:400, color:'var(--danger)', fontSize:10.5}}>其中{calc.sickUnpaidHours}hr已達年度上限不給薪</div>}</td><td className="col-deduct hrs">{hrsLabel(n(entry.sickLeave))}</td><td className="col-deduct">{money(calc.hourly*0.5*calc.sickHalfPayHours + calc.hourly*calc.sickUnpaidHours)}</td></tr>}
           {show(n(entry.menstrualLeave)) && <tr><td className="left col-deduct">生理假{calc.menstrualUnpaidHours>0 && <div style={{fontWeight:400, color:'var(--danger)', fontSize:10.5}}>其中{calc.menstrualUnpaidHours}hr已達上限不給薪</div>}</td><td className="col-deduct hrs">{hrsLabel(n(entry.menstrualLeave))}</td><td className="col-deduct">{money(calc.hourly*0.5*calc.menstrualHalfPayHours + calc.hourly*calc.menstrualUnpaidHours)}</td></tr>}
           {show(n(entry.disasterLeave)) && <tr><td className="left col-deduct">災防假</td><td className="col-deduct hrs">{hrsLabel(n(entry.disasterLeave))}</td><td className="col-deduct">{money(calc.hourly*1.0*n(entry.disasterLeave))}</td></tr>}
+          {/* ⚠️ 這兩項一定要列出來。它們早就計入 deductTotal，少了明細，員工看到的是
+                 「應扣合計比上面每一項加起來還多」——那是最容易引發爭議的一種薪資條。 */}
+          {show(calc.lateEarlyDeduct) && <tr><td className="left col-deduct">遲到／早退</td><td className="col-deduct hrs">{n(entry.lateMinutes)+n(entry.earlyMinutes)} 分（{calc.lateEarlyHours} 小時）</td><td className="col-deduct">{money(calc.lateEarlyDeduct)}</td></tr>}
+          {show(calc.absentDeduct) && <tr><td className="left col-deduct">曠職</td><td className="col-deduct hrs">{hrsLabel(calc.absentHours)}</td><td className="col-deduct">{money(calc.absentDeduct)}</td></tr>}
           {show(n(entry.otherDeduction)) && <tr><td className="left col-deduct">其他扣款</td><td className="col-deduct hrs">{entry.otherDeductionNote||''}</td><td className="col-deduct">{money(entry.otherDeduction)}</td></tr>}
           <tr className="total-row"><td className="left">應扣合計</td><td></td><td>{money(calc.deductTotal)}</td></tr>
         </tbody>
@@ -6474,7 +6487,7 @@ function SettingsTab({onSaved, initialCategory}){
       <div className="hint" style={{marginTop:6}}>公司現行做法：伙食、交通、職務加給不計入；全勤獎金自2026年8月起因法規變動已併入本薪，故計入。</div>
 
       <h3 style={{marginTop:18}}><span className="material-icons">verified</span> 全勤獎金比例扣除</h3>
-      <div className="hint" style={{marginTop:-4, marginBottom:8}}>依2026年新制《勞工請假規則》第9條，全勤獎金扣發不得「全有全無」，一律按比例計算。病假、事假時數會依比例自動扣（時數÷240）；婚喪公傷病假、公假、生理假等法定假別不受影響。「事假」欄位仍會合併家庭照顧假一起輸入（家庭照顧假依法併入事假計算），薪資條顯示時系統會自動拆開顯示兩者各自時數，方便員工核對。</div>
+      <div className="hint" style={{marginTop:-4, marginBottom:8}}>依2026年新制《勞工請假規則》第9條，全勤獎金扣發不得「全有全無」，一律按比例計算。病假、事假時數會依比例自動扣（時數÷240）；婚喪公傷病假、公假、生理假等法定假別不受影響。<b>唯一的例外是曠職 —— 全扣不按比例</b>：第 9 條規範的對象是「請假」，曠職不是請假，不在該條射程內。「事假」欄位仍會合併家庭照顧假一起輸入（家庭照顧假依法併入事假計算），薪資條顯示時系統會自動拆開顯示兩者各自時數，方便員工核對。</div>
       <div className="field"><label>遲到/早退計算方式</label>
         <select value={s.fullAttendanceLateEarlyMode || 'minutes'} onChange={e=>setS({...s,fullAttendanceLateEarlyMode:e.target.value})}>
           <option value="minutes">只算累積分鐘數比例</option>
