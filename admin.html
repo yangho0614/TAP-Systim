@@ -3845,7 +3845,27 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             <td className="mono">{money(totals.overtime)}</td>
             <td className="mono">{money(totals.bonus)}</td>
             <td className="mono">{money(totals.payable)}</td>
-            <td className="mono">{money(totals.leaveDeduct)}</td>
+            {/* ⚠️ 合計必須跟上面每一格「長得一樣」。原本只加請假扣款，
+                   欄位裡明明看得到的「＋遲到早退」「＋曠職」卻沒進合計 ——
+                   使用者一加就發現對不起來，會開始懷疑整張表。 */}
+            <td className="mono">
+              {money(totals.leaveDeduct)}
+              {totals.lateEarlyDeduct > 0 && (
+                <div className="hint" style={{fontSize:10, marginTop:2, color:'var(--danger)'}}>
+                  ＋遲到早退 {money(totals.lateEarlyDeduct)}
+                </div>
+              )}
+              {totals.absentDeduct > 0 && (
+                <div className="hint" style={{fontSize:10, marginTop:2, color:'var(--danger)'}}>
+                  ＋曠職 {money(totals.absentDeduct)}
+                </div>
+              )}
+              {(totals.lateEarlyDeduct > 0 || totals.absentDeduct > 0) && (
+                <div className="hint" style={{fontSize:10, marginTop:3, fontWeight:700}}>
+                  小計 {money(totals.leaveDeduct + totals.lateEarlyDeduct + totals.absentDeduct)}
+                </div>
+              )}
+            </td>
             <td className="mono">{money(totals.labor + totals.health)}</td>
             <td className="mono">{money(totals.deduct)}</td>
             <td className="mono">{money(totals.pay06)}</td>
