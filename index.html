@@ -261,8 +261,12 @@
     background:#222831f2; border-top:1px solid var(--line); backdrop-filter:blur(8px);
   }
   .tabbar-inner{ max-width:480px; margin:0 auto; display:flex; }
+  /* ⚠️ 底部要多留一段。iPhone 的 Home Indicator（螢幕最底那條橫線）就壓在
+     env(safe-area-inset-bottom) 的範圍內 —— 只用它剛好「不被切到」，但文字會緊貼那條線，
+     看起來很擠，手指也容易誤觸到系統的返回手勢。再加 10px 讓它有呼吸空間。
+     ⚠️ 這在 Safari 分頁模式看不出來（env 是 0），改完兩種模式都要各看一次。 */
   .tab{
-    flex:1; padding:9px 0 max(9px, env(safe-area-inset-bottom)) 0; text-align:center; cursor:pointer; color:var(--muted);
+    flex:1; padding:9px 0 calc(max(10px, env(safe-area-inset-bottom)) + 10px) 0; text-align:center; cursor:pointer; color:var(--muted);
     display:flex; flex-direction:column; align-items:center; gap:2px; font-size:10.5px; position:relative;
   }
   .tab .material-icons{ font-size:22px; }
