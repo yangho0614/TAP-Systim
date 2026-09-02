@@ -597,7 +597,7 @@
   .cal-grid{display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px;}
   .cal-dow{text-align:center; font-size:11px; font-weight:800; letter-spacing:.1em; color:var(--muted); padding-bottom:2px;}
   .cal-dow.we{color:var(--danger); opacity:.65;}
-  .cal-cell{min-height:96px; border:1px solid var(--line); border-radius:9px; padding:6px 7px; background:#fff;
+  .cal-cell{min-height:112px; border:1px solid var(--line); border-radius:9px; padding:6px 7px; background:#fff;
             display:flex; flex-direction:column; gap:3px; cursor:pointer; transition:box-shadow .12s, border-color .12s;}
   .cal-cell.blank{border:none; background:transparent; cursor:default;}
   .cal-cell:hover:not(.blank){border-color:var(--brand);}
@@ -2303,6 +2303,8 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
     );
   }
   function leaveTags(d, mini){
+    /* mini＝月曆格子。空間小，但「假別＋時數」與「是否已核准」兩件事都不能省：
+       看到「特休 8h」以為沒事了，實際上還在等審核，缺口並沒有補上。 */
     return d.leaves.map((lv,i)=>(
       <span key={i} className={'cal-tag lv' + (lv.status==='已核准'?'':' wait') + (mini?' cal-mini':'')}
             title={`${lv.leaveType} ${lv.hours} 小時（${lv.status}）　${lv.startTime} ~ ${lv.endTime}${lv.reason?'　'+lv.reason:''}`}>
@@ -2535,6 +2537,19 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
                     ? <div className="cal-t">{rec.checkOut.slice(11,16)}</div>
                     : <div className="cal-t miss">未打下班</div>)}
                   {st && !(st.k==='punch' && rec) && <span className={'cal-tag cal-mini ' + st.k}>{st.t}</span>}
+                  {/* ⚠️ 月曆也要標遲到早退。原本只有時間跟假別，遲到完全看不見 ——
+                      而月曆正是用來「一眼掃過整個月」的檢視，看不到異常就失去意義。
+                      用系統即時算出來的分鐘數（與薪資同口徑），補登的紀錄也標得出來。 */}
+                  {n(d.lateMinutes)>0 && (
+                    <span className="cal-tag cal-mini punch" title={'遲到 ' + d.lateMinutes + ' 分鐘（系統計算，薪資以此為準）'}>
+                      遲{d.lateMinutes}分
+                    </span>
+                  )}
+                  {n(d.earlyMinutes)>0 && (
+                    <span className="cal-tag cal-mini punch" title={'早退 ' + d.earlyMinutes + ' 分鐘（系統計算，薪資以此為準）'}>
+                      早退{d.earlyMinutes}分
+                    </span>
+                  )}
                   {leaveTags(d, true)}
                 </div>
               );
@@ -2544,6 +2559,8 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
             <span><b>點格子</b>＝選取（可多選，再用下方工具列批次補登）</span>
             <span><span className="cal-tag miss">沒有紀錄</span> 應出勤卻沒打卡也沒假單</span>
             <span><span className="cal-tag punch">漏打下班卡</span> 補登下班時間即可</span>
+            <span><span className="cal-tag punch">遲25分</span> 遲到早退（系統計算，薪資以此為準）</span>
+            <span><span className="cal-tag lv">特休 8h</span> 已核准假　<span className="cal-tag lv wait">事假 1h</span> 審核中</span>
             <span><span className="cal-tag todo">待補登</span> 系統啟用前</span>
             <span>灰底＝六日／國定假日，不用出勤；<b>紅色只代表要處理的缺漏</b></span>
           </div>
