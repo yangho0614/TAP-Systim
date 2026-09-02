@@ -6239,6 +6239,28 @@ function SettingsTab({onSaved, initialCategory}){
           </div>
         </div>
         <div className="field">
+          <label>提早打卡是否計入加班</label>
+          <select value={s.countEarlyClockInAsOvertime || '否'} onChange={e=>setS({...s, countEarlyClockInAsOvertime:e.target.value})}>
+            <option value="否">不計入（工時從班表上班時間起算）</option>
+            <option value="是">計入（依打卡時間核實計算）</option>
+          </select>
+          <div className="hint" style={{marginTop:4}}>
+            加班是<b>全自動認列</b>的（打卡工時 − 標準工時），沒有加班申請單，
+            所以 08:30 就刷卡進來、18:00 正常下班，會自動產生 30 分鐘 1.34 倍加班費。<br/>
+            早到吃早餐、換衣服、避開塞車，主管並未交付工作，那段不是雇主指揮監督下的時間，
+            依法本來就不算工時。<b>設為「不計入」時，工時一律從班表上班時間起算。</b><br/>
+            ⚠️ <b>只影響上班那一端</b>，延後下班仍依實際打卡認列加班。
+            也<b>只影響平日</b>——休息日、國定假日、例假日出勤不受這個設定影響。<br/>
+            ⚠️ 這不會動到「實際工時」，出勤時數對帳與逐日檢視仍以打卡原值為準。
+            已鎖定的月份沿用當時的計算。
+            {s.countEarlyClockInAsOvertime === '是' && (
+              <div style={{marginTop:4, color:'var(--danger)'}}>
+                ⚠ 目前設為計入。員工只要提早刷卡就能累積加班費，且沒有簽核關卡。
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="field">
           <label>補請假期限（工作日）</label>
           <input type="number" min="0" value={s.leaveBackfillWorkdays ?? 3}
                  onChange={e=>setS({...s, leaveBackfillWorkdays:e.target.value})} />
