@@ -1488,17 +1488,39 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
   }
 
   const LABEL = {in:'上班打卡', out:'下班打卡', outgo:'外出', 'return':'返回'};
+  // 失敗卡片上的「重新打卡」要回到同一種，由顯示名稱反查
+  function punchTypeOf(label){ return Object.keys(LABEL).find(k=>LABEL[k]===label) || 'in'; }
   const ACTION = {in:'clockIn', out:'clockOut', outgo:'clockOutgo', 'return':'clockReturn'};
   const CLS = {in:'in', out:'out', outgo:'mid', 'return':'mid'};
 
-  const [punchResult, setPunchResult] = useState(null); // 打卡完成後的結果卡，異常時要看得清楚
+  const [punchResult, setPunchResult] = useState(null); // 打卡結果卡：phase 為 sending / ok / fail
+  // 樂觀鎖：按下去就先當作已打卡，讓按鈕立刻反灰；失敗時才解除
+  const [optimistic, setOptimistic] = useState({});
 
+  /* 樂觀 UI：按下確認就**立刻**關掉視窗、把時間顯示出來，定位與送出在背景做。
+     員工不必盯著轉圈等 GAS（閒置後第一次要 2.5～15 秒）。
+
+     ⚠️ 但打卡不能做成「純樂觀」—— 員工看到成功就把手機收起來走了，
+        實際上失敗的話他不會知道，那比讓他等 5 秒嚴重得多。
+        所以分三態，而且視覺上要分得夠開：
+          送出中（灰藍、轉圈）→ 完成（綠、打勾）／失敗（紅、可重試）
+        只有綠色打勾才代表完成。
+
+     ⚠️ 卡片先顯示的是「按下當下」的時間，成功後會用後端回傳的真實時間覆蓋。
+        **不把前端時間送給後端**：出勤時間是薪資與勞檢的依據，一旦可由前端指定
+        就等於開了竄改的門。兩者通常只差一兩秒。 */
   async function confirmPunch(){
-    setModalState('loading');
+    const type = modal;
+    const pressedAt = new Date();
+    setModal(null);
+    setModalState('confirm');
+    setOptimistic(o=>({...o, [type]: true}));          // 立刻鎖住按鈕，避免重複送出
+    setPunchResult({label: LABEL[type], time: hhmm(pressedAt.toISOString()), issues: [], phase: 'sending'});
+
     const loc = await getLocation();
     if(loc.lat) setDeviceLoc(loc);
     try{
-      const data = await apiPost(ACTION[modal], {employeeId: session.employeeId, lat: loc.lat, lng: loc.lng, source:'mobile'});
+      const data = await apiPost(ACTION[type], {employeeId: session.employeeId, lat: loc.lat, lng: loc.lng, source:'mobile'});
       const tag = String(data.statusTag || '');
       // 把後端回傳的狀態字串拆成可個別呈現的異常項目
       const issues = [];
@@ -1510,38 +1532,77 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
       if(mEarly) issues.push({icon:'logout', title:'早退', value:mEarly[1]+' 分鐘', note:'早退會依比例影響全勤獎金'});
       if(tag.indexOf('未取得定位')===0) issues.push({icon:'location_off', title:'未取得定位', value:'—', note:'系統已記錄，但無法確認打卡地點'});
 
-      setPunchResult({label: LABEL[modal], time: hhmm(data.time) || hhmm(new Date().toISOString()), issues, distance: data.distance});
-      setModal(null);
+      setPunchResult({label: LABEL[type], time: hhmm(data.time) || hhmm(pressedAt.toISOString()),
+                      issues, distance: data.distance, phase: 'ok'});
       refreshStatus();
     }catch(e){
-      showToast(e.message, 'err');
-      setModalState('confirm');
+      // 失敗要很明顯：把樂觀鎖解除、卡片轉紅並留在畫面上，不用一閃即逝的 toast
+      setOptimistic(o=>({...o, [type]: false}));
+      setPunchResult({label: LABEL[type], time: hhmm(pressedAt.toISOString()), issues: [],
+                      phase: 'fail', error: e.message});
     }
   }
 
   const dateStr = `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())}　星期${'日一二三四五六'[now.getDay()]}`;
-  const canOutgo = status?.clockedIn && !status?.clockedOut && !status?.outgoTime;
-  const canReturn = status?.clockedIn && !status?.clockedOut && status?.outgoTime && !status?.returnTime;
+  /* 把「按下但還沒回來」的打卡疊在後端狀態之上，按鈕才會立刻反應。
+     時間顯示也一樣：送出當下就先秀出來（淡化＋轉圈），成功後由 refreshStatus 換成真實值。
+     ⚠️ 這只是畫面上的樂觀，後端仍以它自己記的時間為準，失敗時 optimistic 會被清掉。 */
+  const optTime = punchResult && punchResult.phase==='sending' ? punchResult.time : null;
+  const eff = {
+    clockedIn:  !!status?.clockedIn  || !!optimistic.in,
+    clockedOut: !!status?.clockedOut || !!optimistic.out,
+    outgoTime:  status?.outgoTime  || (optimistic.outgo ? 'opt' : null),
+    returnTime: status?.returnTime || (optimistic['return'] ? 'opt' : null),
+  };
+  const canOutgo = eff.clockedIn && !eff.clockedOut && !eff.outgoTime;
+  const canReturn = eff.clockedIn && !eff.clockedOut && eff.outgoTime && !eff.returnTime;
+  // 該格若正在送出中，顯示按下當下的時間並淡化，代表「還沒確認」
+  function cellTime(realTime, key){
+    if(realTime) return hhmm(realTime);
+    if(optimistic[key] && optTime) return <span style={{opacity:.6}}>{optTime}</span>;
+    return hhmm(realTime);
+  }
 
   return (
     <div className="page">
-      {punchResult && (
-        <div style={{position:'fixed', left:12, right:12, bottom:78, zIndex:60}} onClick={()=>setPunchResult(null)}>
+      {punchResult && (()=>{
+        /* 三態的顏色與文案。送出中刻意用「中性的藍灰」而不是綠色 ——
+           綠色代表完成，送出中若也是綠的，員工會以為已經好了就走人。 */
+        const ph = punchResult.phase || 'ok';
+        const warn = ph==='ok' && punchResult.issues.length>0;
+        const skin = ph==='sending' ? {bg:'#243447', bd:'#3f5a78', ic:'#8fb8e0', icon:null}
+                   : ph==='fail'    ? {bg:'#4a2424', bd:'#8a4040', ic:'#e08a8a', icon:'error'}
+                   : warn           ? {bg:'#4a3423', bd:'#8a6b3d', ic:'#e0b45c', icon:'warning'}
+                                    : {bg:'#1f3d2e', bd:'#3d7a5c', ic:'#7fcba6', icon:'check_circle'};
+        const title = ph==='sending' ? `${punchResult.label}　${punchResult.time}`
+                    : ph==='fail'    ? `${punchResult.label}失敗`
+                                     : `${punchResult.label}完成　${punchResult.time}`;
+        return (
+        <div style={{position:'fixed', left:12, right:12, bottom:78, zIndex:60}}
+             onClick={()=>{ if(ph!=='sending') setPunchResult(null); }}>
           <div style={{
-            background: punchResult.issues.length ? '#4a3423' : '#1f3d2e',
-            border:'1px solid ' + (punchResult.issues.length ? '#8a6b3d' : '#3d7a5c'),
+            background: skin.bg, border:'1px solid ' + skin.bd,
             borderRadius:14, padding:'14px 16px', boxShadow:'0 10px 28px rgba(0,0,0,.45)'
           }}>
-            <div style={{display:'flex', alignItems:'center', gap:9, marginBottom: punchResult.issues.length?9:0}}>
-              <span className="material-icons" style={{fontSize:22, color: punchResult.issues.length ? '#e0b45c' : '#7fcba6'}}>
-                {punchResult.issues.length ? 'warning' : 'check_circle'}
-              </span>
+            <div style={{display:'flex', alignItems:'center', gap:9, marginBottom: (punchResult.issues.length||ph==='fail')?9:0}}>
+              {skin.icon
+                ? <span className="material-icons" style={{fontSize:22, color: skin.ic}}>{skin.icon}</span>
+                : <span className="spinner" style={{width:18, height:18, borderColor:'rgba(255,255,255,.25)', borderTopColor: skin.ic}}></span>}
               <div style={{flex:1}}>
-                <div style={{fontWeight:700, fontSize:15}}>{punchResult.label}完成　{punchResult.time}</div>
-                {!punchResult.issues.length && <div style={{fontSize:12, opacity:.75, marginTop:1}}>位置正常，無異常紀錄</div>}
+                <div style={{fontWeight:700, fontSize:15}}>{title}</div>
+                {ph==='sending' && <div style={{fontSize:12, opacity:.75, marginTop:1}}>送出中，請等綠色勾勾出現再離開</div>}
+                {ph==='fail' && <div style={{fontSize:12, opacity:.85, marginTop:1}}>{punchResult.error || '請重新打卡'}</div>}
+                {ph==='ok' && !punchResult.issues.length && <div style={{fontSize:12, opacity:.75, marginTop:1}}>位置正常，無異常紀錄</div>}
               </div>
-              <span className="material-icons" style={{fontSize:18, opacity:.5}}>close</span>
+              {ph!=='sending' && <span className="material-icons" style={{fontSize:18, opacity:.5}}>close</span>}
             </div>
+            {ph==='fail' && (
+              <div style={{paddingTop:9, borderTop:'1px solid rgba(255,255,255,.12)'}}>
+                <button className="go" style={{width:'100%'}} onClick={ev=>{ ev.stopPropagation(); setPunchResult(null); setModal(punchTypeOf(punchResult.label)); setModalState('confirm'); }}>
+                  重新{punchResult.label}
+                </button>
+              </div>
+            )}
             {punchResult.issues.map((x,i)=>(
               <div key={i} style={{display:'flex', gap:10, alignItems:'flex-start', paddingTop:9, borderTop:'1px solid rgba(255,255,255,.12)'}}>
                 <span className="material-icons" style={{fontSize:18, opacity:.8, marginTop:2}}>{x.icon}</span>
@@ -1556,7 +1617,8 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
             ))}
           </div>
         </div>
-      )}
+        );
+      })()}
       <div className="punch-hero" style={{position:'relative', overflow:'hidden', minHeight:480, background:'var(--bg-1)'}}>
         <PunchMap companyLat={settings?.lat} companyLng={settings?.lng} radius={settings?.radius} deviceLat={deviceLoc?.lat} deviceLng={deviceLoc?.lng} companyName={session?.employee?.company} />
 
@@ -1575,10 +1637,10 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
 
         <div style={{position:'absolute', left:8, right:8, top:8, background:'rgba(57,62,70,0.8)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)', border:'1px solid var(--line)', borderRadius:14, padding:'12px 14px', boxShadow:'0 8px 20px rgba(0,0,0,.4)'}}>
           <div className="status-grid" style={{marginTop:0}}>
-            <div className="status-cell"><div className="lbl">上班</div><div className="val">{hhmm(status?.checkInTime)}</div></div>
-            <div className="status-cell"><div className="lbl">下班</div><div className="val">{hhmm(status?.checkOutTime)}</div></div>
-            <div className="status-cell"><div className="lbl">外出</div><div className="val">{hhmm(status?.outgoTime)}</div></div>
-            <div className="status-cell"><div className="lbl">返回</div><div className="val">{hhmm(status?.returnTime)}</div></div>
+            <div className="status-cell"><div className="lbl">上班</div><div className="val">{cellTime(status?.checkInTime, 'in')}</div></div>
+            <div className="status-cell"><div className="lbl">下班</div><div className="val">{cellTime(status?.checkOutTime, 'out')}</div></div>
+            <div className="status-cell"><div className="lbl">外出</div><div className="val">{cellTime(status?.outgoTime, 'outgo')}</div></div>
+            <div className="status-cell"><div className="lbl">返回</div><div className="val">{cellTime(status?.returnTime, 'return')}</div></div>
           </div>
           <div className="hint" style={{marginTop:8}}>打卡位置如超出公司設定範圍，仍會完成打卡，但需經管理者核對。</div>
         </div>
@@ -1589,11 +1651,11 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
             <div className="date">{dateStr}</div>
           </div>
 
-          {!status ? (
+          {!status && !optimistic.in ? (
             <div className="hint" style={{textAlign:'center'}}>載入打卡狀態中...</div>
-          ) : !status.clockedIn ? (
+          ) : !eff.clockedIn ? (
             <button className="big-btn in" onClick={()=>{setModal('in'); setModalState('confirm');}}><span className="material-icons">login</span>上班打卡</button>
-          ) : !status.clockedOut ? (
+          ) : !eff.clockedOut ? (
             <button className="big-btn out" onClick={()=>{setModal('out'); setModalState('confirm');}}><span className="material-icons">logout</span>下班打卡</button>
           ) : (
             <button className="big-btn done"><span className="material-icons">check_circle</span>今日已完成打卡</button>
@@ -1616,9 +1678,7 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
             <div style={{fontSize:17, fontWeight:700}}>{session.employee?.name}</div>
             <div className={'action-label ' + CLS[modal]}>{LABEL[modal]}</div>
             <div className="time">{pad(now.getHours())}:{pad(now.getMinutes())}:{pad(now.getSeconds())}</div>
-            <div className="hint" style={{minHeight:18, marginBottom:14}}>
-              {modalState==='loading' ? <span><span className="spinner"></span> 定位中並送出紀錄...</span> : '請確認後按下確認'}
-            </div>
+            <div className="hint" style={{minHeight:18, marginBottom:14}}>請確認後按下確認</div>
             <div className="modal-actions" style={{marginTop:4, opacity:modalState==='loading'?0.5:1, pointerEvents:modalState==='loading'?'none':'auto'}}>
               <button className="stay" onClick={()=>setModal(null)}>取消</button>
               <button className="go" onClick={confirmPunch}>確認{LABEL[modal]}</button>
