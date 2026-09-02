@@ -2160,6 +2160,9 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
   function switchView(v){ setView(v); try{ localStorage.setItem('att_cal_view', v); }catch(e){} }
 
   const days = (data && data.days) || [];
+  // 全月遲到早退合計（系統即時計算，與薪資同口徑）。補登的紀錄狀態欄看不出來，
+  // 所以摘要列要有一個總數，否則要逐日看才知道。
+  const calLateTotal = days.reduce((a,x)=>a + n(x.lateMinutes) + n(x.earlyMinutes), 0);
   const selDates = Object.keys(sel).filter(d=>sel[d]).sort();
   const dayByDate = useMemo(()=>{ const m={}; days.forEach(d=>{ m[d.date]=d; }); return m; }, [days]);
   // 已有紀錄的日子分兩種，處理方式完全不同：
@@ -2311,6 +2314,8 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
           <div className="cell"><div className="k">實際工時</div><div className="v">{trimNum(s.workedHours,1)}</div></div>
           <div className="cell"><div className="k">已核准假</div><div className="v">{trimNum(s.leaveHours,1)}</div></div>
           <div className="cell"><div className="k">缺口</div><div className={'v ' + (s.gapHours>0?'bad':'ok')}>{trimNum(s.gapHours,1)}</div></div>
+          <div className="cell"><div className="k">遲到／早退</div>
+            <div className={'v ' + (calLateTotal>0 ? 'bad' : 'ok')}>{calLateTotal} 分</div></div>
           {s.pendingBackfillDates.length>0 &&
             <div className="cell"><div className="k">待補登</div><div className="v todo">{s.pendingBackfillDates.length} 天</div></div>}
         </div>
@@ -2416,6 +2421,20 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
                           分鐘數，所以這裡要標出「已請假涵蓋」，否則每次看到都會以為又被扣了。 */}
                       {rec && !rec.voided && punchStatusTag(rec.checkInStatus, d.lateMinutes, '遲到')}
                       {rec && !rec.voided && punchStatusTag(rec.checkOutStatus, d.earlyMinutes, '早退')}
+                      {/* ⚠️ 補登／修改過的紀錄，狀態欄寫的是「管理員補登／修改」，**不含遲到資訊** ——
+                          那個欄位是打卡當下寫進去的，事後補的不會回頭補寫。
+                          但薪資用的是系統即時算出來的分鐘數，兩者不一致會讓人以為那天沒遲到。
+                          原始文字沒提到遲到早退時，這裡把算出來的補上去。 */}
+                      {rec && !rec.voided && n(d.lateMinutes)>0 && !/遲到\d+分鐘/.test(String(rec.checkInStatus||'')) && (
+                        <span className="cal-tag punch" title="這筆是補登或修改過的紀錄，打卡狀態欄沒有遲到資訊。這個數字是系統依打卡時間與班表即時算出來的，薪資以此為準。">
+                          遲到 {d.lateMinutes} 分鐘（系統計算）
+                        </span>
+                      )}
+                      {rec && !rec.voided && n(d.earlyMinutes)>0 && !/早退\d+分鐘/.test(String(rec.checkOutStatus||'')) && (
+                        <span className="cal-tag punch" title="這筆是補登或修改過的紀錄，打卡狀態欄沒有早退資訊。這個數字是系統依打卡時間與班表即時算出來的，薪資以此為準。">
+                          早退 {d.earlyMinutes} 分鐘（系統計算）
+                        </span>
+                      )}
                       </div>
                     </td>
                     <td className="note">
