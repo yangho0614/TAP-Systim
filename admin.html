@@ -504,16 +504,32 @@
   .cal-seg button:hover:not(.on){background:#EDEDED; color:var(--ink);}
 
   /* ---- 列表檢視 ---- */
-  .cal-tbl{width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px;}
+  /* ⚠️ 欄寬一定要用 table-layout:fixed ＋ colgroup 寫死。
+     全域是 table{width:100%}，自動配寬時多出來的空間會全部灌給內容最長的那一欄
+     —— 日期欄因為要掛「休息日」「國定假日」標籤，結果變成整張表最寬的一欄，
+     而它的內容只有「9/25 (五)」幾個字，看起來就是一片空白。
+     狀態欄是唯一不指定寬度的，剩餘空間留給它（假別標籤可能有好幾個）。 */
+  .cal-tbl{width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:12.5px;}
   .cal-tbl th{position:sticky; top:0; z-index:1; background:#EDEDED; font-size:11px; letter-spacing:.05em; padding:7px 8px;}
   .cal-tbl td{padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
   .cal-tbl tr.sel td{background:rgba(0,173,181,.09);}
-  .cal-tbl tr.offday td{background:#FAFAFA; color:var(--muted);}
+  /* 不用出勤的日子（六日／例假日／國定假日）用淺紅底，掃一眼就知道哪幾天不必上班。
+     ⚠️ 紅色在這張表裡有兩種意思，必須分得開：
+        休假日 = 淺紅「底色」（正常狀態，只是不用來）
+        缺漏   = 左緣一條紅「實線」＋較深的底（要處理的事）
+     只靠深淺會分不清，所以缺漏那條左邊線是關鍵，不要拿掉。 */
+  .cal-tbl tr.offday td{background:rgba(192,90,79,.07); color:var(--muted);}
   .cal-tbl tr.offday.sel td{background:rgba(0,173,181,.09);}
-  .cal-tbl tr.gap td{background:rgba(161,61,61,.05);}
+  .cal-tbl tr.gap td{background:rgba(161,61,61,.13);}
+  .cal-tbl tr.gap td:first-child{box-shadow:inset 3px 0 0 var(--danger);}
   .cal-tbl tr.gap.sel td{background:rgba(0,173,181,.09);}
   .cal-tbl tr.today td{box-shadow:inset 0 2px 0 var(--brand);}
-  .cal-tbl td.d{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; text-align:left;}
+  /* 全域是 th,td{text-align:right}，這裡每一欄都要明寫，不能靠預設 */
+  .cal-tbl td.d{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; text-align:left;
+                overflow:hidden; text-overflow:ellipsis;}
+  .cal-tbl td.st{text-align:left; white-space:normal; line-height:1.9;}
+  .cal-tbl td.src{text-align:center; color:var(--muted); font-size:11.5px;}
+  .cal-tbl td.act{text-align:center; white-space:nowrap;}
   .cal-tbl td.d .dw{font-weight:400; color:var(--muted); margin-left:3px;}
   .cal-tbl td.t{font-family:'Roboto Mono',monospace; font-variant-numeric:tabular-nums; text-align:center; white-space:nowrap;}
   .cal-tbl td.t.none{color:var(--muted); opacity:.4;}
@@ -523,7 +539,7 @@
   .cal-tag.miss{background:rgba(161,61,61,.14); color:var(--danger);}
   .cal-tag.punch{background:rgba(160,106,16,.16); color:#8a5a0d;}
   .cal-tag.todo{background:rgba(60,70,84,.10); color:#3c4654;}
-  .cal-tag.off{background:#EDEDED; color:var(--muted);}
+  .cal-tag.off{background:rgba(192,90,79,.18); color:#8f4a42;}
   .cal-tag.hol{background:rgba(107,83,184,.12); color:#5a45a0;}
   .cal-tag.lv{background:rgba(0,173,181,.14); color:#00767C;}
   .cal-tag.lv.wait{background:rgba(160,106,16,.16); color:#8a5a0d;}
@@ -537,8 +553,9 @@
             display:flex; flex-direction:column; gap:3px; cursor:pointer; transition:box-shadow .12s, border-color .12s;}
   .cal-cell.blank{border:none; background:transparent; cursor:default;}
   .cal-cell:hover:not(.blank){border-color:var(--brand);}
-  .cal-cell.off{background:#F7F7F7;}
-  .cal-cell.gap{border-color:rgba(161,61,61,.55); background:rgba(161,61,61,.05);}
+  .cal-cell.off{background:rgba(192,90,79,.07);}
+  /* 缺漏格：實心紅框＋較深的底，才不會跟上面的休假日底色混在一起 */
+  .cal-cell.gap{border-color:var(--danger); border-width:1.5px; background:rgba(161,61,61,.13);}
   .cal-cell.todo{border-style:dashed; background:repeating-linear-gradient(135deg,#fff,#fff 6px,#F2F2F2 6px,#F2F2F2 12px);}
   .cal-cell.sel{border-color:var(--brand); box-shadow:0 0 0 2px rgba(0,173,181,.35);}
   .cal-cell.today .cal-n{background:var(--brand); color:#fff; border-radius:50%; width:20px; height:20px;
@@ -2146,6 +2163,16 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
       {view==='list' ? (
         <div className="card" style={{overflowX:'auto', padding:0}}>
           <table className="cal-tbl">
+            <colgroup>
+              <col style={{width:'36px'}} />
+              <col style={{width:'186px'}} />
+              <col style={{width:'104px'}} /><col style={{width:'104px'}} />
+              <col style={{width:'76px'}} /><col style={{width:'76px'}} />
+              <col style={{width:'68px'}} />
+              <col />
+              <col style={{width:'76px'}} />
+              <col style={{width:'132px'}} />
+            </colgroup>
             <thead>
               <tr>
                 <th className="cal-sel-col"></th>
@@ -2180,15 +2207,15 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
                     <td className={'t ' + (rec && rec.outgo ? '' : 'none')}>{rec && rec.outgo ? rec.outgo.slice(11,16) : '—'}</td>
                     <td className={'t ' + (rec && rec.returnTime ? '' : 'none')}>{rec && rec.returnTime ? rec.returnTime.slice(11,16) : '—'}</td>
                     <td className={'t ' + (d.workedHours>0 ? '' : 'none')}>{d.workedHours>0 ? trimNum(d.workedHours,2) : '—'}</td>
-                    <td style={{textAlign:'left'}}>
+                    <td className="st">
                       {st && <span className={'cal-tag ' + st.k} style={{marginRight:5}}>{st.t}</span>}
                       {leaveTags(d)}
                       {rec && rec.voided && <span className="cal-tag void" style={{marginLeft:4}} title={'作廢原因：'+(rec.voidReason||'')}>已作廢</span>}
                       {rec && !rec.voided && isAbnormalStatus(rec.checkInStatus) && <span className="cal-tag punch" style={{marginLeft:4}}>{rec.checkInStatus}</span>}
                       {rec && !rec.voided && isAbnormalStatus(rec.checkOutStatus) && <span className="cal-tag punch" style={{marginLeft:4}}>{rec.checkOutStatus}</span>}
                     </td>
-                    <td style={{textAlign:'center', color:'var(--muted)', fontSize:11.5}}>{rec ? (rec.source||'') : ''}</td>
-                    <td style={{textAlign:'center', whiteSpace:'nowrap'}}>
+                    <td className="src">{rec ? (rec.source||'') : ''}</td>
+                    <td className="act">
                       {rec ? (rec.voided
                         ? <button className="ghost sm" onClick={()=>onRestore(rec.id, rec)}>還原</button>
                         : <>
@@ -2240,7 +2267,7 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
             <span><span className="cal-tag miss">沒有紀錄</span> 應出勤卻沒打卡也沒假單</span>
             <span><span className="cal-tag punch">漏打下班卡</span> 補登下班時間即可</span>
             <span><span className="cal-tag todo">待補登</span> 系統啟用前</span>
-            <span>灰底＝六日／國定假日，不計入應出勤</span>
+            <span>淺紅底＝六日／國定假日，不用出勤（<b>紅框</b>才是要處理的缺漏）</span>
           </div>
         </div>
       )}
