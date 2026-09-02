@@ -1610,10 +1610,24 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
                       issues, distance: data.distance, phase: 'ok'});
       refreshStatus();
     }catch(e){
-      // 失敗要很明顯：把樂觀鎖解除、卡片轉紅並留在畫面上，不用一閃即逝的 toast
+      /* ⚠️ 「今天已經打過◯◯卡了」不是失敗，是**這一筆已經成功寫進去了** ——
+         多半是上一次送出時回應在路上斷了（行動網路、GAS 冷啟動逾時），
+         紀錄有進試算表、畫面卻停在失敗，員工就會一直重按、一直看到紅字。
+         這種情形要當成完成處理，把後端記到的時間顯示出來。 */
+      const dup = String(e.message||'').match(/已經打過.*?\((.+?)\)/);
+      if(dup){
+        setPunchResult({label: LABEL[type], time: hhmm(dup[1].replace(' ','T')) || hhmm(pressedAt.toISOString()),
+                        issues: [], phase: 'ok',
+                        note: '這筆稍早已經記錄成功（上次送出時可能網路中斷），不必再打一次'});
+        refreshStatus();
+        return;
+      }
+      // 真正的失敗要很明顯：把樂觀鎖解除、卡片轉紅並留在畫面上，不用一閃即逝的 toast
       setOptimistic(o=>({...o, [type]: false}));
       setPunchResult({label: LABEL[type], time: hhmm(pressedAt.toISOString()), issues: [],
                       phase: 'fail', error: e.message});
+      // ⚠️ 失敗也要重抓一次今日狀態：寫入成功但回應遺失時，畫面上的「下班 —」會害員工重按
+      refreshStatus();
     }
   }
 
@@ -1666,7 +1680,7 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
                 <div style={{fontWeight:700, fontSize:15}}>{title}</div>
                 {ph==='sending' && <div style={{fontSize:12, opacity:.75, marginTop:1}}>送出中，請等綠色勾勾出現再離開</div>}
                 {ph==='fail' && <div style={{fontSize:12, opacity:.85, marginTop:1}}>{punchResult.error || '請重新打卡'}</div>}
-                {ph==='ok' && !punchResult.issues.length && <div style={{fontSize:12, opacity:.75, marginTop:1}}>位置正常，無異常紀錄</div>}
+                {ph==='ok' && !punchResult.issues.length && <div style={{fontSize:12, opacity:.75, marginTop:1}}>{punchResult.note || '位置正常，無異常紀錄'}</div>}
               </div>
               {ph!=='sending' && <span className="material-icons" style={{fontSize:18, opacity:.5}}>close</span>}
             </div>
