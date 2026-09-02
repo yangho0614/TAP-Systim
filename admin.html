@@ -3248,6 +3248,17 @@ function NumCell({value, onChange, disabled}){
 
 /* ========================= 薪資計算 / 明細總表 ========================= */
 function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoApply, onSave, dirty, saving, onEditEmployee, onReload, menstrualBaseline, settings}){
+  /* 「隱藏無薪資」：非正式員工、還沒設薪的掛名帳號在薪資表上是一整排 0，
+     五六列夾在中間會把真正要看的人擠散。只隱藏**完全沒有金額**的列 ——
+     本薪 0 但有 26 日獎金或扣款的人一定要留著，否則會漏付。
+     ⚠️ 只是畫面過濾，合計、匯出 CSV、儲存都仍以完整名單為準。 */
+  const [hideZero, setHideZero] = useState(()=>{ try{ return localStorage.getItem('payroll_hide_zero')==='1'; }catch(e){ return false; } });
+  function toggleHideZero(){
+    setHideZero(v=>{ const nv=!v; try{ localStorage.setItem('payroll_hide_zero', nv?'1':'0'); }catch(e){} return nv; });
+  }
+  const isBlankRow = r => !n(r.calc.effBaseSalary) && !n(r.calc.payableTotal) && !n(r.calc.deductTotal) && !n(r.calc.pay26);
+  const blankCount = rows.filter(isBlankRow).length;
+  const shownRows = hideZero ? rows.filter(r=>!isBlankRow(r)) : rows;
   const [subTab, setSubTab] = useState('06');
   const [settleBox, setSettleBox] = useState(null); // {year, items, loading, saving}
   const [lockBox, setLockBox] = useState(null); // {items, loading, saving}
@@ -3491,6 +3502,15 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
       {subTab==='06' && !loading && rows.length>0 && (
         <div className="no-print" style={{display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', margin:'0 0 10px'}}>
           <span className="hint" style={{marginRight:2}}>顯示欄位</span>
+          {blankCount>0 && (
+            <button type="button" onClick={toggleHideZero} className={hideZero?'':'ghost'}
+              style={{fontSize:12, padding:'3px 11px', borderRadius:20, marginRight:8}}
+              title={hideZero ? '目前隱藏了本月沒有任何金額的員工' : '把本月完全沒有金額的員工暫時收起來'}>
+              <span className="material-icons" style={{fontSize:13, verticalAlign:'-2px', marginRight:3}}>
+                {hideZero?'visibility_off':'visibility'}</span>
+              {hideZero ? `已隱藏無薪資 ${blankCount} 人` : `隱藏無薪資 ${blankCount} 人`}
+            </button>
+          )}
           {GROUPS.map(g=>{
             const on = shown(g.key), cnt = groupCounts[g.key];
             return (
@@ -3537,7 +3557,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
           </tr>
         </thead>
         <tbody>
-          {rows.map(({emp, entry, calc})=>{
+          {shownRows.map(({emp, entry, calc})=>{
             const s = summaryMap[emp.id] || {};
             const leaveBaseline = menstrualBaseline[emp.id] || {menstrual:0, sick:0};
             const refOtWeekday134 = calc.hourly*1.34*n(s.otWeekday134);
@@ -3648,7 +3668,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
           </tr>
         </thead>
         <tbody>
-          {rows.map(({emp, entry, calc})=>(
+          {shownRows.map(({emp, entry, calc})=>(
             <tr key={emp.id}>
               <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料"><b>{emp.name}</b><br/><span className="hint">{emp.department}</span></td>
               <td><NumCell value={entry.businessExpense} onChange={v=>setEntry(emp.id,{businessExpense:v})} disabled={entry.locked} /></td>
@@ -3687,7 +3707,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
           </tr>
         </thead>
         <tbody>
-          {rows.map(({emp, entry, calc})=>(
+          {shownRows.map(({emp, entry, calc})=>(
             <tr key={emp.id}>
               <td className="center freeze-1" style={{cursor:"pointer"}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料">
                 <b>{emp.name}</b>{entry.locked && <span className="material-icons" style={{fontSize:12, verticalAlign:'middle', marginLeft:2}} title="本月已鎖定">lock</span>}
