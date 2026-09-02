@@ -1219,7 +1219,13 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
     + hourly*0.5*sickHalfPayHours + hourly*1.0*sickUnpaidHours
     + hourly*0.5*menstrualHalfPayHours + hourly*1.0*menstrualUnpaidHours
     + hourly*1.0*n(entry.disasterLeave) + hourly*1.0*n(entry.otherLeave);
-  const deductTotal = laborFee + healthFee + leaveDeduct + n(entry.otherDeduction);
+  /* 遲到早退的工資扣款：那段時間沒提供勞務，與請事假同一個道理。
+     ⚠️ 這三份計算（GAS／Worker／這裡）必須完全一致，改一處就要改三處。
+     ⚠️ 遲到分鐘已扣掉已核准假單涵蓋的時段與午休，補請假後自然歸零，不會重複扣。 */
+  const lateEarlyHours = (n(entry.lateMinutes) + n(entry.earlyMinutes)) / 60;
+  const lateEarlyDeduct = (!isLocked && String(settings?.deductWageForLateEarly || '否') === '是')
+    ? hourly * lateEarlyHours : 0;
+  const deductTotal = laborFee + healthFee + leaveDeduct + lateEarlyDeduct + n(entry.otherDeduction);
 
   const pay06 = payableTotal - deductTotal;
   const pay26 = n(entry.businessExpense)+n(entry.salesPerformance)+n(entry.otherExpense26)+n(entry.salesBonus26)-n(entry.deduction26);
@@ -1232,7 +1238,8 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
     hourly, dailyWage, overtimePay, weekdayOtPay, restDayPay:restDay.pay, holidayPay:holiday.pay, mandatoryRestPay,
     restDayCountedHours: restDay.countedHours, restDayOverCap: restDay.overCap, monthlyOtHours,
     allowanceTotal, bonusTotal, payableA, payableTotal,
-    laborFee, healthFee, leaveDeduct, deductTotal, menstrualPaidHours, menstrualHalfHours,
+    laborFee, healthFee, leaveDeduct, lateEarlyDeduct, lateEarlyHours: Math.round(lateEarlyHours*100)/100,
+    deductTotal, menstrualPaidHours, menstrualHalfHours,
     sickHalfPayHours, sickUnpaidHours, menstrualHalfPayHours, menstrualUnpaidHours, sickCapExceeded,
     pay06, pay26, grandTotal, belowMinWage,
     insLaborDays: insStatus.laborDays, insFullMonth: insStatus.fullMonth, insActiveAtMonthEnd: insStatus.activeAtMonthEnd,
@@ -3200,12 +3207,13 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
   }
 
   function doExport(){
-    const headers = ['公司','部門','姓名','投保級距','本薪','平日加班費','休息日加班費','國定假日加班費','加班費合計','津貼合計','獎金合計','特休結算','應付小計','勞保自付','健保自付','請假扣款','其他扣款','應扣小計','06日應付','26日應付','應付總計'];
+    const headers = ['公司','部門','姓名','投保級距','本薪','平日加班費','休息日加班費','國定假日加班費','加班費合計','津貼合計','獎金合計','特休結算','應付小計','勞保自付','健保自付','請假扣款','遲到早退扣款','其他扣款','應扣小計','06日應付','26日應付','應付總計'];
     const data = rows.map(({emp, entry, calc})=>[
       emp.company, emp.department, emp.name, emp.insuranceGrade, calc.effBaseSalary,
       Math.round(calc.weekdayOtPay), Math.round(calc.restDayPay), Math.round(calc.holidayPay), Math.round(calc.overtimePay),
       calc.allowanceTotal, calc.bonusTotal, n(entry.annualLeaveSettlement),
-      Math.round(calc.payableTotal), calc.laborFee, calc.healthFee, Math.round(calc.leaveDeduct), n(entry.otherDeduction),
+      Math.round(calc.payableTotal), calc.laborFee, calc.healthFee, Math.round(calc.leaveDeduct),
+      Math.round(calc.lateEarlyDeduct || 0), n(entry.otherDeduction),
       Math.round(calc.deductTotal), Math.round(calc.pay06), Math.round(calc.pay26), Math.round(calc.grandTotal)
     ]);
     exportCSV(`薪資明細_${month}.csv`, headers, data);
@@ -3245,7 +3253,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
         </button>
       </div>
       <div className="toolbar no-print">
-        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍/其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3 日全薪、第4 日起50%）、災防假100%（公司採不支薪，惟不影響全勤與考績）；病假與生理假(超過3 日部分)共用年度30 日上限，超過後不給薪</span>
+        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍/其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3 日全薪、第4 日起50%）、災防假100%（公司採不支薪，惟不影響全勤與考績）；病假與生理假(超過3 日部分)共用年度30 日上限，超過後不給薪。<b>遲到早退依實際分鐘數扣工資</b>（那段時間沒有提供勞務，與請事假同一個道理），可在系統設定關閉；補請假後該筆自動歸零</span>
       </div>
 
       {(otCapAlerts.length>0 || minWageAlerts.length>0 || restDayCapAlerts.length>0 || sickCapAlerts.length>0) && (
@@ -3483,7 +3491,17 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               <td className="mono">{money(calc.overtimePay)}</td>
               <td className="mono">{money(calc.bonusTotal)}</td>
               <td className="mono">{money(calc.payableTotal)}</td>
-              <td className="mono">{money(calc.leaveDeduct)}</td>
+              <td className="mono">
+                {money(calc.leaveDeduct)}
+                {/* 遲到早退扣款與請假扣款性質相同（都是沒提供勞務的時間），放同一格但分行標示，
+                    否則只看得到總扣款變大、不知道哪來的。有值才顯示，避免整欄都是 0。 */}
+                {calc.lateEarlyDeduct > 0 && (
+                  <div className="hint" style={{fontSize:10, marginTop:2, color:'var(--danger)'}}
+                       title={`遲到早退 ${calc.lateEarlyHours} 小時 × 時薪`}>
+                    ＋遲到早退 {money(calc.lateEarlyDeduct)}
+                  </div>
+                )}
+              </td>
               <td className="mono">{money(calc.laborFee + calc.healthFee)}</td>
               <td className="mono">{money(calc.deductTotal)}</td>
               <td className="mono">{money(calc.pay06)}</td>
@@ -5975,6 +5993,36 @@ function SettingsTab({onSaved, initialCategory}){
           <input type="number" value={s.minimumWage} onChange={e=>setS({...s,minimumWage:e.target.value})} />
           <div className="hint" style={{marginTop:4}}>
             供儀表板與員工編輯視窗警示用，不影響薪資計算。每年基本工資調整時改這裡即可，不必動程式。
+          </div>
+        </div>
+        <div className="field">
+          <label>遲到／早退是否扣工資</label>
+          <select value={s.deductWageForLateEarly || '是'} onChange={e=>setS({...s, deductWageForLateEarly:e.target.value})}>
+            <option value="是">扣（依實際分鐘數扣工資）</option>
+            <option value="否">不扣（只影響全勤獎金）</option>
+          </select>
+          <div className="hint" style={{marginTop:4}}>
+            遲到那段時間沒有提供勞務，與請事假是同一件事。<b>2026-09-02 以前系統漏了這筆</b>，
+            只扣全勤獎金那條微薄的比例（遲到 4 小時只扣 18 元），等於「遲到比請假划算」。<br/>
+            已鎖定的月份沿用當時的計算，不受這個設定影響。員工補請假（含特休）後這筆會自動歸零。
+            {s.deductWageForLateEarly === '否' && (
+              <div style={{marginTop:4, color:'var(--danger)'}}>
+                ⚠ 目前設為不扣。這對員工有利，但會讓遲到幾乎沒有成本。
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="field">
+          <label>補請假期限（工作日）</label>
+          <input type="number" min="0" value={s.leaveBackfillWorkdays ?? 3}
+                 onChange={e=>setS({...s, leaveBackfillWorkdays:e.target.value})} />
+          <div className="hint" style={{marginTop:4}}>
+            請假起始日之後幾個<b>工作日</b>內要補送，超過就不受理，<b>0 ＝ 不限制</b>。<br/>
+            ⚠️ 用工作日不是日曆天——週五請假、隔週一才上班，用日曆天算已經過了 3 天，
+            員工根本沒有上班的機會去補單。六日與國定假日都不計入。<br/>
+            沒有期限的話會無限上綱：員工月底發現要被扣遲到，回頭補一整個月的假單來消掉，
+            「遲到」實質上就不存在了。<br/>
+            <b>管理者代員工送單不受此限</b>，個案仍可由你處理。
           </div>
         </div>
         <div className="field">
