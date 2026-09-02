@@ -1447,6 +1447,13 @@ function App(){
   const [employees, setEmployees] = useState([]);
   const [employeesLoading, setEmployeesLoading] = useState(true);
   const [payrollEntries, setPayrollEntries] = useState({});
+  /* ⚠️ 薪資條只能反映**已經存進試算表**的數字，不能反映編輯中的暫存。
+     payrollEntries 是「編輯中」的狀態 —— 按下「套用出缺勤時數」就會把全公司的人
+     都塞進這個物件（confirmApply 的 next[s.employeeId] = ...），即使他們在試算表裡
+     根本沒有任何一列。薪資條頁若拿它判斷「這個人有沒有薪資紀錄」，
+     **只要按過套用、完全不必儲存，就能把整批還沒發生的薪資列印出來交給員工。**
+     所以另存一份只在「載入」與「儲存成功」時更新的快照，薪資條一律看這一份。 */
+  const [savedEntries, setSavedEntries] = useState({});
   const [payrollLoading, setPayrollLoading] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1549,7 +1556,11 @@ function App(){
   }
   async function savePayroll(){
     setSaving(true);
-    try{ await apiPost('savePayrollMonth', {month, entries: payrollEntries}); setDirty(false); }
+    try{
+      await apiPost('savePayrollMonth', {month, entries: payrollEntries});
+      setSavedEntries(JSON.parse(JSON.stringify(payrollEntries)));
+      setDirty(false);
+    }
     catch(e){ alert(e.message); }
     finally{ setSaving(false); }
   }
@@ -1572,7 +1583,11 @@ function App(){
       .then(d=>{
         // 後端每段各自 try/catch，單項失敗回 null，這裡沿用「拿不到就維持原值」的行為
         if(d.employees) setEmployees(d.employees);
-        if(d.payrollEntries !== null && d.payrollEntries !== undefined){ setPayrollEntries(d.payrollEntries || {}); setDirty(false); }
+        if(d.payrollEntries !== null && d.payrollEntries !== undefined){
+          setPayrollEntries(d.payrollEntries || {});
+          setSavedEntries(JSON.parse(JSON.stringify(d.payrollEntries || {})));
+          setDirty(false);
+        }
         if(d.settings){ setSettings(d.settings); applyMinWage(d.settings); }
         if(d.companies) setCompanies(d.companies);
         if(d.departments) setDepartments(d.departments);
@@ -1788,7 +1803,7 @@ function App(){
           {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}
             allLocked={rows.length>0 && rows.every(({entry})=>entry.locked)}/>}
           {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onUndoApply={applyUndo?undoApply:null} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee} onReload={()=>reloadPayroll(month)} menstrualBaseline={menstrualBaseline} settings={settings}/>}
-          {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={payrollEntries} month={month} settings={settings} menstrualBaseline={menstrualBaseline}/>}
+          {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={savedEntries} dirty={dirty} month={month} settings={settings} menstrualBaseline={menstrualBaseline}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
           {tab==='register' && <PayrollRegisterTab/>}
           {tab==='insurance' && <InsuranceTab/>}
@@ -4106,7 +4121,7 @@ function getActualPayDateJS(year, month, day, holidaySet){
     d.setDate(d.getDate()-1);
   }
 }
-function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseline}){
+function PayslipTab({employees, payrollEntries, dirty, month, settings, menstrualBaseline}){
   const [selected, setSelected] = useState('all');
   const [holidays, setHolidays] = useState([]);
   const [hideZero, setHideZero] = useState(true);
@@ -4121,10 +4136,17 @@ function PayslipTab({employees, payrollEntries, month, settings, menstrualBaseli
   // 只有「該月真的有薪資紀錄」的人才產出薪資條，與前台 getMyPayslip 的 hasRecord 判斷一致。
   // 沒有這道防呆的話，切到還沒結算的月份會用員工主檔「當下」的薪資結構即時算出一整批
   // 薪資條 —— 那是一份根本還沒發生的薪資，卻可以直接列印出去交給員工。
+  // payrollEntries 這裡收到的是「已儲存」的快照（App 傳的是 savedEntries），不是編輯中的狀態
   const withRecord = list.filter(e=>payrollEntries[e.id]);
   const missing = list.filter(e=>!payrollEntries[e.id]);
   return (
     <div>
+      {dirty && (
+        <div className="hint no-print" style={{marginBottom:8, color:'var(--danger)'}}>
+          ⚠ 薪資計算頁有<b>尚未儲存</b>的異動。薪資條顯示的是<b>已存進試算表的版本</b>，
+          不含那些改動 —— 要讓它反映最新數字，請先回薪資計算頁按「儲存薪資紀錄」。
+        </div>
+      )}
       <div className="toolbar no-print">
         <label style={{marginBottom:0}}>選擇員工</label>
         <select value={selected} onChange={e=>setSelected(e.target.value)}>
