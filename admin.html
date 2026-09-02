@@ -588,6 +588,8 @@
   .cal-tag.lv{background:rgba(0,173,181,.14); color:#00767C;}
   .cal-tag.lv.wait{background:rgba(160,106,16,.16); color:#8a5a0d;}
   .cal-tag.void{background:rgba(161,61,61,.10); color:var(--danger); text-decoration:line-through;}
+  /* 遲到早退已被假單涵蓋：保留原始記錄的文字，但淡化並註明不算數 */
+  .cal-tag.covered{background:#EDEDED; color:var(--muted); font-weight:400;}
 
   /* ---- 月曆檢視 ---- */
   .cal-grid{display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px;}
@@ -751,7 +753,7 @@ async function parseApiResponse(res){
 const API_URL = 'https://tap-api.mammyshop-tw.workers.dev';
 // 2026-08-14 新增三支：已用 tools/parity-check.js 對 4 個月份逐欄比對，GAS 與 Worker 完全相同。
 // 任何一支出錯都會自動退回 GAS（見下方 apiGet），要整個關掉就把這個陣列清空成 []。
-const NEW_BACKEND_ACTIONS = ['getAdminBootstrap', 'getMonthlySummary', 'getRecords', 'getSettings'];
+const NEW_BACKEND_ACTIONS = ['getAdminBootstrap', 'getMonthlySummary', 'getRecords', 'getSettings', 'getAttendanceCalendar'];
 
 async function callApiGet(base, action, params){
   const qs = new URLSearchParams({action, token: CURRENT_TOKEN||'', ...params}).toString();
@@ -2318,8 +2320,21 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
                       {st && <span className={'cal-tag ' + st.k} style={{marginRight:5}}>{st.t}</span>}
                       {leaveTags(d)}
                       {rec && rec.voided && <span className="cal-tag void" style={{marginLeft:4}} title={'作廢原因：'+(rec.voidReason||'')}>已作廢</span>}
-                      {rec && !rec.voided && isAbnormalStatus(rec.checkInStatus) && <span className="cal-tag punch" style={{marginLeft:4}}>{rec.checkInStatus}</span>}
-                      {rec && !rec.voided && isAbnormalStatus(rec.checkOutStatus) && <span className="cal-tag punch" style={{marginLeft:4}}>{rec.checkOutStatus}</span>}
+                      {/* 打卡狀態上的「遲到 N 分鐘」是打卡當下寫進試算表的原始記錄，
+                          事後補請假不會去改它（那是原始憑證）。但薪資用的是經假單調整後的
+                          分鐘數，所以這裡要標出「已請假涵蓋」，否則每次看到都會以為又被扣了。 */}
+                      {rec && !rec.voided && isAbnormalStatus(rec.checkInStatus) && (
+                        <span className={'cal-tag ' + (n(d.lateMinutes)>0 ? 'punch' : 'covered')} style={{marginLeft:4}}
+                              title={n(d.lateMinutes)>0 ? '' : '這段時間已被當日的已核准假單涵蓋，薪資計算不會再算一次遲到'}>
+                          {rec.checkInStatus}{n(d.lateMinutes)>0 ? '' : ' · 已請假涵蓋'}
+                        </span>
+                      )}
+                      {rec && !rec.voided && isAbnormalStatus(rec.checkOutStatus) && (
+                        <span className={'cal-tag ' + (n(d.earlyMinutes)>0 ? 'punch' : 'covered')} style={{marginLeft:4}}
+                              title={n(d.earlyMinutes)>0 ? '' : '這段時間已被當日的已核准假單涵蓋，薪資計算不會再算一次早退'}>
+                          {rec.checkOutStatus}{n(d.earlyMinutes)>0 ? '' : ' · 已請假涵蓋'}
+                        </span>
+                      )}
                     </td>
                     <td className="note">
                       {rec && rec.note}
