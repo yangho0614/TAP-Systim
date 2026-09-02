@@ -556,12 +556,11 @@
               box-shadow:inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line);}
   .cal-tbl td{padding:6px 8px; vertical-align:middle;}
   .cal-tbl tr.sel td{background:rgba(0,173,181,.09);}
-  /* 不用出勤的日子（六日／例假日／國定假日）用淺紅底，掃一眼就知道哪幾天不必上班。
-     ⚠️ 紅色在這張表裡有兩種意思，必須分得開：
-        休假日 = 淺紅「底色」（正常狀態，只是不用來）
-        缺漏   = 左緣一條紅「實線」＋較深的底（要處理的事）
-     只靠深淺會分不清，所以缺漏那條左邊線是關鍵，不要拿掉。 */
-  .cal-tbl tr.offday td{background:rgba(192,90,79,.07); color:var(--muted);}
+  /* ⚠️ 休假日用**灰底**、缺漏用**紅底**，一種顏色只代表一件事。
+     曾經兩者都用紅（休假日淺紅、缺漏深紅＋左線），實測會混淆 ——
+     使用者看到紅底第一個反應是「這天有問題」，但六日紅一片，真正要處理的反而被淹掉。
+     顏色是最強的訊號，留給真的要動作的事；「今天不用上班」是正常狀態，灰的就好。 */
+  .cal-tbl tr.offday td{background:#F5F5F5; color:var(--muted);}
   .cal-tbl tr.offday.sel td{background:rgba(0,173,181,.09);}
   .cal-tbl tr.gap td{background:rgba(161,61,61,.13);}
   .cal-tbl tr.gap td:first-child{border-left:3px solid var(--danger);}
@@ -586,7 +585,7 @@
   .cal-tag.miss{background:rgba(161,61,61,.14); color:var(--danger);}
   .cal-tag.punch{background:rgba(160,106,16,.16); color:#8a5a0d;}
   .cal-tag.todo{background:rgba(60,70,84,.10); color:#3c4654;}
-  .cal-tag.off{background:rgba(192,90,79,.18); color:#8f4a42;}
+  .cal-tag.off{background:#E4E4E4; color:var(--muted);}
   .cal-tag.hol{background:rgba(107,83,184,.12); color:#5a45a0;}
   .cal-tag.lv{background:rgba(0,173,181,.14); color:#00767C;}
   .cal-tag.lv.wait{background:rgba(160,106,16,.16); color:#8a5a0d;}
@@ -602,7 +601,7 @@
             display:flex; flex-direction:column; gap:3px; cursor:pointer; transition:box-shadow .12s, border-color .12s;}
   .cal-cell.blank{border:none; background:transparent; cursor:default;}
   .cal-cell:hover:not(.blank){border-color:var(--brand);}
-  .cal-cell.off{background:rgba(192,90,79,.07);}
+  .cal-cell.off{background:#F5F5F5;}
   /* 缺漏格：實心紅框＋較深的底，才不會跟上面的休假日底色混在一起 */
   .cal-cell.gap{border-color:var(--danger); border-width:1.5px; background:rgba(161,61,61,.13);}
   .cal-cell.todo{border-style:dashed; background:repeating-linear-gradient(135deg,#fff,#fff 6px,#F2F2F2 6px,#F2F2F2 12px);}
@@ -2507,7 +2506,7 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
             <span><span className="cal-tag miss">沒有紀錄</span> 應出勤卻沒打卡也沒假單</span>
             <span><span className="cal-tag punch">漏打下班卡</span> 補登下班時間即可</span>
             <span><span className="cal-tag todo">待補登</span> 系統啟用前</span>
-            <span>淺紅底＝六日／國定假日，不用出勤（<b>紅框</b>才是要處理的缺漏）</span>
+            <span>灰底＝六日／國定假日，不用出勤；<b>紅色只代表要處理的缺漏</b></span>
           </div>
         </div>
       )}
