@@ -785,7 +785,10 @@ async function parseApiResponse(res){
   try{ return JSON.parse(text); }
   catch(e){
     if(text.indexOf('<!DOCTYPE') === 0 || text.indexOf('<html') === 0){
-      throw new Error('伺服器回傳了非預期的內容（可能是 Google 服務暫時忙碌或連線逾時），請稍候再試一次。');
+      // retryable：這是 Google 端的暫時性狀況，重打一次通常就好（見 callApiGet）
+      const err = new Error('伺服器回傳了非預期的內容（可能是 Google 服務暫時忙碌或連線逾時），請稍候再試一次。');
+      err.retryable = true;
+      throw err;
     }
     throw new Error('伺服器回應格式錯誤：' + text.slice(0, 80));
   }
@@ -799,10 +802,22 @@ const API_URL = 'https://tap-api.mammyshop-tw.workers.dev';
 // 任何一支出錯都會自動退回 GAS（見下方 apiGet），要整個關掉就把這個陣列清空成 []。
 const NEW_BACKEND_ACTIONS = ['getAdminBootstrap', 'getMonthlySummary', 'getRecords', 'getSettings', 'getAttendanceCalendar'];
 
+/* ⚠️ fetchWithRetry 只重試「連線失敗」（fetch 自己丟錯）。
+   GAS 偶爾會**有回應但內容不對** —— 回一頁 HTML 錯誤頁或 404，實測連打 8 次會中 1～2 次。
+   那種情況不會進到 fetchWithRetry 的 catch，使用者就直接吃到一個
+   「請稍候再試一次」的 alert —— 那件事系統自己做就好，不該叫使用者做。
+   ⚠️ **只在讀取路徑重試。** apiPost 維持原樣：寫入重試可能造成重複寫入（例如重複打卡）。 */
 async function callApiGet(base, action, params){
   const qs = new URLSearchParams({action, token: CURRENT_TOKEN||'', ...params}).toString();
-  const res = await fetchWithRetry(`${base}?${qs}`);
-  const json = await parseApiResponse(res);
+  let json;
+  try{
+    json = await parseApiResponse(await fetchWithRetry(`${base}?${qs}`));
+  }catch(e){
+    if(!e || !e.retryable) throw e;
+    console.warn('伺服器回傳非 JSON，1.2 秒後重試一次：', action);
+    await new Promise(r=>setTimeout(r, 1200));
+    json = await parseApiResponse(await fetchWithRetry(`${base}?${qs}`));
+  }
   if(json.status !== 'success'){
     if(isSessionError(json.message)) forceReLogin();
     throw new Error(json.message || '發生錯誤');
