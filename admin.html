@@ -594,11 +594,18 @@
   .cal-tag.covered{background:#EDEDED; color:var(--muted); font-weight:400;}
 
   /* ---- 月曆檢視 ---- */
-  .cal-grid{display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px;}
-  .cal-dow{text-align:center; font-size:11px; font-weight:800; letter-spacing:.1em; color:var(--muted); padding-bottom:2px;}
+  /* ⚠️ 月曆不要撐滿整個畫面。一週七格、每格內容就那幾行，
+     格子拉到 250px 寬只會讓資訊孤零零地黏在左上角，反而更難掃。 */
+  .cal-grid{display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px; max-width:1180px;}
+  .cal-dow{text-align:center; font-size:11px; font-weight:800; letter-spacing:.1em; color:var(--muted);
+           padding:4px 0 5px; background:#EDEDED; border-radius:6px;}
   .cal-dow.we{color:var(--danger); opacity:.65;}
-  .cal-cell{min-height:112px; border:1px solid var(--line); border-radius:9px; padding:6px 7px; background:#fff;
-            display:flex; flex-direction:column; gap:3px; cursor:pointer; transition:box-shadow .12s, border-color .12s;}
+  .cal-cell{min-height:104px; border:1px solid var(--line); border-radius:9px; padding:7px 8px; background:#fff;
+            display:flex; flex-direction:column; gap:4px; cursor:pointer; transition:box-shadow .12s, border-color .12s;}
+  .cal-cell .cal-top{display:flex; align-items:baseline; gap:5px;}
+  /* 當天工時放右上角：低於標準工時就標紅，一眼掃得出哪幾天不足 */
+  .cal-cell .cal-wh{font-size:11px; font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .cal-cell .cal-wh.short{color:var(--danger);}
   .cal-cell.blank{border:none; background:transparent; cursor:default;}
   .cal-cell:hover:not(.blank){border-color:var(--brand);}
   .cal-cell.off{background:#F5F5F5;}
@@ -608,12 +615,15 @@
   .cal-cell.sel{border-color:var(--brand); box-shadow:0 0 0 2px rgba(0,173,181,.35);}
   .cal-cell.today .cal-n{background:var(--brand); color:#fff; border-radius:50%; width:20px; height:20px;
                          display:inline-flex; align-items:center; justify-content:center;}
-  .cal-cell .cal-n{font-size:12.5px; font-weight:800; font-variant-numeric:tabular-nums;}
+  .cal-cell .cal-n{font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.2;}
   .cal-cell .cal-n.we{color:var(--danger);}
-  .cal-cell .cal-t{font-family:'Roboto Mono',monospace; font-size:11px; font-variant-numeric:tabular-nums; line-height:1.5;}
-  .cal-cell .cal-t.miss{color:var(--danger); font-weight:700;}
+  .cal-cell .cal-t{font-family:'Roboto Mono',monospace; font-size:11px; font-variant-numeric:tabular-nums;
+                   line-height:1.5; white-space:nowrap;}
+  .cal-cell .cal-t .dash{color:var(--muted); margin:0 3px;}
+  .cal-cell .cal-t .miss{color:var(--danger); font-weight:700; font-family:inherit;}
   .cal-cell .cal-hn{font-size:10.5px; color:#5a45a0; font-weight:700;}
-  .cal-cell .cal-mini{font-size:10px; padding:0 5px; border-radius:4px; align-self:flex-start; font-weight:700;}
+  .cal-cell .cal-mini{font-size:10.5px; padding:1px 6px; border-radius:4px; align-self:flex-start; font-weight:700;
+                      line-height:1.5;}
   .cal-legend{display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:10px; font-size:11.5px; color:var(--muted);}
   .cal-legend b{font-weight:700; color:var(--ink);}
 
@@ -2510,7 +2520,7 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
         </div>
       ) : (
         <div className="card">
-          <div className="cal-grid" style={{marginBottom:6}}>
+          <div className="cal-grid" style={{marginBottom:6, maxWidth:1180}}>
             {CAL_WEEK.map(d=><div key={d} className={'cal-dow' + (d===0||d===6?' we':'')}>{CAL_DOW[d]}</div>)}
           </div>
           <div className="cal-grid">
@@ -2528,26 +2538,39 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
               return (
                 <div key={d.date} className={cls} onClick={()=>toggle(d.date)}
                      title={d.holidayName || (CAL_DAYTYPE[d.dayType]||'')}>
-                  <div style={{display:'flex', alignItems:'center', gap:4}}>
+                  {/* 第一行：日期＋當天工時。工時擺右上角當「這天的結果」，
+                      掃一眼就知道哪天不足 8 小時，不用逐格細看時間。 */}
+                  <div className="cal-top">
                     <span className={'cal-n' + (d.dow===0||d.dow===6?' we':'')}>{Number(d.date.slice(8,10))}</span>
                     {d.holidayName && <span className="cal-hn">{d.holidayName}</span>}
+                    <span className="grow"></span>
+                    {d.workedHours>0 && (
+                      <span className={'cal-wh' + (d.required && d.workedHours < d.standardHours ? ' short' : '')}>
+                        {trimNum(d.workedHours,1)}h
+                      </span>
+                    )}
                   </div>
-                  {rec && rec.checkIn && <div className="cal-t">{rec.checkIn.slice(11,16)}</div>}
-                  {rec && (rec.checkOut
-                    ? <div className="cal-t">{rec.checkOut.slice(11,16)}</div>
-                    : <div className="cal-t miss">未打下班</div>)}
+                  {/* 上下班併成一行：兩行只是把同一件事拆開，佔掉標籤的空間 */}
+                  {rec && rec.checkIn && (
+                    <div className="cal-t">
+                      {rec.checkIn.slice(11,16)}
+                      <span className="dash">–</span>
+                      {rec.checkOut
+                        ? rec.checkOut.slice(11,16)
+                        : <span className="miss">未打下班</span>}
+                    </div>
+                  )}
                   {st && !(st.k==='punch' && rec) && <span className={'cal-tag cal-mini ' + st.k}>{st.t}</span>}
                   {/* ⚠️ 月曆也要標遲到早退。原本只有時間跟假別，遲到完全看不見 ——
-                      而月曆正是用來「一眼掃過整個月」的檢視，看不到異常就失去意義。
-                      用系統即時算出來的分鐘數（與薪資同口徑），補登的紀錄也標得出來。 */}
+                      而月曆正是用來「一眼掃過整個月」的檢視，看不到異常就失去意義。 */}
                   {n(d.lateMinutes)>0 && (
                     <span className="cal-tag cal-mini punch" title={'遲到 ' + d.lateMinutes + ' 分鐘（系統計算，薪資以此為準）'}>
-                      遲{d.lateMinutes}分
+                      遲到 {d.lateMinutes} 分
                     </span>
                   )}
                   {n(d.earlyMinutes)>0 && (
                     <span className="cal-tag cal-mini punch" title={'早退 ' + d.earlyMinutes + ' 分鐘（系統計算，薪資以此為準）'}>
-                      早退{d.earlyMinutes}分
+                      早退 {d.earlyMinutes} 分
                     </span>
                   )}
                   {leaveTags(d, true)}
