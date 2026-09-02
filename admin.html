@@ -3375,23 +3375,34 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
   function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
   function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
   const totals = useMemo(()=>{
-    const t = {base:0, overtime:0, allowance:0, bonus:0, payable:0, labor:0, health:0, leaveDeduct:0, lateEarlyDeduct:0, absentDeduct:0, otherDeduct:0, deduct:0, pay06:0, pay26:0, grand:0};
+    const t = {base:0, overtime:0, allowance:0, bonus:0, payable:0, labor:0, health:0, leaveDeduct:0, lateEarlyDeduct:0, absentDeduct:0, otherDeduct:0, deduct:0, pay06:0, pay26:0, grand:0,
+      businessExpense:0, salesPerformance:0, salesBonus26:0, otherExpense26:0, deduction26:0};
+    /* ⚠️ 合計一律「各列四捨五入之後再相加」，不是「相加之後才四捨五入」。
+       每一格顯示的都是進位後的整數，若合計用原始小數加總，使用者自己逐列加一次就會差 1～2 元
+       （實測：遲到扣款 1,721＋68＝1,789，舊算法顯示 1,788）。薪資表上對不起來的數字沒有人會信。
+       而且員工實際領到的就是進位後的金額，Σ round 才是真正付出去的錢。 */
+    const r = v => Math.round(Number(v) || 0);
     rows.forEach(({emp, entry, calc})=>{
-      t.base += calc.effBaseSalary;
-      t.overtime += calc.overtimePay;
-      t.allowance += calc.allowanceTotal;
-      t.bonus += calc.bonusTotal;
-      t.payable += calc.payableTotal;
-      t.labor += calc.laborFee;
-      t.health += calc.healthFee;
-      t.leaveDeduct += calc.leaveDeduct;
-      t.lateEarlyDeduct += (calc.lateEarlyDeduct || 0);
-      t.absentDeduct += (calc.absentDeduct || 0);
-      t.otherDeduct += n(entry.otherDeduction);
-      t.deduct += calc.deductTotal;
-      t.pay06 += calc.pay06;
-      t.pay26 += calc.pay26;
-      t.grand += calc.grandTotal;
+      t.base += r(calc.effBaseSalary);
+      t.overtime += r(calc.overtimePay);
+      t.allowance += r(calc.allowanceTotal);
+      t.bonus += r(calc.bonusTotal);
+      t.payable += r(calc.payableTotal);
+      t.labor += r(calc.laborFee);
+      t.health += r(calc.healthFee);
+      t.leaveDeduct += r(calc.leaveDeduct);
+      t.lateEarlyDeduct += r(calc.lateEarlyDeduct);
+      t.absentDeduct += r(calc.absentDeduct);
+      t.otherDeduct += r(entry.otherDeduction);
+      t.deduct += r(calc.deductTotal);
+      t.pay06 += r(calc.pay06);
+      t.pay26 += r(calc.pay26);
+      t.grand += r(calc.grandTotal);
+      t.businessExpense += r(entry.businessExpense);
+      t.salesPerformance += r(entry.salesPerformance);
+      t.salesBonus26 += r(entry.salesBonus26);
+      t.otherExpense26 += r(entry.otherExpense26);
+      t.deduction26 += r(entry.deduction26);
     });
     return t;
   }, [rows]);
@@ -3779,7 +3790,11 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
           ))}
           <tr className="total-row">
             <td className="center freeze-1">合計</td>
-            <td colSpan="5"></td>
+            <td>{money(totals.businessExpense)}</td>
+            <td>{money(totals.salesPerformance)}</td>
+            <td>{money(totals.salesBonus26)}</td>
+            <td>{money(totals.otherExpense26)}</td>
+            <td className="num-neg">{money(totals.deduction26)}</td>
             <td className="mono">{money(totals.pay26)}</td>
           </tr>
         </tbody>
