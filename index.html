@@ -752,11 +752,35 @@ const STATUS_HINT = {'待審核':'等待主管審核', '初核通過':'主管已
 
 /* ========================= 登入畫面 ========================= */
 /* ========================= 自訂日期時間選擇器 ========================= */
-function CustomDateTimePicker({value, onConfirm, onClose, dateOnly}){
+/* unitHours：最小請假單位（系統設定 leaveUnit）；schedStart：該員工班表的上班時間 'HH:mm'。
+   時間只能選在「班表上班時間 ＋ N × 單位」的格線上 —— 不能單純看分鐘是不是 0 或 30，
+   因為班表是 08:30 開始的，整天假就是 08:30~17:30，分鐘本來就不是 0。
+   讓不合法的時間**根本選不到**，比選了才被後端擋回來好。 */
+function CustomDateTimePicker({value, onConfirm, onClose, dateOnly, unitHours, schedStart}){
+  const unitMin = Math.max(1, Math.round((Number(unitHours) || 1) * 60));
+  const schedStartMin = (()=>{ const m = String(schedStart||'09:00').match(/^(\d{1,2}):(\d{2})/); return m ? Number(m[1])*60+Number(m[2]) : 9*60; })();
+  const isAligned = (minOfDay)=> ((((minOfDay - schedStartMin) % unitMin) + unitMin) % unitMin) === 0;
+  // 可選的分鐘。單位 ≥ 60 分時，一小時內只有一個合法的分鐘（例如 08:30 起算就是 :30）
+  const allowedMins = [];
+  for(let m=0; m<60; m++){
+    const diff = (((m - (schedStartMin % 60)) % 60) + 60) % 60;
+    if(unitMin >= 60 ? diff === 0 : diff % unitMin === 0) allowedMins.push(m);
+  }
+  // 可選的小時：該小時內至少要有一個合法的分鐘（單位 > 1 小時的情況才會篩掉東西）
+  const allowedHours = [];
+  for(let h=0; h<24; h++) if(allowedMins.some(m=>isAligned(h*60+m))) allowedHours.push(h);
+
   const raw = value ? new Date(dateOnly ? value+'T00:00' : value) : new Date();
-  // 分鐘先對齊到 5 分鐘格再取各欄位：58 分會進位成下一小時（甚至跨日），所以日期必須跟著算完的結果取
+  /* 初始值對齊到最近的格線。
+     ⚠️ 一定要用 setHours(時, 分) 一次設定 —— 只設分鐘的話，58 分進位會變成 00 分但小時不動，
+        等於整整早了一小時（這個坑 2026-08-19 踩過一次）。 */
   const initial = new Date(raw);
-  if(!dateOnly) initial.setMinutes(Math.round(raw.getMinutes()/5)*5, 0, 0);
+  if(!dateOnly){
+    const cur = raw.getHours()*60 + raw.getMinutes();
+    let snapped = schedStartMin + Math.round((cur - schedStartMin) / unitMin) * unitMin;
+    snapped = Math.max(0, Math.min(24*60 - 1, snapped));
+    initial.setHours(Math.floor(snapped/60), snapped%60, 0, 0);
+  }
   const [viewY, setViewY] = useState(initial.getFullYear());
   const [viewM, setViewM] = useState(initial.getMonth()); // 0-11
   const [selDate, setSelDate] = useState(`${initial.getFullYear()}-${String(initial.getMonth()+1).padStart(2,'0')}-${String(initial.getDate()).padStart(2,'0')}`);
@@ -767,10 +791,10 @@ function CustomDateTimePicker({value, onConfirm, onClose, dateOnly}){
   const ROW_H = 40;
 
   useEffect(()=>{
-    // 開啟時捲動到目前選取的時間位置
+    // 開啟時捲動到目前選取的時間位置（索引要用「在可選清單中的位置」，不是數值本身）
     setTimeout(()=>{
-      if(hourRef.current) hourRef.current.scrollTop = selHour * ROW_H;
-      if(minRef.current) minRef.current.scrollTop = (selMin/5) * ROW_H;
+      if(hourRef.current) hourRef.current.scrollTop = Math.max(0, allowedHours.indexOf(selHour)) * ROW_H;
+      if(minRef.current) minRef.current.scrollTop = Math.max(0, allowedMins.indexOf(selMin)) * ROW_H;
     }, 0);
   }, []);
 
@@ -791,11 +815,11 @@ function CustomDateTimePicker({value, onConfirm, onClose, dateOnly}){
   }
   function onHourScroll(e){
     const idx = Math.round(e.target.scrollTop / ROW_H);
-    setSelHour(Math.max(0, Math.min(23, idx)));
+    setSelHour(allowedHours[Math.max(0, Math.min(allowedHours.length-1, idx))]);
   }
   function onMinScroll(e){
     const idx = Math.round(e.target.scrollTop / ROW_H);
-    setSelMin(Math.max(0, Math.min(11, idx)) * 5);
+    setSelMin(allowedMins[Math.max(0, Math.min(allowedMins.length-1, idx))]);
   }
   function confirm(){
     if(dateOnly){ onConfirm(selDate); return; }
@@ -844,7 +868,7 @@ function CustomDateTimePicker({value, onConfirm, onClose, dateOnly}){
               <div style={{position:'absolute', top:ROW_H, left:0, right:0, height:ROW_H, background:'var(--panel-2)', borderRadius:8, pointerEvents:'none', zIndex:0}}></div>
               <div ref={hourRef} onScroll={onHourScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center', position:'relative', zIndex:1}}>
                 <div style={{height:ROW_H}}></div>
-                {Array.from({length:24}, (_,h)=>(
+                {allowedHours.map(h=>(
                   <div key={h} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'center', fontSize: h===selHour?18:14, fontWeight: h===selHour?700:400, color: h===selHour?'var(--text)':'var(--muted)'}}>
                     {String(h).padStart(2,'0')}
                   </div>
@@ -854,7 +878,7 @@ function CustomDateTimePicker({value, onConfirm, onClose, dateOnly}){
               <div style={{fontSize:18, alignSelf:'center', marginTop:ROW_H, position:'relative', zIndex:1}}>:</div>
               <div ref={minRef} onScroll={onMinScroll} style={{height:ROW_H*3, overflowY:'scroll', scrollSnapType:'y mandatory', width:70, textAlign:'center', position:'relative', zIndex:1}}>
                 <div style={{height:ROW_H}}></div>
-                {Array.from({length:12}, (_,i)=>i*5).map(m=>(
+                {allowedMins.map(m=>(
                   <div key={m} style={{height:ROW_H, lineHeight:ROW_H+'px', scrollSnapAlign:'center', fontSize: m===selMin?18:14, fontWeight: m===selMin?700:400, color: m===selMin?'var(--text)':'var(--muted)'}}>
                     {String(m).padStart(2,'0')}
                   </div>
@@ -862,7 +886,10 @@ function CustomDateTimePicker({value, onConfirm, onClose, dateOnly}){
                 <div style={{height:ROW_H}}></div>
               </div>
             </div>
-            <div className="hint" style={{textAlign:'center', marginTop:10}}>上下滑動選擇時間（每5分鐘一格）</div>
+            <div className="hint" style={{textAlign:'center', marginTop:10}}>
+              上下滑動選擇時間。請假以 <b>{unitHours || 1}</b> 小時為單位，
+              從上班時間 {schedStart || '09:00'} 起算，所以只能選到這些時間點
+            </div>
           </>
         )}
 
@@ -2121,6 +2148,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
       {pickerFor && (
         <CustomDateTimePicker
           dateOnly={pickerFor==='comp'}
+          unitHours={unit} schedStart={shiftStart}
           value={pickerFor==='start' ? leaveBox.startDT : pickerFor==='end' ? leaveBox.endDT : compBox.date}
           onConfirm={(v)=>{
             if(pickerFor==='start') updateLeaveField({startDT:v, endDT: leaveBox.endDT || v});
