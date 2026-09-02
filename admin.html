@@ -38,20 +38,28 @@
   .topbar{background:var(--paper-2); border-bottom:1px solid var(--line); padding:12px 26px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;}
   .topbar h1{font-size:17px; display:flex; align-items:center; gap:8px;}
   /* 月份列：內容區的第一行，緊貼下方的篩選列 */
-  .month-bar{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+  .month-bar{display:flex; align-items:center; gap:12px; margin-bottom:12px;}
   .month-bar>.material-icons{font-size:19px; color:var(--brand);}
   /* 月份選擇器：整組看起來像一個控制項，不是三個各自為政的元件。
      用品牌色淡底而不是灰底 —— 灰底跟頁面背景太像，看起來像是「不能動的標籤」。 */
-  .ym{display:flex; align-items:center; gap:4px; background:rgba(0,173,181,.09);
-      border:1px solid rgba(0,173,181,.35); border-radius:8px; padding:3px 5px;}
+  /* 三段：‹ │ 年月 │ ›。分隔線＋各自的點擊區，才不會手一滑就按到隔壁。 */
+  .ym{display:inline-flex; align-items:stretch; gap:0; background:rgba(0,173,181,.09);
+      border:1px solid rgba(0,173,181,.35); border-radius:8px; overflow:hidden;}
+  .ym-mid{display:flex; align-items:center; gap:2px; padding:0 8px;}
   .ym select{border:none; background:transparent; font-weight:700; font-size:13.5px; color:#00767C;
-             padding:3px 2px; cursor:pointer;}
+             padding:6px 2px; cursor:pointer;}
   .ym select:focus{outline:none;}
-  .ym-nav{background:transparent; color:var(--brand); border:none; border-radius:6px; padding:3px 4px; min-width:0;}
-  .ym-nav .material-icons{font-size:19px;}
+  .ym-nav{background:transparent; color:var(--brand); border:none; border-radius:0; padding:0 11px; min-width:0;
+          display:flex; align-items:center;}
+  .ym-nav:first-child{border-right:1px solid rgba(0,173,181,.32);}
+  .ym-nav:last-child{border-left:1px solid rgba(0,173,181,.32);}
+  .ym-nav .material-icons{font-size:20px;}
   .ym-nav:hover{background:var(--brand); color:#fff;}
+  .ym-nav:active{background:#00767C;}
+  /* 「本月」放在框外：它是跳到特定月份，跟相鄰切換不同性質，混在一起容易誤觸 */
   .ym-now{background:#fff; color:var(--brand); border:1px solid rgba(0,173,181,.5);
-          border-radius:6px; padding:2px 9px; font-size:11.5px; font-weight:700; margin-left:2px;}
+          border-radius:8px; padding:5px 11px; font-size:12px; font-weight:700; gap:4px;}
+  .ym-now .material-icons{font-size:15px;}
   .ym-now:hover{background:var(--brand); color:#fff;}
   .content{padding:22px 26px 60px 26px; overflow-x:auto;}
   button{font-size:13px; background:var(--brand); color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;}
@@ -1289,24 +1297,33 @@ function YearMonthPicker({value, onChange}){
     const d = new Date(Number(y), Number(m)-1+delta, 1);
     onChange(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
   }
+  /* 三段式：上個月 │ 年月下拉 │ 下個月，中間用分隔線隔開，各自有夠大的點擊區。
+     「本月」是不同性質的動作（跳到特定月份，不是相鄰切換），所以放在框外，
+     免得手指從「下個月」滑過去就按到。 */
   return (
-    <div className="ym">
-      <button type="button" className="ym-nav" onClick={()=>shift(-1)} title="上個月">
-        <span className="material-icons">chevron_left</span>
-      </button>
-      <select value={y} onChange={e=>onChange(e.target.value+'-'+m)}>
-        {years.map(yy=><option key={yy} value={yy}>{yy}年</option>)}
-      </select>
-      <select value={m} onChange={e=>onChange(y+'-'+e.target.value)}>
-        {Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')).map(mm=><option key={mm} value={mm}>{Number(mm)}月</option>)}
-      </select>
-      <button type="button" className="ym-nav" onClick={()=>shift(1)} title="下個月">
-        <span className="material-icons">chevron_right</span>
-      </button>
+    <>
+      <div className="ym">
+        <button type="button" className="ym-nav" onClick={()=>shift(-1)} title="上個月">
+          <span className="material-icons">chevron_left</span>
+        </button>
+        <div className="ym-mid">
+          <select value={y} onChange={e=>onChange(e.target.value+'-'+m)}>
+            {years.map(yy=><option key={yy} value={yy}>{yy}年</option>)}
+          </select>
+          <select value={m} onChange={e=>onChange(y+'-'+e.target.value)}>
+            {Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')).map(mm=><option key={mm} value={mm}>{Number(mm)}月</option>)}
+          </select>
+        </div>
+        <button type="button" className="ym-nav" onClick={()=>shift(1)} title="下個月">
+          <span className="material-icons">chevron_right</span>
+        </button>
+      </div>
       {value !== thisMonth && (
-        <button type="button" className="ym-now" onClick={()=>onChange(thisMonth)} title={'回到 '+thisMonth}>本月</button>
+        <button type="button" className="ym-now" onClick={()=>onChange(thisMonth)} title={'回到 '+thisMonth}>
+          <span className="material-icons">today</span>本月
+        </button>
       )}
-    </div>
+    </>
   );
 }
 const ADMIN_THEME_PALETTES = [
