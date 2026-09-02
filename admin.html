@@ -596,7 +596,7 @@
   /* ---- 月曆檢視 ---- */
   /* ⚠️ 月曆不要撐滿整個畫面。一週七格、每格內容就那幾行，
      格子拉到 250px 寬只會讓資訊孤零零地黏在左上角，反而更難掃。 */
-  .cal-grid{display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px; max-width:1180px;}
+  .cal-grid{display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px; max-width:1040px;}
   .cal-dow{text-align:center; font-size:11px; font-weight:800; letter-spacing:.1em; color:var(--muted);
            padding:4px 0 5px; background:#EDEDED; border-radius:6px;}
   .cal-dow.we{color:var(--danger); opacity:.65;}
@@ -613,9 +613,9 @@
   .cal-cell.gap{border-color:var(--danger); border-width:1.5px; background:rgba(161,61,61,.13);}
   .cal-cell.todo{border-style:dashed; background:repeating-linear-gradient(135deg,#fff,#fff 6px,#F2F2F2 6px,#F2F2F2 12px);}
   .cal-cell.sel{border-color:var(--brand); box-shadow:0 0 0 2px rgba(0,173,181,.35);}
-  .cal-cell.today .cal-n{background:var(--brand); color:#fff; border-radius:50%; width:20px; height:20px;
-                         display:inline-flex; align-items:center; justify-content:center;}
-  .cal-cell .cal-n{font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.2;}
+  .cal-cell.today .cal-n{background:var(--brand); color:#fff; border-radius:50%; width:25px; height:25px;
+                         display:inline-flex; align-items:center; justify-content:center; font-size:14px;}
+  .cal-cell .cal-n{font-size:17px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.15;}
   .cal-cell .cal-n.we{color:var(--danger);}
   .cal-cell .cal-t{font-family:'Roboto Mono',monospace; font-size:11px; font-variant-numeric:tabular-nums;
                    line-height:1.5; white-space:nowrap;}
@@ -2520,7 +2520,7 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
         </div>
       ) : (
         <div className="card">
-          <div className="cal-grid" style={{marginBottom:6, maxWidth:1180}}>
+          <div className="cal-grid" style={{marginBottom:6, maxWidth:1040}}>
             {CAL_WEEK.map(d=><div key={d} className={'cal-dow' + (d===0||d===6?' we':'')}>{CAL_DOW[d]}</div>)}
           </div>
           <div className="cal-grid">
