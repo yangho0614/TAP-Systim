@@ -1295,10 +1295,11 @@ const NAV = [
   {group:'出缺勤', id:'employees', label:'員工資料', icon:'people'},
   {group:'出缺勤', id:'records', label:'打卡紀錄 / 補登', icon:'schedule'},
   {group:'出缺勤', id:'requests', label:'假單審核', icon:'approval'},
-  {group:'出缺勤', id:'annual', label:'特休設定', icon:'beach_access'},
-  {group:'出缺勤', id:'comp', label:'加班補休明細表', icon:'swap_horiz'},
+  // 出缺勤彙總排在假單審核正下方：審完假單就是看彙總對帳，兩件事連著做
   // icon 不可重複，否則側欄兩個項目長得一模一樣。'fact_check' 留給薪資印領清冊
   {group:'出缺勤', id:'attendance', label:'出缺勤彙總', icon:'summarize'},
+  {group:'出缺勤', id:'annual', label:'特休設定', icon:'beach_access'},
+  {group:'出缺勤', id:'comp', label:'加班補休明細表', icon:'swap_horiz'},
   {group:'薪資', id:'payroll', label:'薪資計算 / 明細', icon:'calculate'},
   {group:'薪資', id:'payslip', label:'薪資條', icon:'receipt_long'},
   {group:'薪資', id:'transfer', label:'匯款明細表', icon:'account_balance_wallet'},
