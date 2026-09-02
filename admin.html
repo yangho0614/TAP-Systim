@@ -2036,6 +2036,9 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
    六日與國定假日照樣列出（假日出勤要看得見，加班費算法不同），只是淡化並且不算應出勤。
    系統啟用日之前的日子標成「待補登」，可以直接勾起來批次補回去。 */
 const CAL_DOW = ['日','一','二','三','四','五','六'];
+// 月曆一週從**星期一**開始（工作週的排法），六日落在最右邊兩欄，看起來就是「一週的結尾」。
+// 這個陣列同時決定表頭順序與月初要空幾格，兩邊都吃它，改一個地方就好。
+const CAL_WEEK = [1, 2, 3, 4, 5, 6, 0];
 const CAL_DAYTYPE = {rest:'休息日', mandatory:'例假日', holiday:'國定假日'};
 
 function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, onReload}){
@@ -2257,11 +2260,13 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
       ) : (
         <div className="card">
           <div className="cal-grid" style={{marginBottom:6}}>
-            {CAL_DOW.map((w,i)=><div key={w} className={'cal-dow' + (i===0||i===6?' we':'')}>{w}</div>)}
+            {CAL_WEEK.map(d=><div key={d} className={'cal-dow' + (d===0||d===6?' we':'')}>{CAL_DOW[d]}</div>)}
           </div>
           <div className="cal-grid">
-            {/* 月初前面的空格：第一天是星期幾就空幾格，月曆才會對齊 */}
-            {days.length>0 && Array.from({length: days[0].dow}).map((_,i)=><div key={'b'+i} className="cal-cell blank"></div>)}
+            {/* 月初前面的空格。⚠️ 一週從星期一起算，所以不能直接用 dow（那是以星期日為 0），
+                要換算成「這一天排在該週的第幾格」，否則整個月會整體位移一格。 */}
+            {days.length>0 && Array.from({length: CAL_WEEK.indexOf(days[0].dow)}).map((_,i)=>
+              <div key={'b'+i} className="cal-cell blank"></div>)}
             {days.map(d=>{
               const st = dayState(d);
               const live = d.records.filter(r=>!r.voided);
