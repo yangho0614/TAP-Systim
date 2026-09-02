@@ -1564,6 +1564,9 @@ function App(){
   // onlyEmpId 有值時只套用那一位（薪資表每列的「套用」鈕）。差異確認、實際寫入、
   // 還原全部沿用同一條路徑，只是把 summary 先過濾掉其他人，避免兩套邏輯各走各的。
   async function applyAttendanceToPayroll(onlyEmpId){
+    // 只接受字串員工 ID。誤把事件物件或其他型別傳進來時一律當成「整份套用」，
+    // 而不是安靜地過濾成空陣列然後說「沒有資料」。
+    if(typeof onlyEmpId !== 'string' || !onlyEmpId) onlyEmpId = null;
     try{
       const all = await apiGet('getMonthlySummary', {month});
       const summary = onlyEmpId ? all.filter(s=>s.employeeId===onlyEmpId) : all;
@@ -3418,7 +3421,10 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
         )}
         <button className="ghost sm" onClick={scrollToStart} title="跳到最左邊"><span className="material-icons" style={{fontSize:16}}>first_page</span></button>
         <button className="ghost sm" onClick={scrollToEnd} title="跳到最右邊看總計"><span className="material-icons" style={{fontSize:16}}>last_page</span></button>
-        <button className="ghost sm" onClick={onApply} disabled={allLocked}>套用出缺勤時數</button>
+        {/* ⚠️ 一定要包成 ()=>onApply()。直接寫 onClick={onApply} 會把滑鼠事件當成
+            第一個參數傳進去，applyAttendanceToPayroll 會以為是「單人套用」的員工 ID，
+            結果永遠比對不到人，跳「這位員工本月沒有出缺勤資料可套用」（2026-09-02 踩到）。 */}
+        <button className="ghost sm" onClick={()=>onApply()} disabled={allLocked}>套用出缺勤時數</button>
         {onUndoApply && <button className="ghost sm" onClick={onUndoApply} title="回到套用前的數值，儲存後即失效"><span className="material-icons" style={{fontSize:14}}>undo</span>復原套用</button>}
         <button className="ghost sm" onClick={openLog} title="誰在什麼時候把哪個欄位從多少改成多少">
           <span className="material-icons" style={{fontSize:14}}>history</span>異動紀錄
@@ -3458,7 +3464,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             先按「套用出缺勤時數」把打卡資料帶進來，再補上獎金與 26 日項目，最後按「儲存薪資紀錄」。
           </div>
           <div style={{marginTop:12}}>
-            <button onClick={onApply} disabled={allLocked}>套用出缺勤時數</button>
+            <button onClick={()=>onApply()} disabled={allLocked}>套用出缺勤時數</button>
           </div>
         </div>
       )}
