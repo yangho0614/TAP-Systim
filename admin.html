@@ -2127,6 +2127,7 @@ function EmployeesTab({employees, loading, reload, onEdit, onNew, accountBox, se
    打卡紀錄頁選定一個人之後改用這一套：整個月每一天都有位置，沒打卡的那天也在。
    六日與國定假日照樣列出（假日出勤要看得見，加班費算法不同），只是淡化並且不算應出勤。
    系統啟用日之前的日子標成「待補登」，可以直接勾起來批次補回去。 */
+const ADMIN_LEAVE_TYPES = ['特休','補休','事假','病假','生理假','婚假','喪假','公假','公傷病假','產假','產檢假','陪產假','家庭照顧假','災防假'];
 const CAL_DOW = ['日','一','二','三','四','五','六'];
 // 月曆一週從**星期一**開始（工作週的排法），六日落在最右邊兩欄，看起來就是「一週的結尾」。
 // 這個陣列同時決定表頭順序與月初要空幾格，兩邊都吃它，改一個地方就好。
@@ -2139,6 +2140,10 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
   const [view, setView] = useState(()=>{ try{ return localStorage.getItem('att_cal_view') || 'list'; }catch(e){ return 'list'; } });
   const [sel, setSel] = useState({});          // {date:true}
   const [bulk, setBulk] = useState({checkIn:'', checkOut:'', note:'', overwrite:false, busy:false});
+  /* 代員工請假。後端 submitRequest 一直支援管理者代送（不受補請期限限制），
+     但後台沒有入口 —— 員工「其實請了假只是沒送單」的日子，你只能請他自己補，
+     而補請期限又會把太久以前的擋掉，等於卡死。這顆按鈕就是那個出口。 */
+  const [leaveBox, setLeaveBox] = useState(null);   // {date, leaveType, startTime, endTime, hours, reason, busy}
 
   function load(){
     setLoading(true);
@@ -2216,6 +2221,29 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
       setSel({}); load(); if(onReload) onReload();
     }catch(e){ alert(e.message); }
     finally{ setBulk(b=>({...b, busy:false})); }
+  }
+
+  function openLeaveFor(d){
+    // 預設整天：用該員工的班表時間，時數帶當日標準工時
+    const ws = (data.workStart||'09:00').slice(0,5), we = (data.workEnd||'18:00').slice(0,5);
+    setLeaveBox({date: d.date, leaveType:'特休', startTime: ws, endTime: we,
+      hours: data.standardHours, reason:'', busy:false});
+  }
+  async function submitLeave(){
+    const b = leaveBox;
+    if(!b.leaveType){ alert('請選擇假別'); return; }
+    if(!(Number(b.hours) > 0)){ alert('時數必須大於 0'); return; }
+    if(!confirm(`代 ${data.name} 送出假單\n\n${b.date} ${b.startTime}~${b.endTime}\n${b.leaveType} ${b.hours} 小時\n\n這張單會直接以管理者身分建立，不受補請期限限制。確定嗎？`)) return;
+    setLeaveBox({...b, busy:true});
+    try{
+      await apiPost('submitRequest', {
+        type:'請假', employeeId, leaveType: b.leaveType,
+        startTime: b.date + ' ' + b.startTime, endTime: b.date + ' ' + b.endTime,
+        hours: Number(b.hours), reason: b.reason || '管理者代為補登'
+      });
+      setLeaveBox(null); load(); if(onReload) onReload();
+      alert('假單已送出。狀態為待審核，請到「假單審核」完成核准後才會計入。');
+    }catch(e){ alert(e.message); setLeaveBox({...b, busy:false}); }
   }
 
   if(loading) return <div className="card"><div className="hint">載入中...</div></div>;
@@ -2404,7 +2432,13 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
                             <button className="ghost sm" onClick={()=>onEdit(rec)}>修改</button>
                             <button className="ghost sm" style={{marginLeft:4}} onClick={()=>onVoid(rec.id, rec)}>作廢</button>
                           </>)
-                        : (d.date<=todayStr && <button className="ghost sm" onClick={()=>setSel({[d.date]:true})}>補登</button>)}
+                        : (d.date<=todayStr && <>
+                            <button className="ghost sm" onClick={()=>setSel({[d.date]:true})}>補登</button>
+                            {d.required && d.leaveHours<=0 && (
+                              <button className="ghost sm" style={{marginLeft:4}} title="代這位員工送出假單（不受補請期限限制）"
+                                      onClick={()=>openLeaveFor(d)}>代請假</button>
+                            )}
+                          </>)}
                     </td>
                   </tr>
                 );
@@ -2452,6 +2486,49 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
             <span><span className="cal-tag punch">漏打下班卡</span> 補登下班時間即可</span>
             <span><span className="cal-tag todo">待補登</span> 系統啟用前</span>
             <span>淺紅底＝六日／國定假日，不用出勤（<b>紅框</b>才是要處理的缺漏）</span>
+          </div>
+        </div>
+      )}
+
+      {leaveBox && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget && !leaveBox.busy) setLeaveBox(null); }}>
+          <div className="modal" style={{maxWidth:460}}>
+            <h3><span className="material-icons">event_note</span>代 {data.name} 請假
+              <span style={{fontWeight:400, fontSize:13, color:'var(--muted)', marginLeft:8}}>{leaveBox.date}</span>
+            </h3>
+            <div className="hint" style={{marginBottom:12}}>
+              用於「員工其實有請假、只是忘了送單」的情況。以管理者身分建立，<b>不受補請期限限制</b>；
+              送出後仍是「待審核」，要到假單審核完成核准才會計入出勤與薪資。
+            </div>
+            <div className="grid-2">
+              <div className="field"><label>假別</label>
+                <select value={leaveBox.leaveType} onChange={e=>setLeaveBox({...leaveBox, leaveType:e.target.value})}>
+                  {ADMIN_LEAVE_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="field"><label>時數</label>
+                <input type="number" step="any" min="0" value={leaveBox.hours}
+                       onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} />
+              </div>
+              <div className="field"><label>開始時間</label>
+                <input type="time" value={leaveBox.startTime} onChange={e=>setLeaveBox({...leaveBox, startTime:e.target.value})} />
+              </div>
+              <div className="field"><label>結束時間</label>
+                <input type="time" value={leaveBox.endTime} onChange={e=>setLeaveBox({...leaveBox, endTime:e.target.value})} />
+              </div>
+            </div>
+            <div className="field"><label>事由</label>
+              <input type="text" value={leaveBox.reason} placeholder="例如：員工當日口頭告知，事後未送單"
+                     onChange={e=>setLeaveBox({...leaveBox, reason:e.target.value})} />
+            </div>
+            <div className="hint" style={{marginTop:-4}}>
+              時數與起訖時間要對得上（{data.workStart}~{data.workEnd}，午休 {data.lunchBreak} 分不計）。
+              整天 = {trimNum(data.standardHours,1)} 小時。
+            </div>
+            <div className="modal-actions">
+              <button className="ghost" onClick={()=>setLeaveBox(null)} disabled={leaveBox.busy}>取消</button>
+              <button onClick={submitLeave} disabled={leaveBox.busy}>{leaveBox.busy?'送出中...':'送出假單'}</button>
+            </div>
           </div>
         </div>
       )}
