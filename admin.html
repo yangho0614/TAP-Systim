@@ -3027,6 +3027,16 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
   const [locking, setLocking] = useState(false);
   const [summary, setSummary] = useState([]);
   const [noteBox, setNoteBox] = useState(null); // {employeeId, field, value}
+  const [logBox, setLogBox] = useState(null);  // 薪資異動紀錄 {loading, items, scope}
+  /* 薪資是全系統唯一「改了沒人知道」的地方：打卡有作廢軌跡、假單有簽核軌跡，
+     薪資的一般欄位以前什麼都沒有。把加班時數從 10 改成 2，原本的 10 就永遠消失了。 */
+  function openLog(scope){
+    const onlyThisMonth = scope !== 'all';
+    setLogBox({loading:true, items:[], onlyThisMonth});
+    apiGet('getPayrollLog', onlyThisMonth ? {month} : {})
+      .then(items=>setLogBox({loading:false, items: items||[], onlyThisMonth}))
+      .catch(e=>{ alert(e.message); setLogBox(null); });
+  }
   const scrollRef = useRef(null);
   // 欄位群組收合：整張表 20 餘欄，多數月份只有少數群組有資料，預設只展開有值的群組
   const GROUPS = [
@@ -3204,6 +3214,9 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
         <button className="ghost sm" onClick={scrollToEnd} title="跳到最右邊看總計"><span className="material-icons" style={{fontSize:16}}>last_page</span></button>
         <button className="ghost sm" onClick={onApply} disabled={allLocked}>套用出缺勤時數</button>
         {onUndoApply && <button className="ghost sm" onClick={onUndoApply} title="回到套用前的數值，儲存後即失效"><span className="material-icons" style={{fontSize:14}}>undo</span>復原套用</button>}
+        <button className="ghost sm" onClick={openLog} title="誰在什麼時候把哪個欄位從多少改成多少">
+          <span className="material-icons" style={{fontSize:14}}>history</span>異動紀錄
+        </button>
         <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
         <button className="ghost sm" onClick={doExport}>匯出 CSV</button>
         <button onClick={onSave} disabled={saving || !dirty || allLocked}
@@ -3559,6 +3572,56 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               <button className="ghost" onClick={()=>setResignRowBox(null)}>取消</button>
               <button onClick={applyResignRowSettle} disabled={resignRowBox.loading || !resignRowBox.data}>帶入特休結算欄位</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {logBox && (
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setLogBox(null); }}>
+          <div className="modal" style={{maxWidth:900, width:'92vw'}}>
+            <h3><span className="material-icons">history</span>薪資異動紀錄
+              <span style={{fontWeight:400, fontSize:13, color:'var(--muted)', marginLeft:8}}>
+                {logBox.onlyThisMonth ? monthLabel(month) : '全部月份（最近 500 筆）'}
+              </span>
+            </h3>
+            <div className="hint" style={{marginBottom:10}}>
+              只記錄<b>人工改動</b>的欄位；遲到分鐘、出勤日數那些是「套用出缺勤時數」帶進來的系統值，
+              每次套用都會變，記進來會把真正需要注意的改動淹掉。
+            </div>
+            <div className="toolbar" style={{marginBottom:10}}>
+              <button className={logBox.onlyThisMonth?'sm':'ghost sm'} onClick={()=>openLog('month')}>只看本月</button>
+              <button className={!logBox.onlyThisMonth?'sm':'ghost sm'} onClick={()=>openLog('all')}>全部月份</button>
+              <span className="grow"></span>
+              <span className="hint">{logBox.loading ? '載入中...' : logBox.items.length + ' 筆'}</span>
+            </div>
+            <div style={{maxHeight:'56vh', overflowY:'auto'}}>
+              <table style={{fontSize:12.5}}>
+                <thead><tr>
+                  <th className="left">時間</th><th className="left">操作者</th><th className="left">員工</th>
+                  <th className="center">月份</th><th className="left">欄位</th>
+                  <th className="center">原值</th><th className="center">新值</th>
+                </tr></thead>
+                <tbody>
+                  {logBox.items.map((x,i)=>(
+                    <tr key={i}>
+                      <td className="left mono" style={{whiteSpace:'nowrap'}}>{x.time}</td>
+                      <td className="left">{x.operator}</td>
+                      <td className="left"><b>{x.name}</b></td>
+                      <td className="center mono">{x.month}</td>
+                      <td className="left">{x.field}</td>
+                      <td className="center mono" style={{color:'var(--muted)'}}>{x.oldValue===''?'—':x.oldValue}</td>
+                      <td className="center mono"><b>{x.newValue===''?'—':x.newValue}</b></td>
+                    </tr>
+                  ))}
+                  {!logBox.loading && logBox.items.length===0 && (
+                    <tr><td colSpan="7" className="hint" style={{textAlign:'center'}}>
+                      沒有異動紀錄。這張表是 2026-09-02 才開始記的，之前的修改沒有留下軌跡。
+                    </td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="modal-actions"><button className="ghost" onClick={()=>setLogBox(null)}>關閉</button></div>
           </div>
         </div>
       )}
