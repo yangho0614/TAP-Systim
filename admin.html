@@ -570,7 +570,10 @@
   /* 全域是 th,td{text-align:right}，這裡每一欄都要明寫，不能靠預設 */
   .cal-tbl td.d{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; text-align:left;
                 overflow:hidden; text-overflow:ellipsis;}
-  .cal-tbl td.st{text-align:left; white-space:normal; line-height:1.9;}
+  /* ⚠️ 標籤間距一律交給 flex gap，不要在各個標籤上寫 marginLeft/marginRight —— 
+     有主要狀態標籤的列從 0 開始、沒有的列多一個起始 margin，整欄就對不齊。 */
+  .cal-tbl td.st{text-align:left; white-space:normal;}
+  .cal-tbl td.st .st-wrap{display:flex; flex-wrap:wrap; align-items:center; gap:5px;}
   .cal-tbl td.note{text-align:left; white-space:normal; color:var(--muted); font-size:11.5px; line-height:1.6;}
   .cal-tbl td.src{text-align:center; color:var(--muted); font-size:11.5px;}
   .cal-tbl td.act{text-align:center; white-space:nowrap;}
@@ -2324,24 +2327,26 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
                     <td className={'t ' + (rec && rec.returnTime ? '' : 'none')}>{rec && rec.returnTime ? rec.returnTime.slice(11,16) : '—'}</td>
                     <td className={'t ' + (d.workedHours>0 ? '' : 'none')}>{d.workedHours>0 ? trimNum(d.workedHours,2) : '—'}</td>
                     <td className="st">
-                      {st && <span className={'cal-tag ' + st.k} style={{marginRight:5}}>{st.t}</span>}
+                      <div className="st-wrap">
+                      {st && <span className={'cal-tag ' + st.k}>{st.t}</span>}
                       {leaveTags(d)}
-                      {rec && rec.voided && <span className="cal-tag void" style={{marginLeft:4}} title={'作廢原因：'+(rec.voidReason||'')}>已作廢</span>}
+                      {rec && rec.voided && <span className="cal-tag void" title={'作廢原因：'+(rec.voidReason||'')}>已作廢</span>}
                       {/* 打卡狀態上的「遲到 N 分鐘」是打卡當下寫進試算表的原始記錄，
                           事後補請假不會去改它（那是原始憑證）。但薪資用的是經假單調整後的
                           分鐘數，所以這裡要標出「已請假涵蓋」，否則每次看到都會以為又被扣了。 */}
                       {rec && !rec.voided && isAbnormalStatus(rec.checkInStatus) && (
-                        <span className={'cal-tag ' + (n(d.lateMinutes)>0 ? 'punch' : 'covered')} style={{marginLeft:4}}
+                        <span className={'cal-tag ' + (n(d.lateMinutes)>0 ? 'punch' : 'covered')}
                               title={n(d.lateMinutes)>0 ? '' : '這段時間已被當日的已核准假單涵蓋，薪資計算不會再算一次遲到'}>
                           {rec.checkInStatus}{n(d.lateMinutes)>0 ? '' : ' · 已請假涵蓋'}
                         </span>
                       )}
                       {rec && !rec.voided && isAbnormalStatus(rec.checkOutStatus) && (
-                        <span className={'cal-tag ' + (n(d.earlyMinutes)>0 ? 'punch' : 'covered')} style={{marginLeft:4}}
+                        <span className={'cal-tag ' + (n(d.earlyMinutes)>0 ? 'punch' : 'covered')}
                               title={n(d.earlyMinutes)>0 ? '' : '這段時間已被當日的已核准假單涵蓋，薪資計算不會再算一次早退'}>
                           {rec.checkOutStatus}{n(d.earlyMinutes)>0 ? '' : ' · 已請假涵蓋'}
                         </span>
                       )}
+                      </div>
                     </td>
                     <td className="note">
                       {rec && rec.note}
