@@ -624,6 +624,11 @@
   .cal-bar .ow{display:flex; align-items:center; gap:5px; font-size:12px; color:#F0C674;}
   .cal-bar button.ghost{color:#EEEEEE; border-color:#5a636e;}
   .cal-bar button.ghost:hover{background:#5a636e; color:#fff;}
+  .cal-bar-note{flex-basis:100%; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+                padding-top:9px; margin-top:2px; border-top:1px solid #4a525c;}
+  .cal-bar-note input{flex:1; min-width:220px; padding:5px 9px; border-radius:6px;
+                      border:1px solid #4a525c; background:#fff; font-size:12.5px;}
+  .cal-bar-note .np{font-size:11px; padding:3px 8px;}
 
   /* 展開的逐筆假單。⚠️ 表頭與資料列是兩個獨立的 grid，軌道必須完全一致才會對齊；
      最後一欄用 auto 會讓兩邊依各自內容算出不同寬度，中間的 1fr 吸收差額就對不上。
@@ -823,6 +828,9 @@ function linkifyBlank(html){
 }
 const CATEGORY_COLORS = ['#00ADB5', '#4f9b6f', '#c05a4f', '#5b8db8', '#8b6fa8', '#c98a4b'];
 const NOTE_PRESETS = ['員工忘記打卡，已口頭確認時間', '設備/網路異常，事後補登', '主管同意調整'];
+// 批次補登的快捷備註。備註是稽核軌跡的一部分（勞基法第 30 條要求出勤紀錄保存 5 年，
+// 補登的紀錄要看得出來為什麼補、依據什麼補），一次補十幾天更需要交代清楚。
+const BULK_NOTE_PRESETS = ['打卡系統啟用前，依紙本出勤補登', '員工忘記打卡，已口頭確認時間', '設備/網路異常，事後補登'];
 /* 地址轉座標改由後端處理（Apps Script 內建 Maps 服務，不需金鑰）。
    這支檔案放在公開的 GitHub repo，原本寫死在這裡的 Google 金鑰等於公開，已於 2026-08-13 移除。 */
 async function geocodeAddress(address){
@@ -2109,7 +2117,7 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState(()=>{ try{ return localStorage.getItem('att_cal_view') || 'list'; }catch(e){ return 'list'; } });
   const [sel, setSel] = useState({});          // {date:true}
-  const [bulk, setBulk] = useState({checkIn:'', checkOut:'', overwrite:false, busy:false});
+  const [bulk, setBulk] = useState({checkIn:'', checkOut:'', note:'', overwrite:false, busy:false});
 
   function load(){
     setLoading(true);
@@ -2146,7 +2154,8 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
     const lines = [
       `批次補登 ${data.name} 的打卡紀錄`, '',
       `日期：${selDates.length} 天（${selDates[0]} ~ ${selDates[selDates.length-1]}）`,
-      `上班：${bulk.checkIn||'不填'}　下班：${bulk.checkOut||'不填'}`, ''
+      `上班：${bulk.checkIn||'不填'}　下班：${bulk.checkOut||'不填'}`,
+      `備註：${bulk.note || '管理員批次補登'}`, ''
     ];
     if(selHasRecord.length>0){
       lines.push(willOverwrite
@@ -2162,6 +2171,7 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
       const r = await apiPost('batchPunchRecords', {
         employeeId, dates: selDates,
         checkInTime: bulk.checkIn, checkOutTime: bulk.checkOut,
+        note: bulk.note || '管理員批次補登',
         overwrite: !!bulk.overwrite
       });
       const msg = [`新增 ${r.新增} 天`, r.覆蓋 ? `覆蓋 ${r.覆蓋} 天` : '',
@@ -2399,6 +2409,16 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
           <button onClick={doBulk} disabled={bulk.busy}>
             {bulk.busy ? '寫入中...' : `批次補登 ${selDates.length} 天`}
           </button>
+          {/* 備註另起一行：它是稽核軌跡的一部分，要有夠寬的輸入空間。
+              快捷按鈕點了直接填入，最常用的「系統啟用前」排第一個。 */}
+          <div className="cal-bar-note">
+            <label>備註</label>
+            <input type="text" value={bulk.note} placeholder="會寫進每一筆補登的紀錄裡，供日後稽核辨識來源"
+                   onChange={e=>setBulk({...bulk, note:e.target.value})} />
+            {BULK_NOTE_PRESETS.map(pz=>(
+              <button key={pz} type="button" className="ghost sm np" onClick={()=>setBulk({...bulk, note:pz})}>{pz}</button>
+            ))}
+          </div>
         </div>
       )}
     </div>
