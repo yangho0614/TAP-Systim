@@ -185,6 +185,8 @@
   .badge.warn{background:#f6d9ce; color:#7a3b1e;}
   .badge .material-icons{font-size:13px;}
   .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px;}
+  /* 工具列裡「篩選條件」與「動作按鈕」之間的分隔，兩組東西性質不同 */
+  .tb-sep{width:1px; height:20px; background:var(--line); margin:0 3px;}
   .toolbar .grow{flex:1;}
   .hint{font-size:11.5px; color:var(--muted); margin-top:4px;}
   .row-between{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
@@ -2481,6 +2483,7 @@ function RecordsTab({employees, month}){
         {/* 這兩顆接在篩選後面，不要用 grow 推到最右邊 ——
             寬螢幕上要把滑鼠橫拉過整個畫面才按得到。
             選定員工時預填該員工，省掉在視窗裡再選一次。 */}
+        <span className="tb-sep"></span>
         <button className="ghost sm" onClick={()=>setManual({
           employeeId: selectedEmp ? selectedEmp.id : '',
           name: selectedEmp ? selectedEmp.name : '',
