@@ -596,7 +596,7 @@
   /* ---- 月曆檢視 ---- */
   /* ⚠️ 月曆不要撐滿整個畫面。一週七格、每格內容就那幾行，
      格子拉到 250px 寬只會讓資訊孤零零地黏在左上角，反而更難掃。 */
-  .cal-grid{display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px; max-width:1040px;}
+  .cal-grid{display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px;}
   .cal-dow{text-align:center; font-size:11px; font-weight:800; letter-spacing:.1em; color:var(--muted);
            padding:4px 0 5px; background:#EDEDED; border-radius:6px;}
   .cal-dow.we{color:var(--danger); opacity:.65;}
@@ -2520,7 +2520,7 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
         </div>
       ) : (
         <div className="card">
-          <div className="cal-grid" style={{marginBottom:6, maxWidth:1040}}>
+          <div className="cal-grid" style={{marginBottom:6}}>
             {CAL_WEEK.map(d=><div key={d} className={'cal-dow' + (d===0||d===6?' we':'')}>{CAL_DOW[d]}</div>)}
           </div>
           <div className="cal-grid">
