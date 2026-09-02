@@ -1194,7 +1194,14 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const holiday = calcHolidayPay(hourly, dailyWage, entry.otHolidayHours);
   const mandatoryRestMode = (settings && settings.mandatoryRestPayMode) || 'double';
   const mandatoryRestPay = calcMandatoryRestPay(hourly, dailyWage, entry.otMandatoryRestHours, mandatoryRestMode);
-  const overtimePay = weekdayOtPay + restDay.pay + holiday.pay + mandatoryRestPay;
+  /* ⚠️ 每一個「薪資條上看得到的項目」都在這裡就四捨五入到元（2026-09-03）。
+     合計必須等於各項目相加，否則員工自己把薪資條加一次會差 1～2 元。
+     員工實際被扣的是進位後的整數，Σ round 才是真正發生的金額；
+     round Σ 算出來的是一個誰也沒付、誰也沒收的數字。
+     ⚠️ 進位的單位要與薪資條的「行」一致：病假、生理假各是一行（半薪與不給薪合併）。
+     ⚠️ 這三份計算（GAS／Worker／這裡）必須完全一致，改一處就要改三處。 */
+  const yuan = v => Math.round(Number(v) || 0);
+  const overtimePay = yuan(weekdayOtPay) + yuan(restDay.pay) + yuan(holiday.pay) + yuan(mandatoryRestPay);
   const monthlyOtHours = n(entry.otWeekday134) + n(entry.otWeekday167) + n(entry.otRestDayHours); // 依勞動部見解，休息日出勤時數也算入延長工作時間月上限
 
   const allowanceTotal = effMeal+effTransport+effPosition+effFullAttendance; // 僅供顯示參考，已含在本薪內
@@ -1269,19 +1276,19 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const menstrualHalfHours = menstrualOverageThisMonth; // 沿用舊欄位名稱：本月生理假超過3 日(全薪)的部分小時數
   const sickCapExceeded = (sickUnpaidHours + menstrualUnpaidHours) > 0;
 
-  const leaveDeduct = hourly*1.0*n(entry.personalLeave)
-    + hourly*1.0*n(entry.familyCareLeave) // 不給工資，但不扣全勤
-    + hourly*0.5*sickHalfPayHours + hourly*1.0*sickUnpaidHours
-    + hourly*0.5*menstrualHalfPayHours + hourly*1.0*menstrualUnpaidHours
-    + hourly*1.0*n(entry.disasterLeave) + hourly*1.0*n(entry.otherLeave);
+  const leaveDeduct = yuan(hourly*1.0*n(entry.personalLeave))
+    + yuan(hourly*1.0*n(entry.familyCareLeave)) // 不給工資，但不扣全勤
+    + yuan(hourly*0.5*sickHalfPayHours + hourly*1.0*sickUnpaidHours)
+    + yuan(hourly*0.5*menstrualHalfPayHours + hourly*1.0*menstrualUnpaidHours)
+    + yuan(hourly*1.0*n(entry.disasterLeave)) + yuan(hourly*1.0*n(entry.otherLeave));
   /* 遲到早退的工資扣款：那段時間沒提供勞務，與請事假同一個道理。
      ⚠️ 這三份計算（GAS／Worker／這裡）必須完全一致，改一處就要改三處。
      ⚠️ 遲到分鐘已扣掉已核准假單涵蓋的時段與午休，補請假後自然歸零，不會重複扣。 */
   const lateEarlyHours = (n(entry.lateMinutes) + n(entry.earlyMinutes)) / 60;
   const absentDeduct = (!isLocked && String(settings?.deductWageForAbsent || '否') === '是')
-    ? hourly * n(entry.absentHours) : 0;
+    ? yuan(hourly * n(entry.absentHours)) : 0;
   const lateEarlyDeduct = (!isLocked && String(settings?.deductWageForLateEarly || '否') === '是')
-    ? hourly * lateEarlyHours : 0;
+    ? yuan(hourly * lateEarlyHours) : 0;
   const deductTotal = laborFee + healthFee + leaveDeduct + lateEarlyDeduct + absentDeduct + n(entry.otherDeduction);
 
   const pay06 = payableTotal - deductTotal;
