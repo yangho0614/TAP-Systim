@@ -39,6 +39,7 @@
   .topbar h1{font-size:17px; display:flex; align-items:center; gap:8px;}
   /* 假單起訖：上下兩行、等寬數字，兩行的日期與時間會垂直對齊 */
   .req-when{white-space:nowrap; font-variant-numeric:tabular-nums; line-height:1.65;}
+  .req-when-in{display:inline-block; text-align:left;}
   .req-when .tilde{color:var(--muted);}
 
   /* 月份列：內容區的第一行，緊貼下方的篩選列 */
@@ -4667,10 +4668,11 @@ function RequestsTab({month, employees, setTab}){
                       拆成上下兩行，同一個位置對齊，一眼就對得起來。 */}
                   <td className="center req-when">
                     {r.type==='請假' ? (
-                      <>
+                      // 外層置中、內層靠左：第一行尾端多一個 ~，兩行直接置中的話左右都會錯開
+                      <div className="req-when-in">
                         <div>{withWeekday(r.startTime)} <span className="tilde">~</span></div>
                         <div>{withWeekday(r.endTime)}</div>
-                      </>
+                      </div>
                     ) : withWeekday(String(r.startTime).split(' ')[0])}
                   </td>
                   <td className="center">{r.hours}</td>
