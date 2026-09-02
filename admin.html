@@ -207,6 +207,20 @@
   .modal{background:#fff; border-radius:10px; padding:22px 26px; width:640px; max-width:100%; box-shadow:0 18px 50px rgba(0,0,0,.28);}
   .modal h3{margin-bottom:14px; display:flex; align-items:center; gap:8px;}
   .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:16px; border-top:1px solid var(--line); padding-top:14px;}
+  /* 套用出缺勤時數的差異清單：一人一區塊，欄位以膠囊排列 */
+  .apply-list{max-height:52vh; overflow-y:auto; border:1px solid var(--line); border-radius:8px;}
+  .apply-emp{display:flex; gap:14px; padding:11px 14px; align-items:flex-start;}
+  .apply-emp + .apply-emp{border-top:1px solid var(--line);}
+  .apply-emp .apply-name{flex:0 0 108px; font-weight:700; font-size:14px; display:flex;
+                         flex-direction:column; gap:3px; padding-top:3px;}
+  .apply-emp .apply-cnt{font-weight:400; font-size:11.5px; color:var(--muted);}
+  .apply-fields{display:flex; flex-wrap:wrap; gap:7px; flex:1 1 auto;}
+  .apply-chip{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px;
+              background:var(--paper-2); border:1px solid var(--line); font-size:12.5px; white-space:nowrap;}
+  .apply-chip .fld{color:var(--muted);}
+  .apply-chip .from{color:var(--muted); text-decoration:line-through;}
+  .apply-chip .arw{font-size:15px; color:var(--muted);}
+  .apply-chip .to{font-weight:700; color:var(--brand);}
   /* 長表單彈窗：標題與按鈕列固定，中間內容獨立捲動，欄位以區塊分組 */
   .modal.modal-form{width:780px; padding:0; background:var(--paper); max-height:calc(100vh - 80px); display:flex; flex-direction:column; overflow:hidden;}
   .modal.modal-form>h3{margin:0; flex:0 0 auto; padding:16px 22px; background:var(--paper-2); border-bottom:1px solid var(--line); font-size:16px;}
@@ -1751,7 +1765,7 @@ function App(){
       </div>
       {applyBox && (
         <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setApplyBox(null); }}>
-          <div className="modal" style={{width:560}}>
+          <div className="modal" style={{width:900}}>
             <h3 style={{marginTop:0}}><span className="material-icons">sync_alt</span>
               套用出缺勤時數{applyBox.onlyName && <span style={{fontWeight:400, color:'var(--muted)', fontSize:14}}>／僅 {applyBox.onlyName}</span>}
             </h3>
@@ -1768,23 +1782,29 @@ function App(){
                     ? <>，<b>只影響 {applyBox.onlyName} 一人</b>，以下 <b>{applyBox.changes.length}</b> 個欄位會變動：</>
                     : <>，以下<b> {new Set(applyBox.changes.map(c=>c.empId)).size} </b>人的<b> {applyBox.changes.length} </b>個欄位會變動：</>}
                 </div>
-                <div style={{maxHeight:280, overflowY:'auto', border:'1px solid var(--line)', borderRadius:6}}>
-                  <table style={{fontSize:13}}>
-                    <thead><tr><th className="left">姓名</th><th className="left">欄位</th><th>變動</th></tr></thead>
-                    <tbody>
-                      {applyBox.changes.map((c,i)=>(
-                        <tr key={i}>
-                          <td className="left">{c.name}</td>
-                          <td className="left">{c.field}{c.wasManual && c.to===0 && <span className="badge warn" style={{marginLeft:6}}>手動值將被清掉</span>}</td>
-                          <td className="mono center">
-                            <span style={{color:'var(--muted)', textDecoration:'line-through'}}>{c.from}</span>
-                            {' → '}
-                            <b style={{color:'var(--brand)'}}>{c.to}</b>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* ⚠️ 一列一個欄位的話，同一個人的姓名會重複七八次，五個人就要捲三頁，
+                    看完也拼不出「這個人到底被改了什麼」。改成**一個人一個區塊**：
+                    左邊姓名，右邊是他所有變動的欄位膠囊，一眼就是一個人的全貌。 */}
+                <div className="apply-list">
+                  {Array.from(new Set(applyBox.changes.map(c=>c.empId))).map(eid=>{
+                    const rows = applyBox.changes.filter(c=>c.empId===eid);
+                    return (
+                      <div className="apply-emp" key={eid}>
+                        <div className="apply-name">{rows[0].name}<span className="apply-cnt">{rows.length} 項</span></div>
+                        <div className="apply-fields">
+                          {rows.map((c,i)=>(
+                            <div className="apply-chip" key={i}>
+                              <span className="fld">{c.field}</span>
+                              <span className="mono from">{c.from}</span>
+                              <span className="material-icons arw">arrow_right_alt</span>
+                              <span className="mono to">{c.to}</span>
+                              {c.wasManual && c.to===0 && <span className="badge warn" style={{marginLeft:6}}>手動值將被清掉</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="hint" style={{marginTop:8}}>
                   {!applyBox.onlyName && <>其餘 {applyBox.untouched} 人無變化。</>}
