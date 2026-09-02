@@ -2171,7 +2171,7 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
           <table className="cal-tbl">
             <colgroup>
               <col style={{width:'36px'}} />
-              <col style={{width:'186px'}} />
+              <col style={{width:'250px'}} />
               <col style={{width:'104px'}} /><col style={{width:'104px'}} />
               <col style={{width:'76px'}} /><col style={{width:'76px'}} />
               <col style={{width:'68px'}} />
@@ -2205,8 +2205,10 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
                     <td className="d">
                       {Number(d.date.slice(5,7))}/{Number(d.date.slice(8,10))}
                       <span className="dw">({CAL_DOW[d.dow]})</span>
-                      {d.dayType!=='work' && <span className="cal-tag off" style={{marginLeft:6}}>{CAL_DAYTYPE[d.dayType]}</span>}
-                      {d.holidayName && <span className="cal-tag hol" style={{marginLeft:4}}>{d.holidayName}</span>}
+                      {d.dayType!=='work' && !d.holidayName &&
+                        <span className="cal-tag off" style={{marginLeft:6}}>{CAL_DAYTYPE[d.dayType]}</span>}
+                      {d.holidayName &&
+                        <span className="cal-tag hol" style={{marginLeft:6}} title={CAL_DAYTYPE[d.dayType]||''}>{d.holidayName}</span>}
                     </td>
                     <td className={'t ' + (rec && rec.checkIn ? '' : 'none')}>{rec && rec.checkIn ? rec.checkIn.slice(11) : '—'}</td>
                     <td className={'t ' + (rec && rec.checkOut ? '' : 'none')}>{rec && rec.checkOut ? rec.checkOut.slice(11) : '—'}</td>
