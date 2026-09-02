@@ -192,6 +192,20 @@
   .tb-sep{width:1px; height:20px; background:var(--line); margin:0 3px;}
   .toolbar .grow{flex:1;}
   .hint{font-size:11.5px; color:var(--muted); margin-top:4px;}
+  /* 設定頁的說明分兩層（2026-09-02）：一行重點留在畫面上，背景／法源／踩過的坑收進燈泡。
+     原本每個欄位掛三到五行說明，整頁變成一面文字牆，真正要改的輸入框反而找不到。 */
+  .lbl-row{display:flex; align-items:center; gap:3px; margin-bottom:3px;}
+  .lbl-row>label{margin:0;}
+  .hlp{display:inline-flex; align-items:center; cursor:pointer; color:var(--muted);
+       opacity:.45; transition:opacity .15s, color .15s;}
+  .hlp:hover, .hlp.on{opacity:1; color:var(--brand);}
+  .hlp .material-icons{font-size:15px;}
+  /* 整圈邊框＋底色，不用左側色柱 */
+  .hlp-box{margin-top:6px; padding:9px 11px; border:1px solid #BCE3E5; border-radius:8px;
+           background:#F5FBFB; font-size:12.5px; line-height:1.85; color:var(--ink);}
+  .hlp-box p{margin:0 0 7px 0;} .hlp-box p:last-child{margin-bottom:0;}
+  .hint.key{font-size:12px; color:#4A4F56;}
+  .hint.warn{color:var(--danger); font-size:12px;}
   .row-between{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .empty{padding:40px; text-align:center; color:var(--muted);}
   .modal-bg{position:fixed; inset:0; background:rgba(16,20,16,.62); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto; z-index:50;}
@@ -5998,6 +6012,29 @@ function AnnouncementsTab(){
 }
 
 /* ========================= 系統設定 ========================= */
+/* 設定欄位的外框：標題列（含燈泡）＋控制項＋一行重點＋展開後的完整說明。
+   ⚠️ 燈泡不要放進 <label> 裡 —— 點 label 會連帶 focus 到輸入框，展開說明時畫面會跳。 */
+function Fld({label, hint, help, warn, children}){
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="field">
+      <div className="lbl-row">
+        <label>{label}</label>
+        {help && (
+          <span className={'hlp'+(open?' on':'')} onClick={()=>setOpen(!open)}
+                title={open?'收起說明':'看說明'}>
+            <span className="material-icons">lightbulb</span>
+          </span>
+        )}
+      </div>
+      {children}
+      {hint && <div className="hint key">{hint}</div>}
+      {warn && <div className="hint warn">{warn}</div>}
+      {help && open && <div className="hlp-box">{help}</div>}
+    </div>
+  );
+}
+
 function SettingsTab({onSaved, initialCategory}){
   const [s, setS] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -6167,16 +6204,35 @@ function SettingsTab({onSaved, initialCategory}){
         <div className="field"><label>經度</label><input value={s.lng} onChange={e=>setS({...s,lng:e.target.value})} /></div>
       </div>
       <button className="ghost sm" onClick={useCurrentLocation} disabled={locating}>{locating?'定位中...':'使用目前裝置位置（建議在店內打開此頁操作一次）'}</button>
-      <div className="field" style={{marginTop:10}}><label>允許誤差半徑（公尺）</label><input type="number" value={s.radius} onChange={e=>setS({...s,radius:e.target.value})} /></div>
-      <div className="hint">超出範圍不會擋下打卡，但紀錄會標示「超出範圍」讓後台核對，避免員工在店外因訊號誤差被卡住。</div>
+      <div className="grid-2" style={{marginTop:10}}>
+        <Fld label="允許誤差半徑（公尺）"
+             hint="超出範圍不會擋下打卡，只在紀錄標示「超出範圍」。"
+             help={<>
+               <p>擋下打卡的代價比放行大得多：GPS 在室內、騎樓、地下室都可能飄幾十公尺，
+               真的在店裡卻打不了卡，員工只能打電話找管理部，比事後核對麻煩。</p>
+               <p>所以標示而不阻擋，讓後台自己判斷。鄭婉真是遠端工作，她的紀錄<b>本來就會一直標示超出範圍</b>，屬正常。</p>
+             </>}>
+          <input type="number" value={s.radius} onChange={e=>setS({...s,radius:e.target.value})} />
+        </Fld>
+      </div>
 
       <h3 style={{marginTop:18}}><span className="material-icons">schedule</span> 預設班表</h3>
-      <div className="hint" style={{marginTop:-4, marginBottom:8}}>員工若在「員工資料」未指定班別，會套用這裡的預設班表。</div>
+      <div className="hint key" style={{marginTop:-4, marginBottom:8}}>員工若在「員工資料」未指定班別，會套用這裡的預設班表。</div>
       <div className="grid-2">
         <div className="field"><label>上班時間</label><input type="time" value={s.workStart} onChange={e=>setS({...s,workStart:e.target.value})} /></div>
         <div className="field"><label>下班時間</label><input type="time" value={s.workEnd} onChange={e=>setS({...s,workEnd:e.target.value})} /></div>
         <div className="field"><label>午休扣除（分鐘）</label><input type="number" value={s.lunchBreak} onChange={e=>setS({...s,lunchBreak:e.target.value})} /></div>
-        <div className="field"><label>遲到寬限（分鐘）</label><input type="number" value={s.lateGrace} onChange={e=>setS({...s,lateGrace:e.target.value})} /></div>
+        <Fld label="遲到寬限（分鐘）"
+             hint="寬限內不算遲到；一旦超過，分鐘數全部都算。"
+             help={<>
+               <p>寬限是<b>門檻</b>，不是每次都送你的扣除額：</p>
+               <p>遲到 8 分（未超過 10 分寬限）→ <b>0 分</b>，不扣薪也不扣全勤<br/>
+               遲到 11 分（超過寬限）→ <b>算 11 分</b>，不是 11−10＝1 分</p>
+               <p>用扣除式的話遲到 11 分鐘只算 1 分鐘，等於沒有嚇阻力。
+               2026-09-02 以前系統用的是扣除式，每筆都少算一個寬限值，已修正並重算既有紀錄。</p>
+             </>}>
+          <input type="number" value={s.lateGrace} onChange={e=>setS({...s,lateGrace:e.target.value})} />
+        </Fld>
         <div className="field"><label>早退寬限（分鐘）</label><input type="number" value={s.earlyGrace} onChange={e=>setS({...s,earlyGrace:e.target.value})} /></div>
       </div>
 
@@ -6188,105 +6244,109 @@ function SettingsTab({onSaved, initialCategory}){
         <div className="field"><label>例假日（原則不可出勤）</label>
           <select value={s.mandatoryRestDay} onChange={e=>setS({...s,mandatoryRestDay:Number(e.target.value)})}>{DOW.map((d,i)=><option key={i} value={i}>星期{d}</option>)}</select>
         </div>
-        <div className="field"><label>平日加班月上限（小時）</label><input type="number" value={s.monthlyOtCap} onChange={e=>setS({...s,monthlyOtCap:e.target.value})} /></div>
-        <div className="field">
-          <label>例假日出勤薪資算法</label>
+        <Fld label="例假日出勤薪資算法"
+             hint="例假日原則不可出勤。"
+             help={<p>僅天災、事變等特殊狀況例外（勞基法第 40 條），事後仍須完成補休登記。</p>}>
           <select value={s.mandatoryRestPayMode || 'double'} onChange={e=>setS({...s,mandatoryRestPayMode:e.target.value})}>
             <option value="double">優於勞基法（時薪 × 2倍）</option>
             <option value="legal">依勞基法（加發一日工資＋超過8小時比照平日加班費）</option>
           </select>
-          <div className="hint" style={{marginTop:4}}>例假日原則不可出勤，僅天災事變等特殊狀況例外（勞基法第40條），事後仍須完成補休登記。</div>
-        </div>
-        <div className="field">
-          <label>休息日加班算法</label>
+        </Fld>
+        <Fld label="休息日加班算法"
+             hint="級距制做 1 小時就算 4 小時，對員工有利。"
+             warn={s.restDayOtMode === 'actual'
+               ? '⚠ 由級距制改為核實計算會減少員工的加班費，屬勞動條件不利變更，依勞基法第 21 條須先取得勞工同意。已鎖定的月份不受影響。'
+               : ''}
+             help={<p>兩者的加成倍率相同（前 2 小時 1.34、第 3–8 小時 1.67、超過 8 小時 2.67），
+               差別只在「算幾小時」。</p>}>
           <select value={s.restDayOtMode || 'tier'} onChange={e=>setS({...s,restDayOtMode:e.target.value})}>
             <option value="tier">舊制 4/8/12 小時級距（優於法令，公司現行）</option>
             <option value="actual">核實計算（2018 修法後的法定做法）</option>
           </select>
-          <div className="hint" style={{marginTop:4}}>
-            兩者的加成倍率相同（前 2 小時 1.34、第 3–8 小時 1.67、超過 8 小時 2.67），差別只在「算幾小時」。
-            級距制做 1 小時就算 4 小時，對員工有利。
-          </div>
-          {s.restDayOtMode === 'actual' && (
-            <div className="hint" style={{marginTop:4, color:'var(--danger)'}}>
-              ⚠ 由級距制改為核實計算會<b>減少員工的加班費</b>，屬勞動條件不利變更，
-              依勞基法第 21 條須先取得勞工同意，不可逕行變更。已鎖定的月份不受影響。
-            </div>
-          )}
-        </div>
-        <div className="field">
-          <label>基本工資（月薪）</label>
-          <input type="number" value={s.minimumWage} onChange={e=>setS({...s,minimumWage:e.target.value})} />
-          <div className="hint" style={{marginTop:4}}>
-            供儀表板與員工編輯視窗警示用，不影響薪資計算。每年基本工資調整時改這裡即可，不必動程式。
-          </div>
-        </div>
-        <div className="field">
-          <label>遲到／早退是否扣工資</label>
-          <select value={s.deductWageForLateEarly || '是'} onChange={e=>setS({...s, deductWageForLateEarly:e.target.value})}>
-            <option value="是">扣（依實際分鐘數扣工資）</option>
-            <option value="否">不扣（只影響全勤獎金）</option>
-          </select>
-          <div className="hint" style={{marginTop:4}}>
-            遲到那段時間沒有提供勞務，與請事假是同一件事。<b>2026-09-02 以前系統漏了這筆</b>，
-            只扣全勤獎金那條微薄的比例（遲到 4 小時只扣 18 元），等於「遲到比請假划算」。<br/>
-            已鎖定的月份沿用當時的計算，不受這個設定影響。員工補請假（含特休）後這筆會自動歸零。
-            {s.deductWageForLateEarly === '否' && (
-              <div style={{marginTop:4, color:'var(--danger)'}}>
-                ⚠ 目前設為不扣。這對員工有利，但會讓遲到幾乎沒有成本。
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="field">
-          <label>提早打卡是否計入加班</label>
+        </Fld>
+      </div>
+
+      <h3 style={{marginTop:18}}><span className="material-icons">more_time</span> 加班認定</h3>
+      <div className="grid-2">
+        <Fld label="提早打卡是否計入加班"
+             hint="設為「不計入」時，工時一律從班表上班時間起算。"
+             warn={s.countEarlyClockInAsOvertime === '是'
+               ? '⚠ 目前設為計入。員工只要提早刷卡就能累積加班費，且沒有簽核關卡。'
+               : ''}
+             help={<>
+               <p>加班是<b>全自動認列</b>的（打卡工時 − 標準工時），沒有加班申請單，
+               所以 08:30 就刷卡進來、18:00 正常下班，會自動產生 30 分鐘 1.34 倍加班費。</p>
+               <p>早到吃早餐、換衣服、避開塞車，主管並未交付工作，那段不是雇主指揮監督下的時間，
+               依法本來就不算工時。</p>
+               <p>⚠️ 只影響<b>上班那一端</b>，延後下班仍依實際打卡認列加班。
+               也只影響<b>平日</b> —— 休息日、國定假日、例假日出勤不受影響。</p>
+               <p>⚠️ 不會動到「實際工時」，出勤時數對帳與逐日檢視仍以打卡原值為準。已鎖定的月份沿用當時的計算。</p>
+             </>}>
           <select value={s.countEarlyClockInAsOvertime || '否'} onChange={e=>setS({...s, countEarlyClockInAsOvertime:e.target.value})}>
             <option value="否">不計入（工時從班表上班時間起算）</option>
             <option value="是">計入（依打卡時間核實計算）</option>
           </select>
-          <div className="hint" style={{marginTop:4}}>
-            加班是<b>全自動認列</b>的（打卡工時 − 標準工時），沒有加班申請單，
-            所以 08:30 就刷卡進來、18:00 正常下班，會自動產生 30 分鐘 1.34 倍加班費。<br/>
-            早到吃早餐、換衣服、避開塞車，主管並未交付工作，那段不是雇主指揮監督下的時間，
-            依法本來就不算工時。<b>設為「不計入」時，工時一律從班表上班時間起算。</b><br/>
-            ⚠️ <b>只影響上班那一端</b>，延後下班仍依實際打卡認列加班。
-            也<b>只影響平日</b>——休息日、國定假日、例假日出勤不受這個設定影響。<br/>
-            ⚠️ 這不會動到「實際工時」，出勤時數對帳與逐日檢視仍以打卡原值為準。
-            已鎖定的月份沿用當時的計算。
-            {s.countEarlyClockInAsOvertime === '是' && (
-              <div style={{marginTop:4, color:'var(--danger)'}}>
-                ⚠ 目前設為計入。員工只要提早刷卡就能累積加班費，且沒有簽核關卡。
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="field">
-          <label>補請假期限（工作日）</label>
+        </Fld>
+        <Fld label="平日加班月上限（小時）"
+             hint="依勞基法第 32 條，原則每月 46 小時。"
+             help={<p>經工會、或無工會則經勞資會議同意，可延長至 54 小時，
+               但每 3 個月不得逾 138 小時。此上限<b>不含</b>國定假日與例假日出勤。</p>}>
+          <input type="number" value={s.monthlyOtCap} onChange={e=>setS({...s,monthlyOtCap:e.target.value})} />
+        </Fld>
+      </div>
+
+      <h3 style={{marginTop:18}}><span className="material-icons">rule</span> 遲到早退與補單</h3>
+      <div className="grid-2">
+        <Fld label="遲到／早退是否扣工資"
+             hint="員工補請假（含特休）後，這筆會自動歸零。"
+             warn={s.deductWageForLateEarly === '否'
+               ? '⚠ 目前設為不扣。這對員工有利，但會讓遲到幾乎沒有成本。'
+               : ''}
+             help={<>
+               <p>遲到那段時間沒有提供勞務，與請事假是同一件事 —— 一個扣工資、一個不扣沒有道理。</p>
+               <p><b>2026-09-02 以前系統漏了這筆</b>，只扣全勤獎金那條微薄的比例（遲到 4 小時只扣 18 元），
+               等於「遲到比請假划算」。</p>
+               <p>已鎖定的月份沿用當時的計算，不受這個設定影響。</p>
+             </>}>
+          <select value={s.deductWageForLateEarly || '是'} onChange={e=>setS({...s, deductWageForLateEarly:e.target.value})}>
+            <option value="是">扣（依實際分鐘數扣工資）</option>
+            <option value="否">不扣（只影響全勤獎金）</option>
+          </select>
+        </Fld>
+        <Fld label="補請假期限（工作日）"
+             hint="0 ＝ 不限制。管理者代員工送單不受此限。"
+             help={<>
+               <p>請假起始日之後幾個<b>工作日</b>內要補送，超過就不受理。</p>
+               <p>⚠️ 用工作日不是日曆天 —— 週五請假、隔週一才上班，用日曆天算已經過了 3 天，
+               員工根本沒有上班的機會去補單。六日與國定假日都不計入。</p>
+               <p>沒有期限的話會無限上綱：員工月底發現要被扣遲到，回頭補一整個月的假單來消掉，
+               「遲到」實質上就不存在了。</p>
+             </>}>
           <input type="number" min="0" value={s.leaveBackfillWorkdays ?? 3}
                  onChange={e=>setS({...s, leaveBackfillWorkdays:e.target.value})} />
-          <div className="hint" style={{marginTop:4}}>
-            請假起始日之後幾個<b>工作日</b>內要補送，超過就不受理，<b>0 ＝ 不限制</b>。<br/>
-            ⚠️ 用工作日不是日曆天——週五請假、隔週一才上班，用日曆天算已經過了 3 天，
-            員工根本沒有上班的機會去補單。六日與國定假日都不計入。<br/>
-            沒有期限的話會無限上綱：員工月底發現要被扣遲到，回頭補一整個月的假單來消掉，
-            「遲到」實質上就不存在了。<br/>
-            <b>管理者代員工送單不受此限</b>，個案仍可由你處理。
-          </div>
-        </div>
-        <div className="field">
-          <label>出勤紀錄起算日</label>
+        </Fld>
+      </div>
+
+      <h3 style={{marginTop:18}}><span className="material-icons">fact_check</span> 對帳與參考基準</h3>
+      <div className="grid-2">
+        <Fld label="出勤紀錄起算日"
+             hint="這一天以前不做出勤時數對帳。留空＝不限制。"
+             help={<>
+               <p>打卡系統正式啟用前，系統裡沒有紀錄不代表沒來上班。
+               不設定的話，上線前的每個工作日都會被算成缺勤。</p>
+               <p>本系統第一筆打卡是 <b>2026-08-14</b>，之前的出勤以紙本打卡片為準。</p>
+             </>}>
           {/* ⚠️ 一定要 String() 包起來。Sheets 把日期存成日期型態後，這個值可能是數字或 Date，
               直接 .slice() 會拋 TypeError，而 React 的 render 錯誤會讓**整頁白掉**，
               不是只有這一格壞掉。設定頁的值全部來自試算表，都要當成「型別不確定」處理。 */}
           <input type="date" value={String(s.attendanceStartDate||'').slice(0,10)} onChange={e=>setS({...s,attendanceStartDate:e.target.value})} />
-          <div className="hint" style={{marginTop:4}}>
-            這一天以前<b>不做出勤時數對帳</b>。打卡系統正式啟用前，系統裡沒有紀錄不代表沒來上班，
-            不設定的話上線前的每個工作日都會被算成缺勤。留空＝不限制。
-            <br/>本系統第一筆打卡是 <b>2026-08-14</b>，之前的出勤以紙本打卡片為準。
-          </div>
-        </div>
+        </Fld>
+        <Fld label="基本工資（月薪）"
+             hint="只供警示用，不影響薪資計算。"
+             help={<p>供儀表板與員工編輯視窗的警示使用。每年基本工資調整時改這裡即可，不必動程式。</p>}>
+          <input type="number" value={s.minimumWage} onChange={e=>setS({...s,minimumWage:e.target.value})} />
+        </Fld>
       </div>
-      <div className="hint">依勞基法第32條，平日延長工時原則每月不得超過46小時（經工會或無工會則經勞資會議同意可延長至54小時，但每3個月不得逾138小時）；此上限不含國定假日與例假日出勤。</div>
       </>)}
 
       {category==='leave' && (<>
