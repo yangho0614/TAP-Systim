@@ -616,7 +616,10 @@
   .cal-legend b{font-weight:700; color:var(--ink);}
 
   /* ---- 批次操作列（選了才出現，貼在底部） ---- */
-  .cal-bar{position:sticky; bottom:0; z-index:3; margin-top:12px; display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+  /* ⚠️ 要給 max-width。這條是 sticky 在內容區底部，不限寬的話在寬螢幕上會橫跨整個畫面，
+     而裡面的東西只有一排按鈕，中間全是空的。 */
+  .cal-bar{position:sticky; bottom:0; z-index:3; margin-top:12px; max-width:920px;
+           display:flex; flex-wrap:wrap; align-items:center; gap:10px;
            padding:11px 14px; border-radius:10px; background:var(--brand-dark); color:#EEEEEE;
            border-top:3px solid var(--brand); box-shadow:0 -4px 18px rgba(0,0,0,.22);}
   .sel-count{font-size:12.5px; font-weight:700; color:var(--brand);}
@@ -628,7 +631,7 @@
   .cal-bar button.ghost:hover{background:#5a636e; color:#fff;}
   .cal-bar-note{flex-basis:100%; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
                 padding-top:9px; margin-top:2px; border-top:1px solid #4a525c;}
-  .cal-bar-note input{flex:1; min-width:220px; padding:5px 9px; border-radius:6px;
+  .cal-bar-note input{flex:1; min-width:200px; max-width:340px; padding:5px 9px; border-radius:6px;
                       border:1px solid #4a525c; background:#fff; font-size:12.5px;}
   .cal-bar-note .np{font-size:11px; padding:3px 8px;}
 
@@ -832,7 +835,11 @@ const CATEGORY_COLORS = ['#00ADB5', '#4f9b6f', '#c05a4f', '#5b8db8', '#8b6fa8', 
 const NOTE_PRESETS = ['員工忘記打卡，已口頭確認時間', '設備/網路異常，事後補登', '主管同意調整'];
 // 批次補登的快捷備註。備註是稽核軌跡的一部分（勞基法第 30 條要求出勤紀錄保存 5 年，
 // 補登的紀錄要看得出來為什麼補、依據什麼補），一次補十幾天更需要交代清楚。
-const BULK_NOTE_PRESETS = ['打卡系統啟用前，依紙本出勤補登', '員工忘記打卡，已口頭確認時間', '設備/網路異常，事後補登'];
+const BULK_NOTE_PRESETS = [
+  { label: '系統啟用前', text: '打卡系統啟用前，依紙本出勤補登' },
+  { label: '忘記打卡',   text: '員工忘記打卡，已口頭確認時間' },
+  { label: '設備異常',   text: '設備/網路異常，事後補登' }
+];
 /* 地址轉座標改由後端處理（Apps Script 內建 Maps 服務，不需金鑰）。
    這支檔案放在公開的 GitHub repo，原本寫死在這裡的 Google 金鑰等於公開，已於 2026-08-13 移除。 */
 async function geocodeAddress(address){
@@ -2431,7 +2438,8 @@ function EmployeeAttendanceView({employeeId, month, onEdit, onVoid, onRestore, o
             <input type="text" value={bulk.note} placeholder="會寫進每一筆補登的紀錄裡，供日後稽核辨識來源"
                    onChange={e=>setBulk({...bulk, note:e.target.value})} />
             {BULK_NOTE_PRESETS.map(pz=>(
-              <button key={pz} type="button" className="ghost sm np" onClick={()=>setBulk({...bulk, note:pz})}>{pz}</button>
+              <button key={pz.label} type="button" className="ghost sm np" title={pz.text}
+                      onClick={()=>setBulk({...bulk, note:pz.text})}>{pz.label}</button>
             ))}
           </div>
         </div>
