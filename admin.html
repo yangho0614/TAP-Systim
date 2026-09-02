@@ -37,15 +37,20 @@
   .main{flex:1; min-width:0;}
   .topbar{background:var(--paper-2); border-bottom:1px solid var(--line); padding:12px 26px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;}
   .topbar h1{font-size:17px; display:flex; align-items:center; gap:8px;}
-  /* 月份選擇器：整組看起來像一個控制項，不是三個各自為政的元件 */
-  .ym{display:flex; align-items:center; gap:4px; background:var(--paper); border:1px solid var(--line);
-      border-radius:8px; padding:3px 4px;}
-  .ym select{border:none; background:transparent; font-weight:700; font-size:13px; padding:3px 2px; cursor:pointer;}
+  /* 月份列：內容區的第一行，緊貼下方的篩選列 */
+  .month-bar{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+  .month-bar>.material-icons{font-size:19px; color:var(--brand);}
+  /* 月份選擇器：整組看起來像一個控制項，不是三個各自為政的元件。
+     用品牌色淡底而不是灰底 —— 灰底跟頁面背景太像，看起來像是「不能動的標籤」。 */
+  .ym{display:flex; align-items:center; gap:4px; background:rgba(0,173,181,.09);
+      border:1px solid rgba(0,173,181,.35); border-radius:8px; padding:3px 5px;}
+  .ym select{border:none; background:transparent; font-weight:700; font-size:13.5px; color:#00767C;
+             padding:3px 2px; cursor:pointer;}
   .ym select:focus{outline:none;}
-  .ym-nav{background:transparent; color:var(--muted); border:none; border-radius:6px; padding:3px 4px; min-width:0;}
+  .ym-nav{background:transparent; color:var(--brand); border:none; border-radius:6px; padding:3px 4px; min-width:0;}
   .ym-nav .material-icons{font-size:19px;}
-  .ym-nav:hover{background:rgba(0,173,181,.12); color:var(--brand);}
-  .ym-now{background:transparent; color:var(--brand); border:1px solid rgba(0,173,181,.45);
+  .ym-nav:hover{background:var(--brand); color:#fff;}
+  .ym-now{background:#fff; color:var(--brand); border:1px solid rgba(0,173,181,.5);
           border-radius:6px; padding:2px 9px; font-size:11.5px; font-weight:700; margin-left:2px;}
   .ym-now:hover{background:var(--brand); color:#fff;}
   .content{padding:22px 26px 60px 26px; overflow-x:auto;}
@@ -1635,17 +1640,21 @@ function App(){
       </div>
       <div className="main">
         <div className="topbar">
-          {/* 月份跟在標題右邊。原本放最右上角，離側欄與內容區都遠，每切一次月都要把滑鼠拉過去。 */}
-          <div style={{display:'flex', gap:14, alignItems:'center', flexWrap:'wrap'}}>
-            <h1><span className="material-icons">{NAV.find(x=>x.id===tab)?.icon}</span>{NAV.find(x=>x.id===tab)?.label}</h1>
-            {needsMonth && <YearMonthPicker value={month} onChange={setMonth} />}
-          </div>
+          <h1><span className="material-icons">{NAV.find(x=>x.id===tab)?.icon}</span>{NAV.find(x=>x.id===tab)?.label}</h1>
           <div style={{display:'flex', gap:10, alignItems:'center'}}>
             {dirty && <span className="badge warn"><span className="material-icons">warning</span>尚有未儲存的薪資異動</span>}
             {dirty && <button onClick={savePayroll} disabled={saving}>{saving?'儲存中...':'儲存薪資紀錄'}</button>}
           </div>
         </div>
         <div className="content">
+          {/* 月份放在內容區的第一行、各頁篩選列的正上方 —— 它本來就是一種篩選條件，
+              擺在標題列右上角時離操作區太遠，每切一次月都要把滑鼠拉過去一趟。 */}
+          {needsMonth && (
+            <div className="month-bar">
+              <span className="material-icons">event</span>
+              <YearMonthPicker value={month} onChange={setMonth} />
+            </div>
+          )}
           {tab==='dashboard' && <DashboardTab setTab={setTab}/>}
           {tab==='guide' && <GuideTab setTab={setTab}/>}
           {tab==='employees' && <EmployeesTab employees={employees} loading={employeesLoading} reload={reloadEmployees} onEdit={openEditEmployee} onNew={openNewEmployee} accountBox={accountBox} setAccountBox={setAccountBox} createAccountSubmit={createAccountSubmit} showInactive={showInactive} setShowInactive={v=>{ setShowInactive(v); reloadEmployees(v); }}/>}
