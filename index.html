@@ -600,7 +600,7 @@ async function parseApiResponse(res){
    新後端約 0.6 秒。下列 action 都已與 GAS 逐欄比對確認結果完全一致才切換。
    寫入類與尚未搬移的查詢仍走 GAS。 */
 const API_URL = 'https://tap-api.mammyshop-tw.workers.dev';
-const NEW_BACKEND_ACTIONS = ['getHomeBootstrap', 'getRequestsBootstrap', 'getCalendarBootstrap'];
+const NEW_BACKEND_ACTIONS = ['getAppBootstrap', 'getHomeBootstrap', 'getRequestsBootstrap', 'getCalendarBootstrap'];
 
 async function callApiGet(base, action, params){
   const qs = new URLSearchParams({action, token: CURRENT_TOKEN||'', ...params}).toString();
@@ -1137,32 +1137,22 @@ function AvatarCropModal({file, onConfirm, onCancel}){
 }
 
 /* ========================= 首頁 ========================= */
-function HomePage({session, setSession, status, pendingCount, goForms, goNews, showToast}){
+function HomePage({session, setSession, status, pendingCount, homeData, goForms, goNews, showToast}){
   const now = useClock();
   const emp = session.employee || {};
   const shift = emp.shift;
   const [payslipOpen, setPayslipOpen] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [balances, setBalances] = useState(null);
-  const [pinnedAnnounces, setPinnedAnnounces] = useState([]);
-  const [weather, setWeather] = useState(null);
-  const [gapMonths, setGapMonths] = useState([]);   // 出勤時數對不上的月份（本月＋上個月）
+  /* 這四段都由 App 層的 getAppBootstrap 一次取回再傳下來。
+     首頁自己打會多兩趟往返，而 GAS 的成本全在往返次數上。 */
+  const balances = homeData ? homeData.balances : null;
+  const weather = homeData ? homeData.weather : null;
+  const pinnedAnnounces = (homeData && homeData.announcements)
+    ? (homeData.announcements.items || []).filter(a=>a.showOnHome) : [];
+  const gapMonths = (homeData && homeData.gap && homeData.gap.months) ? homeData.gap.months : [];
   const [cropFile, setCropFile] = useState(null);
   const fileInputRef = useRef(null);
   const dateStr = `${now.getMonth()+1}月${now.getDate()}日　星期${'日一二三四五六'[now.getDay()]}`;
-
-  // 首屏原本要打 3 支 API，每支都要各付一次 GAS 冷啟動成本；合併成一支後端一次回傳。
-  // 後端每段各自 try/catch，單項失敗回 null，這裡沿用原本「拿不到就不顯示」的行為。
-  useEffect(()=>{
-    apiGet('getHomeBootstrap').then(d=>{
-      if(d.balances) setBalances(d.balances);
-      if(d.announcements) setPinnedAnnounces((d.announcements.items||[]).filter(a=>a.showOnHome));
-      if(d.weather) setWeather(d.weather);
-    }).catch(()=>{});
-    // 出勤對帳另外打一支、不併進首屏那一包：它要掃整月打卡與假單，比首屏其他東西慢，
-    // 併進去會拖到時鐘與今日打卡的顯示。拿不到就整張卡不出現。
-    apiGet('getMyAttendanceGap').then(d=>{ setGapMonths((d && d.months) || []); }).catch(()=>{});
-  }, []);
 
   function onAvatarFileChange(e){
     const file = e.target.files && e.target.files[0];
@@ -2734,32 +2724,35 @@ function App(){
     setCheckingSession(false);
   }, []);
 
+  /* 登入後只打一支。原本是 5 支（設定／我的資料／今日狀態／公告未讀／待審核）
+     ＋ 首頁自己再打 2 支（getHomeBootstrap、getMyAttendanceGap），共 7 趟往返。
+     GAS 的成本幾乎與資料量無關、全在固定往返，所以「支數」才是關鍵。 */
+  const [homeData, setHomeData] = useState(null);   // 首頁要用的那幾段，從這裡往下傳
   useEffect(()=>{
     if(!session) return;
-    if(!settings) apiGet('getSettings').then(setSettings).catch(()=>{});
-    refreshStatus();
-    refreshPending();
-    refreshProfile();
-    refreshAnnounceUnread();
+    apiGet('getAppBootstrap').then(d=>{
+      if(d.settings) setSettings(d.settings);
+      if(d.todayStatus) setStatus(d.todayStatus);
+      setPending(d.pendingApprovals || []);
+      if(d.announcements) setUnreadAnnounceCount(d.announcements.unreadCount || 0);
+      if(d.profile && d.profile.employee){
+        setSession(prev=>{
+          if(!prev) return prev;
+          // mustChangePassword 以後端回報的為準：登入後快取在 localStorage 的舊值可能已經過時
+          const next = {...prev, employee: d.profile.employee, isManager: d.profile.isManager,
+            mustChangePassword: d.profile.mustChangePassword === true};
+          try{ localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(next)); }catch(e){}
+          return next;
+        });
+      }
+      setHomeData({balances: d.balances, announcements: d.announcements,
+                   weather: d.weather, gap: d.attendanceGap});
+    }).catch(()=>{});
   }, [session?.token]);
 
   function refreshAnnounceUnread(){
     if(!session?.employeeId) return;
     apiGet('getMyAnnouncements').then(data=>setUnreadAnnounceCount(data.unreadCount || 0)).catch(()=>{});
-  }
-
-  function refreshProfile(){
-    if(!session?.employeeId) return;
-    apiGet('getMyProfile').then(data=>{
-      setSession(prev=>{
-        if(!prev) return prev;
-        // mustChangePassword 以後端回報的為準：登入後快取在 localStorage 的舊值可能已經過時
-        const next = {...prev, employee: data.employee, isManager: data.isManager,
-          mustChangePassword: data.mustChangePassword === true};
-        try{ localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(next)); }catch(e){}
-        return next;
-      });
-    }).catch(()=>{}); // 背景刷新，失敗不影響現有畫面
   }
 
   function refreshStatus(){
@@ -2839,7 +2832,7 @@ function App(){
             </div>
           )}
 
-          {tab==='home' && <HomePage session={session} setSession={setSession} status={status} pendingCount={pending.length} goForms={()=>setTab('forms')} goNews={()=>setTab('news')} showToast={showToast} />}
+          {tab==='home' && <HomePage session={session} setSession={setSession} status={status} pendingCount={pending.length} homeData={homeData} goForms={()=>setTab('forms')} goNews={()=>setTab('news')} showToast={showToast} />}
           {tab==='punch' && <PunchPage session={session} status={status} refreshStatus={refreshStatus} showToast={showToast} settings={settings} />}
           {tab==='forms' && <FormsPage session={session} isManager={!!session.isManager} pending={pending} refreshPending={refreshPending} showToast={showToast} settings={settings} />}
           {tab==='schedule' && <CalendarPage session={session} showToast={showToast} />}
