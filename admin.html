@@ -37,6 +37,10 @@
   .main{flex:1; min-width:0;}
   .topbar{background:var(--paper-2); border-bottom:1px solid var(--line); padding:12px 26px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;}
   .topbar h1{font-size:17px; display:flex; align-items:center; gap:8px;}
+  /* 假單起訖：上下兩行、等寬數字，兩行的日期與時間會垂直對齊 */
+  .req-when{white-space:nowrap; font-variant-numeric:tabular-nums; line-height:1.65;}
+  .req-when .tilde{color:var(--muted);}
+
   /* 月份列：內容區的第一行，緊貼下方的篩選列 */
   .month-bar{display:flex; align-items:center; gap:12px; margin-bottom:12px;}
   .month-bar>.material-icons{font-size:19px; color:var(--brand);}
@@ -4646,7 +4650,17 @@ function RequestsTab({month, employees, setTab}){
                     return t === '正式員工' ? <span className="hint">{t}</span> : <span className="badge warn">{t}</span>; })()}</td>
                   <td className="center">{r.type}</td>
                   <td className="center">{r.leaveType || '-'}</td>
-                  <td className="center">{r.type==='請假' ? (withWeekday(r.startTime) + ' ~ ' + withWeekday(r.endTime)) : withWeekday(String(r.startTime).split(' ')[0])}</td>
+                  {/* 起訖分兩行。擠成一行時「2026-08-31(一) 08:30 ~ 2026-08-31(一) 09:15」中間那個
+                      ~ 前後都是長字串，眼睛要來回找才知道哪個是開始、哪個是結束；
+                      拆成上下兩行，同一個位置對齊，一眼就對得起來。 */}
+                  <td className="center req-when">
+                    {r.type==='請假' ? (
+                      <>
+                        <div>{withWeekday(r.startTime)} <span className="tilde">~</span></div>
+                        <div>{withWeekday(r.endTime)}</div>
+                      </>
+                    ) : withWeekday(String(r.startTime).split(' ')[0])}
+                  </td>
                   <td className="center">{r.hours}</td>
                   <td className="center">{r.delegateName || '-'}</td>
                   <td className="center">{r.reason}</td>
