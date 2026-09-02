@@ -2259,7 +2259,12 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
   function dayState(d){
     if(d.records.some(r=>!r.voided && r.checkIn)){
       if(d.incomplete && d.workedHours<=0) return {k:'punch', t:'漏打下班卡'};
-      return null;                                   // 有正常紀錄就不需要標籤
+      /* ⚠️ 有打卡紀錄但時數仍然不足時，一定要把「缺幾小時」講出來。
+         紅底的判準是「缺滿 1 小時」，而畫面上顯示的是遲到分鐘（已扣寬限），
+         兩者差一個寬限值 —— 只看遲到分鐘的話，會覺得「53 分紅、31 分不紅」
+         的界線莫名其妙。把判準本身寫出來就清楚了。 */
+      if(d.gapHours > 0) return {k:'miss', t:'缺 ' + trimNum(d.gapHours,1) + ' 小時'};
+      return null;                                   // 有正常紀錄、也沒缺口，不需要標籤
     }
     if(d.skipReason==='beforeStart') return {k:'todo', t:'待補登'};
     if(d.skipReason==='beforeHire') return {k:'off', t:'到職前'};
@@ -2314,6 +2319,11 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
           <div className="cell"><div className="k">應出勤時數</div><div className="v">{trimNum(s.requiredHours,1)}</div></div>
           <div className="cell"><div className="k">已打卡</div><div className="v ok">{s.punchedDays} 天</div></div>
           <div className="cell"><div className="k">實際工時</div><div className="v">{trimNum(s.workedHours,1)}</div></div>
+          <div className="cell"><div className="k">已認列</div>
+            <div className="v" title="逐日以標準工時封頂後的出勤＋已核准假。加班不能拿來補別天的缺勤，所以可能小於實際工時">
+              {trimNum(s.creditedHours,1)}
+            </div>
+          </div>
           <div className="cell"><div className="k">已核准假</div><div className="v">{trimNum(s.leaveHours,1)}</div></div>
           <div className="cell"><div className="k">缺口</div><div className={'v ' + (s.gapHours>0?'bad':'ok')}>{trimNum(s.gapHours,1)}</div></div>
           {/* ⚠️ 這一格不能省。缺口只算「差滿 1 小時」的日子，零碎的不列進待辦，
@@ -2363,19 +2373,30 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
           <button className="ghost sm" onClick={()=>setSel({})}>清除選取</button>
         </>}
       </div>
-      {/* 把等式寫出來，省得每次都要自己算「少的那些去哪了」 */}
+      {/* 把等式寫出來，省得每次都要自己算「少的那些去哪了」。
+          ⚠️ 左邊要用「已認列」不是「實際工時」：每天的出勤以標準工時封頂
+             （加班歸加班，不能拿來補別天的缺勤），所以實際工時可能比已認列多。
+             用實際工時去加，帳就會差那一截超時的部分，反而更讓人困惑。 */}
       <div className="hint" style={{marginBottom:6}}>
-        <b>應出勤 {trimNum(s.requiredHours,1)}</b>　＝　實際工時 {trimNum(s.workedHours,1)}
-        {n(s.leaveHours)>0 && <>　＋　已核准假 {trimNum(s.leaveHours,1)}</>}
+        <b>應出勤 {trimNum(s.requiredHours,1)}</b>　＝　已認列 {trimNum(s.creditedHours,1)}
         {n(s.gapHours)>0 && <>　＋　缺口 {trimNum(s.gapHours,1)}</>}
         {n(s.minorGapHours)>0 && <>　＋　零碎差額 {trimNum(s.minorGapHours,1)}</>}
-        {n(s.workedHours)+n(s.leaveHours) > n(s.requiredHours) && <>　（超出的部分是加班，不計入）</>}
+        {n(s.workedHours) > n(s.creditedHours) - n(s.leaveHours) && (
+          <span style={{marginLeft:8, opacity:.75}}>
+            （實際工時 {trimNum(s.workedHours,1)}，其中 {trimNum(n(s.workedHours) - (n(s.creditedHours) - n(s.leaveHours)), 2)} 小時是超過標準工時的部分，屬加班不計入對帳）
+          </span>
+        )}
       </div>
       <div className="hint" style={{marginBottom:10}}>
         {data.name}　{data.shiftName} {data.workStart}~{data.workEnd}（午休 {data.lunchBreak} 分，每日 {trimNum(data.standardHours,1)} 小時）
         {data.attendanceStartDate && <>　·　出勤紀錄起算日 <b>{data.attendanceStartDate}</b>，之前的日子不列入缺勤計算</>}
       </div>
 
+      <div className="hint" style={{marginBottom:8, display:'flex', flexWrap:'wrap', gap:'2px 16px'}}>
+        <span><span className="cal-tag off">灰底</span> 不用上班（六日／例假日／國定假日）</span>
+        <span><span className="cal-tag miss">紅底</span> 當天少滿 <b>1 小時</b>以上，要處理</span>
+        <span>少不到 1 小時的不標紅，歸入「零碎差額」，由全勤獎金按比例扣</span>
+      </div>
       {view==='list' ? (
         <div className="card cal-wrap" style={{overflowX:'auto'}}>
           <table className="cal-tbl">
