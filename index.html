@@ -1472,7 +1472,6 @@ function PunchMap({companyLat, companyLng, radius, deviceLat, deviceLng, company
 function PunchPage({session, status, refreshStatus, showToast, settings}){
   const now = useClock();
   const [modal, setModal] = useState(null); // 'in'|'out'|'outgo'|'return'
-  const [modalState, setModalState] = useState('confirm');
   const [deviceLoc, setDeviceLoc] = useState(null);
   const [locState, setLocState] = useState('idle'); // idle|loading
 
@@ -1513,7 +1512,6 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
     const type = modal;
     const pressedAt = new Date();
     setModal(null);
-    setModalState('confirm');
     setOptimistic(o=>({...o, [type]: true}));          // 立刻鎖住按鈕，避免重複送出
     setPunchResult({label: LABEL[type], time: hhmm(pressedAt.toISOString()), issues: [], phase: 'sending'});
 
@@ -1598,7 +1596,7 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
             </div>
             {ph==='fail' && (
               <div style={{paddingTop:9, borderTop:'1px solid rgba(255,255,255,.12)'}}>
-                <button className="go" style={{width:'100%'}} onClick={ev=>{ ev.stopPropagation(); setPunchResult(null); setModal(punchTypeOf(punchResult.label)); setModalState('confirm'); }}>
+                <button className="go" style={{width:'100%'}} onClick={ev=>{ ev.stopPropagation(); setPunchResult(null); setModal(punchTypeOf(punchResult.label)); }}>
                   重新{punchResult.label}
                 </button>
               </div>
@@ -1654,18 +1652,18 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
           {!status && !optimistic.in ? (
             <div className="hint" style={{textAlign:'center'}}>載入打卡狀態中...</div>
           ) : !eff.clockedIn ? (
-            <button className="big-btn in" onClick={()=>{setModal('in'); setModalState('confirm');}}><span className="material-icons">login</span>上班打卡</button>
+            <button className="big-btn in" onClick={()=>{setModal('in');}}><span className="material-icons">login</span>上班打卡</button>
           ) : !eff.clockedOut ? (
-            <button className="big-btn out" onClick={()=>{setModal('out'); setModalState('confirm');}}><span className="material-icons">logout</span>下班打卡</button>
+            <button className="big-btn out" onClick={()=>{setModal('out');}}><span className="material-icons">logout</span>下班打卡</button>
           ) : (
             <button className="big-btn done"><span className="material-icons">check_circle</span>今日已完成打卡</button>
           )}
 
           <div className="sub-btn-row">
-            <button className="sub-btn" disabled={!canOutgo} onClick={()=>{setModal('outgo'); setModalState('confirm');}}>
+            <button className="sub-btn" disabled={!canOutgo} onClick={()=>{setModal('outgo');}}>
               <span className="material-icons">directions_walk</span>外出
             </button>
-            <button className="sub-btn" disabled={!canReturn} onClick={()=>{setModal('return'); setModalState('confirm');}}>
+            <button className="sub-btn" disabled={!canReturn} onClick={()=>{setModal('return');}}>
               <span className="material-icons">keyboard_return</span>返回
             </button>
           </div>
@@ -1673,13 +1671,13 @@ function PunchPage({session, status, refreshStatus, showToast, settings}){
       </div>
 
       {modal && (
-        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget && modalState!=='loading') setModal(null); }}>
+        <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget) setModal(null); }}>
           <div className="modal punch-confirm">
             <div style={{fontSize:17, fontWeight:700}}>{session.employee?.name}</div>
             <div className={'action-label ' + CLS[modal]}>{LABEL[modal]}</div>
             <div className="time">{pad(now.getHours())}:{pad(now.getMinutes())}:{pad(now.getSeconds())}</div>
             <div className="hint" style={{minHeight:18, marginBottom:14}}>請確認後按下確認</div>
-            <div className="modal-actions" style={{marginTop:4, opacity:modalState==='loading'?0.5:1, pointerEvents:modalState==='loading'?'none':'auto'}}>
+            <div className="modal-actions" style={{marginTop:4}}>
               <button className="stay" onClick={()=>setModal(null)}>取消</button>
               <button className="go" onClick={confirmPunch}>確認{LABEL[modal]}</button>
             </div>
