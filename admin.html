@@ -184,6 +184,16 @@
   .pay-tbl tbody tr:nth-child(even) td,
   .pay-tbl tbody tr:nth-child(even) td.col-add,
   .pay-tbl tbody tr:nth-child(even) td.col-deduct{background:#FBFBFB;}
+  /* ⚠️ 凍結欄（姓名／本薪）有自己的米色底 #F2F0E8，不會跟著斑馬紋走 ——
+     結果就是名字那一欄跟右邊整片交錯的底色對不起來，看起來像兩張表拼在一起
+     （2026-09-03 Evan 指出）。這裡讓凍結欄跟著同一列的底色，
+     「凍結」改由 freeze-2 右邊那條品牌色實線表示，不靠底色。 */
+  .pay-tbl tbody .freeze-1, .pay-tbl tbody .freeze-2{background:#fff;}
+  .pay-tbl tbody tr:nth-child(even) .freeze-1,
+  .pay-tbl tbody tr:nth-child(even) .freeze-2{background:#FBFBFB;}
+  .pay-tbl tbody tr:hover .freeze-1, .pay-tbl tbody tr:hover .freeze-2{background:#F2FAFA;}
+  .pay-tbl tr.total-row td, .pay-tbl tr.total-row .freeze-1,
+  .pay-tbl tr.total-row .freeze-2{background:#F1F3F4;}
   .pay-tbl tbody td.sub, .pay-tbl tbody tr:nth-child(even) td.sub{background:#F6F7F8;}
   .pay-tbl tbody td.col-result, .pay-tbl tbody tr:nth-child(even) td.col-result{
     background:#FCFAF2; color:var(--income); font-weight:700;}
