@@ -178,11 +178,16 @@
         那是介面的按鈕與警示色，跟薪資表的科目語意是兩套語言。 */
 
   .pay-tbl{width:auto; font-size:16px; border-collapse:separate; border-spacing:0;}
-  .pay-tbl th{font-size:13.5px; padding:7px 12px; font-weight:500; color:#414A54;}
-  /* 欄位要有呼吸空間。⚠️ 不要為了讓 25 欄擠進畫面而縮 —— 外層本來就是
-     overflow-x:auto，寬度不夠就橫向捲，擠成一團才是真的不能用。 */
-  .pay-tbl td{padding:7px 12px; min-width:78px;}
-  .pay-tbl td.freeze-1{min-width:120px;}
+  /* 舒適閱讀：所有數字欄**等寬**，列高拉開。
+     ⚠️ 不要為了讓 25 欄擠進畫面而縮欄 —— 外層本來就是 overflow-x:auto，
+     寬度不夠就橫向捲；擠成一團才是真的不能用（2026-09-03 Evan）。
+     108px 是照最長的金額「258,168」（16px 等寬字約 77px）加左右內距抓的，
+     欄名或欄內有按鈕的那幾格會自己撐開，其餘一律對齊同一個寬度。 */
+  .pay-tbl th, .pay-tbl td{width:108px; min-width:108px;}
+  .pay-tbl th{font-size:13.5px; padding:9px 12px; font-weight:500; color:#414A54;}
+  .pay-tbl td{padding:10px 12px;}
+  .pay-tbl th.freeze-1, .pay-tbl td.freeze-1{width:152px; min-width:152px;}
+  .pay-tbl th.freeze-2, .pay-tbl td.freeze-2{width:118px; min-width:118px;}
   .pay-tbl td .hint{font-size:12px; color:#5F666E;}
   .pay-tbl .freeze-1 b{font-size:15.5px;}
 
