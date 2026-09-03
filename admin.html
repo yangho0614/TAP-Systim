@@ -187,7 +187,12 @@
   .pay-tbl td{padding:7px 8px;}
   .pay-tbl td .hint{font-size:12px; color:#5F666E;}
   .pay-tbl .freeze-1 b{font-size:15.5px;}
-  .pay-tbl input[type=number]{font-size:16px; padding:5px 7px; width:64px;}
+  /* ⚠️ number input 右邊的上下箭頭會吃掉約 16px，字放大到 16px 之後
+     「0.32」「13.5」會被截成「0.3」「13.」。箭頭沒人用（都是直接鍵入），
+     關掉之後同樣的寬度才放得下四個字元。 */
+  .pay-tbl input[type=number]{font-size:16px; padding:5px 7px; width:66px; -moz-appearance:textfield;}
+  .pay-tbl input[type=number]::-webkit-outer-spin-button,
+  .pay-tbl input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
 
   /* ── 線條只有三級，超過就沒有階層可言（2026-09-03 重做）──
      ① 欄與欄：1px #EDEFF1，淡到只當軌道用
