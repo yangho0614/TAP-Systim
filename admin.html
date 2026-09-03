@@ -189,6 +189,27 @@
   .pay-tbl .freeze-1 b{font-size:15.5px;}
   .pay-tbl input[type=number]{font-size:16px; padding:5px 7px; width:64px;}
 
+  /* ── 線條只有三級，超過就沒有階層可言（2026-09-03 重做）──
+     ① 欄與欄：1px #EDEFF1，淡到只當軌道用
+     ② 群組邊界＋凍結欄右緣：1px #C9CED4，看得見
+     ③ 表頭底線與合計列頂線：2px 深色
+     ⚠️ 全域是 th,td{border:1px solid var(--line)} 四邊全畫，那會讓每條線一樣粗、
+        誰也不是重點；這裡整個蓋掉重來，不要再往上加線。 */
+  .pay-tbl th, .pay-tbl td{border:none; border-bottom:1px solid #E8EBEE; border-right:1px solid #EDEFF1;}
+  .pay-tbl thead th{border-bottom:2px solid var(--brand-dark);}
+  .pay-tbl .freeze-2, .pay-tbl th.freeze-2{border-right:1px solid #C9CED4;}
+  .pay-tbl td.sub, .pay-tbl th.sub{border-left:1px solid #C9CED4; border-right:1px solid #C9CED4;}
+  .pay-tbl td.col-result, .pay-tbl th.col-result{border-left:1px solid #C9CED4;}
+
+  /* ── 配色：整張表是單色的，只有兩個地方有顏色 ──
+     警示紅（遲到／曠職／全勤扣減）與品牌青（06 日應付）。
+     ⚠️ 表頭原本的綠／粉／黃三色帶全部拿掉：那是用顏色標「加項／減項」，
+        但同一張表已經用位置與小計欄講清楚了，三個彩色帶只是讓畫面更吵。 */
+  .pay-tbl thead th, .pay-tbl thead th.col-add, .pay-tbl thead th.col-deduct,
+  .pay-tbl thead th.col-result{background:#F1F3F5; color:#333A42;}
+  .pay-tbl thead tr:first-child th{background:#E7EAED; font-size:13px; letter-spacing:.04em;}
+  .pay-tbl thead th.sub, .pay-tbl thead tr:first-child th.sub{background:#DCE1E6;}
+
   /* 底色第一階：白／淺灰交錯。凍結欄要跟著同一列，否則姓名那一欄會自成一格 */
   .pay-tbl tbody td{border-color:#E8EBEE; background:#fff;}
   .pay-tbl tbody .freeze-1, .pay-tbl tbody .freeze-2{background:#fff;}
