@@ -1569,8 +1569,26 @@ function App(){
   async function savePayroll(){
     setSaving(true);
     try{
-      await apiPost('savePayrollMonth', {month, entries: payrollEntries});
-      setSavedEntries(JSON.parse(JSON.stringify(payrollEntries)));
+      /* ⚠️ 免出勤的人（負責人、非正式員工）不會被「套用出缺勤時數」帶進來 ——
+         `getMonthlySummary` 只吐正式員工，所以他們整個月都不會有薪資列。
+         而「匯款明細表」「薪資條」這類對外產出是靠 hasRecord 過濾的，
+         沒有列 = 整個人從付款清單上消失（2026-09-03 楊智合、廖瑞蘭就是這樣漏掉，
+         薪資表上看得到 42,168 與 30,000，匯款明細表卻只有五個人）。
+
+         所以儲存時自動補列：**在職、本薪不為 0、卻還沒有薪資列**的人一律建一列。
+         值全部是 0 沒關係 —— 本薪、津貼、勞健保都是從員工主檔算出來的，
+         這一列存在的意義是「這個月要付他錢」。
+         不能改成手動去碰一格製造 dirty，那種每月都得記得做一次的事一定會忘。 */
+      const entries = {...payrollEntries};
+      employees.forEach(emp=>{
+        if(entries[emp.id]) return;
+        if(String(emp.status||'') === '離職') return;
+        if(!n(emp.baseSalary)) return;
+        entries[emp.id] = emptyEntry();
+      });
+      await apiPost('savePayrollMonth', {month, entries});
+      setPayrollEntries(entries);
+      setSavedEntries(JSON.parse(JSON.stringify(entries)));
       setDirty(false);
     }
     catch(e){ alert(e.message); }
