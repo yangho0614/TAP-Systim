@@ -167,52 +167,63 @@
   .reg-freeze-2{ min-width:96px; border-right:1px solid #9AA1A8; }
   th.reg-freeze-2{ z-index:4; background:#EDEDED; }
   /* ===== 薪資三張表（06日／26日／整月總覽）的統一呈現，2026-09-03 定案 =====
-     四條規則：①欄位三類各一種樣子 ②換算金額一律 inline ③線分欄、底色分群
-     ④顏色只有兩個用途：警示紅（遲到／曠職）與品牌青（實付）。
-     ⚠️ 不要再把「所有扣款」染紅 —— 勞健保與請假扣款每個月必然發生，
-     全部染紅之後紅色變成背景，真正要處理的遲到與曠職反而被淹沒。 */
-  /* 這是每個月要盯著核對金額的功能性表格，不是展示用的版面 —— 字級以看得清楚為優先，
-     不為了塞更多欄而縮小（2026-09-03 Evan）。全域表格 12.5px 對這張表太小。 */
+     ① 欄位三類各一種樣子：可輸入（白底圓角框）／唯讀數字／小計與結果
+     ② 換算金額固定放在輸入框下一行，值是 0 也留白佔位（列高才會齊）
+     ③ 底色分三階：一般列（白／淺灰交錯）→ 小計欄（明顯的灰＋左右框線）→ 合計列（深頂線）
+     ④ 顏色只有兩個用途：警示紅（遲到／曠職／全勤扣減）與品牌青（06 日應付）
+     ⚠️ 不要把「所有扣款」染紅 —— 勞健保與請假扣款每個月必然發生，
+        全部染紅之後紅色變成背景，真正要處理的遲到與曠職反而被淹沒。
+     ⚠️ 三階底色的深淺要拉開。曾經「斑馬紋＋群組底色＋小計灰」三層都很淡，
+        結果誰也分不出誰（Evan：「灰底也有點混在一起」）。 */
+
+  /* 字級：這是每個月要盯著核對金額的功能性表格，以看得清楚為優先，
+     不為了塞更多欄而縮小。橫向空間改用「收窄內距與輸入框」來省。 */
   .pay-tbl{font-size:15px;}
-  .pay-tbl th{font-size:13px;}
-  .pay-tbl td{padding:8px 7px;}
+  .pay-tbl th{font-size:13px; padding:7px 6px;}
+  .pay-tbl td{padding:7px 6px;}
   .pay-tbl td .hint{font-size:12px; color:#5F666E;}
   .pay-tbl .freeze-1 b{font-size:14.5px;}
-  .pay-tbl input[type=number]{font-size:15px; padding:6px 8px;}
-  .pay-tbl tbody td{border-color:#EDEFF1;}
-  .pay-tbl tbody td.col-add, .pay-tbl tbody td.col-deduct{background:#fff;}
+  .pay-tbl input[type=number]{font-size:15px; padding:5px 6px; width:60px;}
+
+  /* 底色第一階：白／淺灰交錯。凍結欄要跟著同一列，否則姓名那一欄會自成一格 */
+  .pay-tbl tbody td{border-color:#E8EBEE; background:#fff;}
   .pay-tbl tbody .freeze-1, .pay-tbl tbody .freeze-2{background:#fff;}
-  /* ⚠️ 斑馬紋拿掉了。原本「斑馬紋 ＋ 群組底色 ＋ 小計灰底」三層灰疊在一起，
-     每一層都很淡，結果誰也分不出誰（2026-09-03 Evan：「灰底也有點混在一起」）。
-     現在只留一種灰給小計欄，而且加深到看得出來；分列改靠橫線與 hover。 */
-  .pay-tbl tbody td.sub{background:#EBEEF1; border-left:1px solid #DFE4E8; border-right:1px solid #DFE4E8;}
-  .pay-tbl thead th.sub{background:#DFE4E8;}
-  .pay-tbl tbody td.col-result{background:#FAF4E2; color:var(--income); font-weight:700;}
-  .pay-tbl tbody tr:hover td{background:#EAF7F7;}
-  .pay-tbl tbody tr:hover .freeze-1, .pay-tbl tbody tr:hover .freeze-2{background:#EAF7F7;}
-  .pay-tbl tbody tr:hover td.sub{background:#DFEDEE;}
-  .pay-tbl tbody tr:hover td.col-result{background:#F2EFDD;}
+  .pay-tbl tbody tr:nth-child(even) td,
+  .pay-tbl tbody tr:nth-child(even) .freeze-1,
+  .pay-tbl tbody tr:nth-child(even) .freeze-2{background:#F5F7F9;}
+
+  /* 第二階：小計欄。灰要夠深，並用左右框線把它跟旁邊的輸入欄切開 */
+  .pay-tbl tbody td.sub{background:#E7ECF0; border-left:1px solid #D5DBE1; border-right:1px solid #D5DBE1;}
+  .pay-tbl tbody tr:nth-child(even) td.sub{background:#E1E7EC;}
+  .pay-tbl thead th.sub{background:#D5DBE1;}
+  /* 結果欄：唯一的暖色，配品牌青粗體 */
+  .pay-tbl tbody td.col-result, .pay-tbl tbody tr:nth-child(even) td.col-result{
+    background:#FAF3DF; color:var(--income); font-weight:700;}
+
+  /* hover：整列（含凍結欄）一起亮起來，橫向二十幾欄才不會看錯行 */
+  .pay-tbl tbody tr:hover td,
+  .pay-tbl tbody tr:hover .freeze-1, .pay-tbl tbody tr:hover .freeze-2{background:#E4F5F5;}
+  .pay-tbl tbody tr:hover td.sub{background:#D6EAEB;}
+  .pay-tbl tbody tr:hover td.col-result{background:#EFE8D2;}
+
+  /* 第三階：合計列 */
   .pay-tbl tr.total-row td, .pay-tbl tr.total-row .freeze-1,
-  .pay-tbl tr.total-row .freeze-2{background:#E9ECEF; border-top:2px solid var(--brand-dark);}
-  /* 加項不再上色、一般扣款不再上色；紅字只留給遲到與曠職（.alert） */
+  .pay-tbl tr.total-row .freeze-2{background:#E4E8EB; border-top:2px solid var(--brand-dark);}
+
+  /* 顏色：加項與一般扣款都不上色，紅只留給 .alert（遲到／曠職／全勤扣減） */
   .pay-tbl .num-pos, .pay-tbl .num-neg{color:inherit;}
   .pay-tbl .alert{color:var(--outcome); font-weight:600;}
-  /* 唯讀欄位的 0 值：跟輸入框的 0 用同一個淡度，整張表只有一種「這裡沒東西」的樣子。
-     ⚠️ 不要再用 .hint（12px 灰字）—— 那會讓津貼四欄變成另一種字級，
-     跟旁邊 15px 的數字看起來不像同一張表（2026-09-03 Evan 指出）。 */
+
+  /* 0 值一律退到背景。⚠️ 唯讀欄不要用 .hint（12px 灰字）——
+     那會讓津貼四欄變成另一種字級，跟旁邊 15px 的數字看起來不像同一張表 */
   .pay-tbl td.z{color:#A3A9B1;}
-  /* 0 值退到背景：不畫框、字色極淡，眼睛只會停在真的有數字的格子 */
-  .pay-tbl input[type=number]{width:66px;}
   .pay-tbl input[type=number].zero{border-color:transparent; background:transparent;
                                    color:#A3A9B1; opacity:1; font-weight:400;}
-  /* 換算金額：固定寬度貼在輸入框右邊。⚠️ 一定要固定寬度，否則框會被「＝3,800」
-     推著跑，同一欄每列的框左右不對齊（2026-09-03 Evan 指出） */
-  /* 換算金額放在輸入框**下面一行**，欄寬才不會被「＝3,800」撐開。
-     ⚠️ 關鍵是每一格都要輸出這個 span（值是 0 就留白），高度固定 16px ——
-     只有有值的格子才長出第二行的話，同一列的儲存格高度不一，整張表會參差
-     （這正是先前改成同一行的原因，現在用固定高度解決）。 */
+
+  /* 換算金額放在輸入框下一行。⚠️ 每一格都要輸出這個 span（值是 0 就留白），
+     高度固定 16px —— 只有有值的格子才長出第二行的話，同列儲存格高度不一，整張表會參差 */
   .pay-tbl .ref{display:block; height:16px; line-height:16px; text-align:right; margin-top:2px;
-                padding-right:3px; font-size:12px; color:#767D86; font-family:'Roboto Mono',monospace;}
+                padding-right:2px; font-size:12px; color:#767D86; font-family:'Roboto Mono',monospace;}
   .pay-tbl td:has(input[type=number]){white-space:nowrap;}
   .col-add{background:#EAF6ED;}
   .col-deduct{background:#FBEDEA;}
