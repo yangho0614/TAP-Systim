@@ -166,95 +166,87 @@
      列印出來每位員工區塊的左上／左下角是開口的。 */
   .reg-freeze-2{ min-width:96px; border-right:1px solid #9AA1A8; }
   th.reg-freeze-2{ z-index:4; background:#EDEDED; }
-  /* ===== 薪資三張表（06日／26日／整月總覽）的統一呈現，2026-09-03 定案 =====
-     ① 欄位三類各一種樣子：可輸入（白底圓角框）／唯讀數字／小計與結果
-     ② 換算金額固定放在輸入框下一行，值是 0 也留白佔位（列高才會齊）
-     ③ 底色分三階：一般列（白／淺灰交錯）→ 小計欄（明顯的灰＋左右框線）→ 合計列（深頂線）
-     ④ 顏色只有兩個用途：警示紅（遲到／曠職／全勤扣減）與品牌青（06 日應付）
-     ⚠️ 不要把「所有扣款」染紅 —— 勞健保與請假扣款每個月必然發生，
-        全部染紅之後紅色變成背景，真正要處理的遲到與曠職反而被淹沒。
-     ⚠️ 三階底色的深淺要拉開。曾經「斑馬紋＋群組底色＋小計灰」三層都很淡，
-        結果誰也分不出誰（Evan：「灰底也有點混在一起」）。 */
+  /* ===== 薪資三張表（06日／26日／整月總覽）：依會計／人事表單的既有慣例 =====
+     規格見 CLAUDE.md「薪資表的呈現規則」。四條：
+     ① 三段分區（薪資結構／應付／應扣／實發），底色標的是**科目性質**不是重要程度
+     ② 扣款一律紅字，不加括號也不加負號 —— 欄名已經說明它是扣款
+     ③ 線四級：欄間 → 列間 → 分區 → 表頭 2px／合計雙線
+     ④ 數字三階：結論 16/700、明細 15/400、0 值淡灰
+     ⚠️ 線色要從**各區段自己的底色**壓深一階。一組對著白底挑的中性灰，
+        鋪到綠／粉／金底上不是看不見就是發濁（冷灰壓在暖粉上會髒）。
+     ⚠️ 不要再用系統 UI 的品牌色（青 #00ADB5 / 紅 #a13d3d）設計這張表 ——
+        那是介面的按鈕與警示色，跟薪資表的科目語意是兩套語言。 */
 
-  /* 字級：這是每個月要盯著核對金額的功能性表格，以看得清楚為優先，
-     不為了塞更多欄而縮小。橫向空間改用「收窄內距與輸入框」來省。 */
-  /* ⚠️ 一定要 width:auto。全域是 table{width:100%}，欄位群組一收起來，
-     剩下的欄就被拉開去分掉整個容器寬度 —— 每一欄都變得又空又寬，
-     那不是內距造成的（2026-09-03 Evan：「你現在的欄位都超寬」）。
-     改成隨內容決定寬度，省下來的空間讓字級可以放大。 */
-  .pay-tbl{width:auto; font-size:16px;}
-  .pay-tbl th{font-size:13.5px; padding:7px 8px;}
+  .pay-tbl{width:auto; font-size:16px; border-collapse:separate; border-spacing:0;}
+  .pay-tbl th{font-size:13.5px; padding:7px 8px; font-weight:500; color:#414A54;}
   .pay-tbl td{padding:7px 8px;}
   .pay-tbl td .hint{font-size:12px; color:#5F666E;}
   .pay-tbl .freeze-1 b{font-size:15.5px;}
-  /* ⚠️ number input 右邊的上下箭頭會吃掉約 16px，字放大到 16px 之後
-     「0.32」「13.5」會被截成「0.3」「13.」。箭頭沒人用（都是直接鍵入），
-     關掉之後同樣的寬度才放得下四個字元。 */
-  .pay-tbl input[type=number]{font-size:16px; padding:5px 7px; width:66px; -moz-appearance:textfield;}
+
+  /* ── ① 分區底色 ── */
+  .pay-tbl tbody td, .pay-tbl tbody .freeze-1, .pay-tbl tbody .freeze-2{background:#fff;}
+  .pay-tbl tbody td.col-add{background:#F4F9F5;}
+  .pay-tbl tbody td.col-deduct{background:#FCF6F5;}
+  .pay-tbl tbody td.col-result{background:#FBF4E2;}
+  .pay-tbl tbody td.col-add.sub{background:#E9F2EB;}
+  .pay-tbl tbody td.col-deduct.sub{background:#F7EAE7;}
+  .pay-tbl thead th{background:#EDEFF1;}
+  .pay-tbl thead th.col-add{background:#DFEDE3;}
+  .pay-tbl thead th.col-deduct{background:#F3E3E0;}
+  .pay-tbl thead th.col-result{background:#F0E3BE;}
+
+  /* ── ③ 線四級 ── */
+  .pay-tbl th, .pay-tbl td{border:none; border-bottom:1px solid #E4E7EA; border-right:1px solid #EDEFF2;}
+  .pay-tbl tbody td.col-add{border-bottom-color:#DCE9E0; border-right-color:#E4F0E7;}
+  .pay-tbl tbody td.col-deduct{border-bottom-color:#EFDDD9; border-right-color:#F5E6E2;}
+  .pay-tbl tbody td.col-result{border-bottom-color:#EBDCB9; border-right-color:#F1E6C9;}
+  .pay-tbl tbody td.col-add.sub{border-bottom-color:#D1E1D6; border-right-color:#D8E7DE;}
+  .pay-tbl tbody td.col-deduct.sub{border-bottom-color:#E3CEC7; border-right-color:#EBD8D3;}
+  .pay-tbl thead th{border-bottom:2px solid #414A54; border-right-color:rgba(65,74,84,.14);}
+  /* 分區線：每一段的第一欄。做法是整段先給深線，段內第二欄之後再改回淡線 —— 
+     欄位群組可以被「顯示欄位」關掉，寫死在某一欄上會跑掉。 */
+  .pay-tbl td.col-add, .pay-tbl th.col-add,
+  .pay-tbl td.col-deduct, .pay-tbl th.col-deduct,
+  .pay-tbl td.col-result, .pay-tbl th.col-result{border-left:1px solid #B9C0C7;}
+  .pay-tbl td.col-add + td.col-add{border-left-color:#E4F0E7;}
+  .pay-tbl th.col-add + th.col-add{border-left-color:rgba(65,74,84,.14);}
+  .pay-tbl td.col-deduct + td.col-deduct{border-left-color:#F5E6E2;}
+  .pay-tbl th.col-deduct + th.col-deduct{border-left-color:rgba(65,74,84,.14);}
+  .pay-tbl td.col-add.sub + td.col-add.sub{border-left-color:#D8E7DE;}
+  .pay-tbl td.col-deduct.sub + td.col-deduct.sub{border-left-color:#EBD8D3;}
+
+  /* hover：整列一起亮，不用 filter（它會把框線與紅字一起壓暗） */
+  .pay-tbl tbody tr:hover td{box-shadow:inset 0 0 0 999px rgba(31,41,51,.035);}
+
+  /* 合計列：會計雙線 */
+  .pay-tbl tr.total-row td, .pay-tbl tr.total-row .freeze-1, .pay-tbl tr.total-row .freeze-2{
+    background:#EEF0F2; font-weight:400; font-size:15px;
+    border-top:1px solid #414A54; border-bottom:3px double #414A54;
+    border-right:1px solid rgba(65,74,84,.16);}
+  .pay-tbl tr.total-row td.tot{font-weight:700; font-size:16px;}
+
+  /* ── ② 顏色：扣款紅字，其餘中性；不再用品牌青標加項 ── */
+  .pay-tbl .num-pos{color:inherit;}
+  .pay-tbl tbody td.col-deduct, .pay-tbl .num-neg, .pay-tbl .alert{color:#9B2C2C;}
+  .pay-tbl tbody td.col-deduct input[type=number]{color:#1F2933;}
+  .pay-tbl tbody td.col-deduct .ref{color:#9B2C2C;}
+  .pay-tbl tbody td.col-result{color:#1F2933; font-weight:700;}
+
+  /* ── ④ 數字三階 ── */
+  .pay-tbl .freeze-2, .pay-tbl tbody td.sub, .pay-tbl tbody td.col-result{font-size:16px; font-weight:700;}
+  .pay-tbl tbody td.z, .pay-tbl tbody td.col-deduct.z{color:#A7ADB4; font-weight:400;}
+  .pay-tbl input[type=number]{font-size:16px; padding:5px 7px; width:66px; -moz-appearance:textfield;
+    border:1px solid #CFD5DB; border-radius:4px;}
   .pay-tbl input[type=number]::-webkit-outer-spin-button,
   .pay-tbl input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
-
-  /* ── 線條只有三級，超過就沒有階層可言（2026-09-03 重做）──
-     ① 欄與欄：1px #EDEFF1，淡到只當軌道用
-     ② 群組邊界＋凍結欄右緣：1px #C9CED4，看得見
-     ③ 表頭底線與合計列頂線：2px 深色
-     ⚠️ 全域是 th,td{border:1px solid var(--line)} 四邊全畫，那會讓每條線一樣粗、
-        誰也不是重點；這裡整個蓋掉重來，不要再往上加線。 */
-  .pay-tbl th, .pay-tbl td{border:none; border-bottom:1px solid #E8EBEE; border-right:1px solid #EDEFF1;}
-  .pay-tbl thead th{border-bottom:2px solid var(--brand-dark);}
-  .pay-tbl .freeze-2, .pay-tbl th.freeze-2{border-right:1px solid #C9CED4;}
-  .pay-tbl td.sub, .pay-tbl th.sub{border-left:1px solid #C9CED4; border-right:1px solid #C9CED4;}
-  .pay-tbl td.col-result, .pay-tbl th.col-result{border-left:1px solid #C9CED4;}
-
-  /* ── 配色：整張表是單色的，只有兩個地方有顏色 ──
-     警示紅（遲到／曠職／全勤扣減）與品牌青（06 日應付）。
-     ⚠️ 表頭原本的綠／粉／黃三色帶全部拿掉：那是用顏色標「加項／減項」，
-        但同一張表已經用位置與小計欄講清楚了，三個彩色帶只是讓畫面更吵。 */
-  .pay-tbl thead th, .pay-tbl thead th.col-add, .pay-tbl thead th.col-deduct,
-  .pay-tbl thead th.col-result{background:#F1F3F5; color:#333A42;}
-  .pay-tbl thead tr:first-child th{background:#E7EAED; font-size:13px; letter-spacing:.04em;}
-  .pay-tbl thead th.sub, .pay-tbl thead tr:first-child th.sub{background:#DCE1E6;}
-
-  /* 底色第一階：白／淺灰交錯。凍結欄要跟著同一列，否則姓名那一欄會自成一格 */
-  .pay-tbl tbody td{border-color:#E8EBEE; background:#fff;}
-  .pay-tbl tbody .freeze-1, .pay-tbl tbody .freeze-2{background:#fff;}
-  .pay-tbl tbody tr:nth-child(even) td,
-  .pay-tbl tbody tr:nth-child(even) .freeze-1,
-  .pay-tbl tbody tr:nth-child(even) .freeze-2{background:#F5F7F9;}
-
-  /* 第二階：小計欄。灰要夠深，並用左右框線把它跟旁邊的輸入欄切開 */
-  .pay-tbl tbody td.sub{background:#E7ECF0; border-left:1px solid #D5DBE1; border-right:1px solid #D5DBE1;}
-  .pay-tbl tbody tr:nth-child(even) td.sub{background:#E1E7EC;}
-  .pay-tbl thead th.sub{background:#D5DBE1;}
-  /* 結果欄：唯一的暖色，配品牌青粗體 */
-  .pay-tbl tbody td.col-result, .pay-tbl tbody tr:nth-child(even) td.col-result{
-    background:#FAF3DF; color:var(--income); font-weight:700;}
-
-  /* hover：整列（含凍結欄）一起亮起來，橫向二十幾欄才不會看錯行 */
-  .pay-tbl tbody tr:hover td,
-  .pay-tbl tbody tr:hover .freeze-1, .pay-tbl tbody tr:hover .freeze-2{background:#E4F5F5;}
-  .pay-tbl tbody tr:hover td.sub{background:#D6EAEB;}
-  .pay-tbl tbody tr:hover td.col-result{background:#EFE8D2;}
-
-  /* 第三階：合計列 */
-  .pay-tbl tr.total-row td, .pay-tbl tr.total-row .freeze-1,
-  .pay-tbl tr.total-row .freeze-2{background:#E4E8EB; border-top:2px solid var(--brand-dark);}
-
-  /* 顏色：加項與一般扣款都不上色，紅只留給 .alert（遲到／曠職／全勤扣減） */
-  .pay-tbl .num-pos, .pay-tbl .num-neg{color:inherit;}
-  .pay-tbl .alert{color:var(--outcome); font-weight:600;}
-
-  /* 0 值一律退到背景。⚠️ 唯讀欄不要用 .hint（12px 灰字）——
-     那會讓津貼四欄變成另一種字級，跟旁邊 15px 的數字看起來不像同一張表 */
-  .pay-tbl td.z{color:#A3A9B1;}
   .pay-tbl input[type=number].zero{border-color:transparent; background:transparent;
-                                   color:#A3A9B1; opacity:1; font-weight:400;}
-
-  /* 換算金額放在輸入框下一行。⚠️ 每一格都要輸出這個 span（值是 0 就留白），
-     高度固定 16px —— 只有有值的格子才長出第二行的話，同列儲存格高度不一，整張表會參差 */
+    color:#A7ADB4; opacity:1; font-weight:400;}
+  /* 換算金額：輸入框下一行，值是 0 也留白佔位（列高才會齊） */
   .pay-tbl .ref{display:block; height:16px; line-height:16px; text-align:right; margin-top:2px;
-                padding-right:2px; font-size:12.5px; color:#767D86; font-family:'Roboto Mono',monospace;}
+    padding-right:2px; font-size:12px; color:#78818A; font-family:'Roboto Mono',monospace;}
   .pay-tbl td:has(input[type=number]){white-space:nowrap;}
+  /* 姓名靠左：整張表是靠右的，姓名是唯一的文字欄 */
+  .pay-tbl .freeze-1{text-align:left;}
   .col-add{background:#EAF6ED;}
   .col-deduct{background:#FBEDEA;}
   .col-result{background:#FBF3D9; font-weight:700;}
@@ -3804,7 +3796,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             const refDisasterLeave = calc.hourly*1.0*n(s.disasterLeave);
             return (
             <tr key={emp.id}>
-              <td className="center freeze-1">
+              <td className="freeze-1">
                 <b style={{cursor:'pointer'}} onClick={()=>onEditEmployee(emp)} title="點擊編輯員工資料">{emp.name}</b>
                 <br/><span className="hint">{emp.department}</span>
                 {/* 單人套用：只重算這一列的出缺勤時數，其他人已手動輸入的數字完全不動 */}
@@ -3873,11 +3865,11 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
                   曠職與請假同為小時級，跟「請假時數」那四欄一致。 */}
               <td className="col-deduct">
                 <NumCell value={entry.lateMinutes} onChange={v=>setEntry(emp.id,{lateMinutes:v})} disabled={entry.locked} />
-                <span className="ref">{n(entry.lateMinutes)>0 ? '＝'+(Math.round(n(entry.lateMinutes)/60*100)/100)+' 時' : ''}</span>
+                <span className="ref">{n(entry.lateMinutes)>0 ? '＝'+money(Math.round(calc.hourly*n(entry.lateMinutes)/60)) : ''}</span>
               </td>
               <td className="col-deduct">
                 <NumCell value={entry.earlyMinutes} onChange={v=>setEntry(emp.id,{earlyMinutes:v})} disabled={entry.locked} />
-                <span className="ref">{n(entry.earlyMinutes)>0 ? '＝'+(Math.round(n(entry.earlyMinutes)/60*100)/100)+' 時' : ''}</span>
+                <span className="ref">{n(entry.earlyMinutes)>0 ? '＝'+money(Math.round(calc.hourly*n(entry.earlyMinutes)/60)) : ''}</span>
               </td>
               <td className="col-deduct sub alert" title={`時薪 ${money(Math.round(calc.hourly))} × ${calc.lateEarlyHours} 小時`}>
                 {money(calc.lateEarlyDeduct)}
@@ -3891,7 +3883,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               </td>
               <td className="col-deduct">
                 <NumCell value={entry.absentHours} onChange={v=>setEntry(emp.id,{absentHours:v})} disabled={entry.locked} />
-                <span className="ref">{n(entry.absentHours)>0 ? '＝'+(Math.round(n(entry.absentHours)/8*100)/100)+' 日' : ''}</span>
+                <span className="ref">{n(entry.absentHours)>0 ? '＝'+money(Math.round(calc.hourly*n(entry.absentHours))) : ''}</span>
               </td>
               <td className="col-deduct sub alert" title={`時薪 ${money(Math.round(calc.hourly))} × ${calc.absentHours} 小時`}>
                 {money(calc.absentDeduct)}
@@ -3915,8 +3907,8 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             );
           })}
           <tr className="total-row">
-            <td className="center freeze-1">合計</td>
-            <td className="freeze-2 center">{money(totals.base)}</td>
+            <td className="freeze-1">合計</td>
+            <td className="freeze-2 center tot">{money(totals.base)}</td>
             {/* 合計列每一欄都要有值。原本津貼、加班時數、獎金、請假時數整段留白，
                 看起來像壞掉，而且「這個月總共請了幾小時假」是常用的數字卻要自己加。
                 ⚠️ 時數欄用 trimNum 不用 money —— 那是小時／分鐘，不是錢。 */}
@@ -3925,14 +3917,14 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             <td className="sub">{money(totals.overtime)}</td>
             {shown('bonus') && <><td>{money(totals.festivalBonus)}</td><td>{money(totals.yearEndBonus)}</td><td>{money(totals.performanceBonus)}</td><td>{money(totals.otherBonus)}</td></>}
             <td>{money(totals.annualLeaveSettlement)}</td>
-            <td className="sub">{money(totals.payable)}</td>
+            <td className="sub tot">{money(totals.payable)}</td>
             {shown('leave') && <><td className="num-neg">{money(totals.personalLeave)}</td><td className="num-neg">{money(totals.sickLeave)}</td><td className="num-neg">{money(totals.menstrualLeave)}</td><td className="num-neg">{money(totals.disasterLeave)}</td></>}
             {shown('late') && <><td>{money(totals.lateMoney)}</td><td>{money(totals.earlyMoney)}</td><td className="sub alert">{money(totals.lateEarlyDeduct)}</td><td>{money(totals.absentDeduct)}</td><td className="sub alert">{money(totals.absentDeduct)}</td></>}
             <td>{money(totals.labor)}</td>
             <td>{money(totals.health)}</td>
             <td>{money(totals.otherDeduct)}</td>
-            <td className="sub">{money(totals.deduct)}</td>
-            <td className="mono" style={{color:'var(--income)', fontWeight:700}}>{money(totals.pay06)}</td>
+            <td className="sub tot">{money(totals.deduct)}</td>
+            <td className="mono col-result tot">{money(totals.pay06)}</td>
           </tr>
         </tbody>
       </table>
