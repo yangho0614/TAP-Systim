@@ -3720,7 +3720,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
                 2,000 職務 ＋ 1,000 全勤，剩下 28,000 才是純本薪。原本沒有任何標示，
                 使用者自然會把它們跟本薪相加，然後發現對不上應付小計。
                 改成群組標題，與加班時數／獎金／請假時數的結構一致。 */}
-            {shown('allow') && <th colSpan="4">本薪內含明細（不另計）</th>}
+            {shown('allow') && <th colSpan="6">本薪內含明細（五項相加＝本薪）</th>}
             {shown('ot') && <th className="col-add" colSpan="4">加班時數</th>}
             <th className="col-add" rowSpan="2">加班費</th>
             {shown('bonus') && <th className="col-add" colSpan="4">獎金</th>}
@@ -3738,7 +3738,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             <th className="col-result" rowSpan="2">06日應付</th>
           </tr>
           <tr>
-            {shown('allow') && <><th>伙食津貼</th><th>交通津貼</th><th>職務加給</th><th>全勤獎金</th></>}
+            {shown('allow') && <><th>底薪</th><th>伙食津貼</th><th>交通津貼</th><th>職務加給</th><th>全勤額度</th><th>全勤扣減</th></>}
             {shown('ot') && <><th className="col-add">平日1.34</th><th className="col-add">平日1.67</th><th className="col-add">休息日</th><th className="col-add">國定假日</th></>}
             {shown('bonus') && <><th className="col-add">三節</th><th className="col-add">年終</th><th className="col-add">績效</th><th className="col-add">其他</th></>}
             {shown('leave') && <><th className="col-deduct">事假</th><th className="col-deduct">病假</th><th className="col-deduct">生理假</th><th className="col-deduct">災防</th></>}
