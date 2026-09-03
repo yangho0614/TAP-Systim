@@ -179,26 +179,21 @@
   .pay-tbl td .hint{font-size:12px; color:#5F666E;}
   .pay-tbl .freeze-1 b{font-size:14.5px;}
   .pay-tbl input[type=number]{font-size:15px; padding:6px 8px;}
-  .pay-tbl tbody td{border-color:#F1F1F1;}
+  .pay-tbl tbody td{border-color:#EDEFF1;}
   .pay-tbl tbody td.col-add, .pay-tbl tbody td.col-deduct{background:#fff;}
-  .pay-tbl tbody tr:nth-child(even) td,
-  .pay-tbl tbody tr:nth-child(even) td.col-add,
-  .pay-tbl tbody tr:nth-child(even) td.col-deduct{background:#FBFBFB;}
-  /* ⚠️ 凍結欄（姓名／本薪）有自己的米色底 #F2F0E8，不會跟著斑馬紋走 ——
-     結果就是名字那一欄跟右邊整片交錯的底色對不起來，看起來像兩張表拼在一起
-     （2026-09-03 Evan 指出）。這裡讓凍結欄跟著同一列的底色，
-     「凍結」改由 freeze-2 右邊那條品牌色實線表示，不靠底色。 */
   .pay-tbl tbody .freeze-1, .pay-tbl tbody .freeze-2{background:#fff;}
-  .pay-tbl tbody tr:nth-child(even) .freeze-1,
-  .pay-tbl tbody tr:nth-child(even) .freeze-2{background:#FBFBFB;}
-  .pay-tbl tbody tr:hover .freeze-1, .pay-tbl tbody tr:hover .freeze-2{background:#F2FAFA;}
+  /* ⚠️ 斑馬紋拿掉了。原本「斑馬紋 ＋ 群組底色 ＋ 小計灰底」三層灰疊在一起，
+     每一層都很淡，結果誰也分不出誰（2026-09-03 Evan：「灰底也有點混在一起」）。
+     現在只留一種灰給小計欄，而且加深到看得出來；分列改靠橫線與 hover。 */
+  .pay-tbl tbody td.sub{background:#EBEEF1; border-left:1px solid #DFE4E8; border-right:1px solid #DFE4E8;}
+  .pay-tbl thead th.sub{background:#DFE4E8;}
+  .pay-tbl tbody td.col-result{background:#FAF4E2; color:var(--income); font-weight:700;}
+  .pay-tbl tbody tr:hover td{background:#EAF7F7;}
+  .pay-tbl tbody tr:hover .freeze-1, .pay-tbl tbody tr:hover .freeze-2{background:#EAF7F7;}
+  .pay-tbl tbody tr:hover td.sub{background:#DFEDEE;}
+  .pay-tbl tbody tr:hover td.col-result{background:#F2EFDD;}
   .pay-tbl tr.total-row td, .pay-tbl tr.total-row .freeze-1,
-  .pay-tbl tr.total-row .freeze-2{background:#F1F3F4;}
-  .pay-tbl tbody td.sub, .pay-tbl tbody tr:nth-child(even) td.sub{background:#F6F7F8;}
-  .pay-tbl tbody td.col-result, .pay-tbl tbody tr:nth-child(even) td.col-result{
-    background:#FCFAF2; color:var(--income); font-weight:700;}
-  .pay-tbl tbody tr:hover td, .pay-tbl tbody tr:hover td.sub{background:#F2FAFA;}
-  .pay-tbl tbody tr:hover td.col-result{background:#F7F6EC;}
+  .pay-tbl tr.total-row .freeze-2{background:#E9ECEF; border-top:2px solid var(--brand-dark);}
   /* 加項不再上色、一般扣款不再上色；紅字只留給遲到與曠職（.alert） */
   .pay-tbl .num-pos, .pay-tbl .num-neg{color:inherit;}
   .pay-tbl .alert{color:var(--outcome); font-weight:600;}
