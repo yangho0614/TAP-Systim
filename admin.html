@@ -1355,6 +1355,12 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
     insLaborDays: insStatus.laborDays, insFullMonth: insStatus.fullMonth, insActiveAtMonthEnd: insStatus.activeAtMonthEnd,
     locked: isLocked, effBaseSalary: base, effMealAllowance: effMeal, effTransportAllowance: effTransport,
     effPositionAllowance: effPosition, effFullAttendanceBonus: effFullAttendance,
+    /* 底薪＝本薪扣掉伙食／交通／職務／**全勤額度**。
+       ⚠️ 一定要用「額度」而不是實發的全勤，否則某人遲到被扣了全勤，
+       底薪就會跟著跳動（32,065、32,002 這種數字），但底薪是談定的薪資結構，
+       它不該每個月變（2026-09-03 Evan 抓到）。變動的部分獨立成 fullAttendanceCut。 */
+    basicSalary: base - effMeal - effTransport - effPosition - effFullAttendance,
+    fullAttendanceCut: effFullAttendance - adjustedFullAttendance,
     fullAttendanceDeductRatio, fullAttendanceRatio, fullAttendanceAdjusted: adjustedFullAttendance, fullAttendanceAdjustment
   };
 }
@@ -3448,7 +3454,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
   function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
   function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
   const totals = useMemo(()=>{
-    const t = {base:0, overtime:0, allowance:0, bonus:0, payable:0, labor:0, health:0, leaveDeduct:0, lateEarlyDeduct:0, absentDeduct:0, otherDeduct:0, deduct:0, pay06:0, pay26:0, grand:0,
+    const t = {base:0, basicSalary:0, fullAttCut:0, overtime:0, allowance:0, bonus:0, payable:0, labor:0, health:0, leaveDeduct:0, lateEarlyDeduct:0, absentDeduct:0, otherDeduct:0, deduct:0, pay06:0, pay26:0, grand:0,
       businessExpense:0, salesPerformance:0, salesBonus26:0, otherExpense26:0, deduction26:0,
       meal:0, transport:0, position:0, fullAtt:0,
       festivalBonus:0, yearEndBonus:0, performanceBonus:0, otherBonus:0, annualLeaveSettlement:0,
@@ -3478,7 +3484,8 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
       t.grand += r(calc.grandTotal);
       // 津貼／獎金／特休結算：合計列原本整段空白，逐欄補上
       t.meal += r(calc.effMealAllowance); t.transport += r(calc.effTransportAllowance);
-      t.position += r(calc.effPositionAllowance); t.fullAtt += r(calc.fullAttendanceAdjusted);
+      t.position += r(calc.effPositionAllowance); t.fullAtt += r(calc.effFullAttendanceBonus);
+      t.basicSalary += r(calc.basicSalary); t.fullAttCut += r(calc.fullAttendanceCut);
       t.festivalBonus += r(entry.festivalBonus); t.yearEndBonus += r(entry.yearEndBonus);
       t.performanceBonus += r(entry.performanceBonus); t.otherBonus += r(entry.otherBonus);
       t.annualLeaveSettlement += r(entry.annualLeaveSettlement);
@@ -3594,9 +3601,10 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
   }
 
   function doExport(){
-    const headers = ['公司','部門','姓名','投保級距','本薪','平日加班費','休息日加班費','國定假日加班費','加班費合計','津貼合計','獎金合計','特休結算','應付小計','勞保自付','健保自付','請假扣款','遲到早退扣款','曠職扣款','其他扣款','應扣小計','06日應付','26日應付','應付總計'];
+    const headers = ['公司','部門','姓名','投保級距','本薪','底薪','全勤額度','全勤扣減','平日加班費','休息日加班費','國定假日加班費','加班費合計','津貼合計','獎金合計','特休結算','應付小計','勞保自付','健保自付','請假扣款','遲到早退扣款','曠職扣款','其他扣款','應扣小計','06日應付','26日應付','應付總計'];
     const data = rows.map(({emp, entry, calc})=>[
       emp.company, emp.department, emp.name, emp.insuranceGrade, calc.effBaseSalary,
+      Math.round(calc.basicSalary), calc.effFullAttendanceBonus, Math.round(calc.fullAttendanceCut),
       Math.round(calc.weekdayOtPay), Math.round(calc.restDayPay), Math.round(calc.holidayPay), Math.round(calc.overtimePay),
       calc.allowanceTotal, calc.bonusTotal, n(entry.annualLeaveSettlement),
       Math.round(calc.payableTotal), calc.laborFee, calc.healthFee, Math.round(calc.leaveDeduct),
@@ -3760,10 +3768,18 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               </td>
               <td className="freeze-2 center">{money(calc.effBaseSalary)}</td>
               {shown('allow') && <>
+              {/* 五項相加恆等於本薪：底薪＋伙食＋交通＋職務＋全勤額度。
+                  全勤沒拿滿的部分放在下一欄「全勤扣減」，不在這裡動手腳，
+                  否則這個恆等式就不成立，使用者自己加一次就會覺得系統算錯。 */}
+              <td>{money(calc.basicSalary)}</td>
               <td className="hint">{money(calc.effMealAllowance)}</td>
               <td className="hint" title={emp.transportAllowanceMode==='daily'?`依出勤日數計算：${entry.presentDays||0} 日 × ${money(emp.transportAllowance)}`:''}>{money(calc.effTransportAllowance)}</td>
               <td className="hint">{money(calc.effPositionAllowance)}</td>
-              <td className="hint" title={calc.fullAttendanceDeductRatio>0?`依請假/遲到早退比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%`:(calc.fullAttendanceRatio<1?`依在職日數比例試算（${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')} style={calc.fullAttendanceDeductRatio>0?{color:'var(--danger)'}:undefined}>{money(calc.fullAttendanceAdjusted)}</td>
+              <td className="hint">{money(calc.effFullAttendanceBonus)}</td>
+              <td className={calc.fullAttendanceCut>0 ? 'alert' : ''}
+                  title={calc.fullAttendanceDeductRatio>0?`依請假/遲到早退比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%`:(calc.fullAttendanceRatio<1?`依在職日數比例試算（${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')}>
+                {calc.fullAttendanceCut>0 ? '−'+money(calc.fullAttendanceCut) : money(0)}
+              </td>
               </>}
               {shown('ot') && <>
               <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} />{refBelow(refOtWeekday134)}</td>
@@ -3855,7 +3871,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             {/* 合計列每一欄都要有值。原本津貼、加班時數、獎金、請假時數整段留白，
                 看起來像壞掉，而且「這個月總共請了幾小時假」是常用的數字卻要自己加。
                 ⚠️ 時數欄用 trimNum 不用 money —— 那是小時／分鐘，不是錢。 */}
-            {shown('allow') && <><td>{money(totals.meal)}</td><td>{money(totals.transport)}</td><td>{money(totals.position)}</td><td>{money(totals.fullAtt)}</td></>}
+            {shown('allow') && <><td>{money(totals.basicSalary)}</td><td>{money(totals.meal)}</td><td>{money(totals.transport)}</td><td>{money(totals.position)}</td><td>{money(totals.fullAtt)}</td><td className={totals.fullAttCut>0?'alert':''}>{totals.fullAttCut>0?'−'+money(totals.fullAttCut):money(0)}</td></>}
             {shown('ot') && <><td className="num-pos">{money(totals.ot134)}</td><td className="num-pos">{money(totals.ot167)}</td><td className="num-pos">{money(totals.otRest)}</td><td className="num-pos">{money(totals.otHoliday)}</td></>}
             <td className="sub">{money(totals.overtime)}</td>
             {shown('bonus') && <><td>{money(totals.festivalBonus)}</td><td>{money(totals.yearEndBonus)}</td><td>{money(totals.performanceBonus)}</td><td>{money(totals.otherBonus)}</td></>}
