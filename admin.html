@@ -197,6 +197,10 @@
   /* 加項不再上色、一般扣款不再上色；紅字只留給遲到與曠職（.alert） */
   .pay-tbl .num-pos, .pay-tbl .num-neg{color:inherit;}
   .pay-tbl .alert{color:var(--outcome); font-weight:600;}
+  /* 唯讀欄位的 0 值：跟輸入框的 0 用同一個淡度，整張表只有一種「這裡沒東西」的樣子。
+     ⚠️ 不要再用 .hint（12px 灰字）—— 那會讓津貼四欄變成另一種字級，
+     跟旁邊 15px 的數字看起來不像同一張表（2026-09-03 Evan 指出）。 */
+  .pay-tbl td.z{color:#A3A9B1;}
   /* 0 值退到背景：不畫框、字色極淡，眼睛只會停在真的有數字的格子 */
   .pay-tbl input[type=number]{width:66px;}
   .pay-tbl input[type=number].zero{border-color:transparent; background:transparent;
@@ -3775,14 +3779,14 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               {/* 五項相加恆等於本薪：底薪＋伙食＋交通＋職務＋全勤額度。
                   全勤沒拿滿的部分放在下一欄「全勤扣減」，不在這裡動手腳，
                   否則這個恆等式就不成立，使用者自己加一次就會覺得系統算錯。 */}
-              <td>{money(calc.basicSalary)}</td>
-              <td className="hint">{money(calc.effMealAllowance)}</td>
-              <td className="hint" title={emp.transportAllowanceMode==='daily'?`依出勤日數計算：${entry.presentDays||0} 日 × ${money(emp.transportAllowance)}`:''}>{money(calc.effTransportAllowance)}</td>
-              <td className="hint">{money(calc.effPositionAllowance)}</td>
-              <td className="hint">{money(calc.effFullAttendanceBonus)}</td>
+              <td className={n(calc.basicSalary)?'':'z'}>{money(calc.basicSalary)}</td>
+              <td className={n(calc.effMealAllowance)?'':'z'}>{money(calc.effMealAllowance)}</td>
+              <td className={n(calc.effTransportAllowance)?'':'z'} title={emp.transportAllowanceMode==='daily'?`依出勤日數計算：${entry.presentDays||0} 日 × ${money(emp.transportAllowance)}`:''}>{money(calc.effTransportAllowance)}</td>
+              <td className={n(calc.effPositionAllowance)?'':'z'}>{money(calc.effPositionAllowance)}</td>
+              <td className={n(calc.effFullAttendanceBonus)?'':'z'}>{money(calc.effFullAttendanceBonus)}</td>
               <td className={calc.fullAttendanceCut>0 ? 'alert' : ''}
                   title={calc.fullAttendanceDeductRatio>0?`依請假/遲到早退比例扣${(calc.fullAttendanceDeductRatio*100).toFixed(1)}%`:(calc.fullAttendanceRatio<1?`依在職日數比例試算（${(calc.fullAttendanceRatio*100).toFixed(0)}%）`:'')}>
-                {calc.fullAttendanceCut>0 ? '−'+money(calc.fullAttendanceCut) : money(0)}
+                {calc.fullAttendanceCut>0 ? '−'+money(calc.fullAttendanceCut) : <span className="z">0</span>}
               </td>
               </>}
               {shown('ot') && <>
@@ -3791,7 +3795,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} disabled={entry.locked} />{refBelow(refOtRestDay)}</td>
               <td className="col-add"><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} disabled={entry.locked} />{refBelow(refOtHoliday)}</td>
               </>}
-              <td className="col-add sub">{money(calc.overtimePay)}</td>
+              <td className={'col-add sub'+(n(calc.overtimePay)?'':' z')}>{money(calc.overtimePay)}</td>
               {shown('bonus') && <>
               <td className="col-add"><NumCell value={entry.festivalBonus} onChange={v=>setEntry(emp.id,{festivalBonus:v})} disabled={entry.locked} /></td>
               <td className="col-add"><NumCell value={entry.yearEndBonus} onChange={v=>setEntry(emp.id,{yearEndBonus:v})} disabled={entry.locked} /></td>
@@ -3856,15 +3860,15 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
                 )}
               </td>
               </>}
-              <td className="col-deduct" title={!calc.insFullMonth?`按在職${calc.insLaborDays} 日比例計算`:''}>{money(calc.laborFee)}</td>
-              <td className="col-deduct" title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
+              <td className={'col-deduct'+(n(calc.laborFee)?'':' z')} title={!calc.insFullMonth?`按在職${calc.insLaborDays} 日比例計算`:''}>{money(calc.laborFee)}</td>
+              <td className={'col-deduct'+(n(calc.healthFee)?'':' z')} title={!calc.insActiveAtMonthEnd?'月底已離職，本月不收健保費':''}>{money(calc.healthFee)}</td>
               <td className="col-deduct">
                 <NumCell value={entry.otherDeduction} onChange={v=>setEntry(emp.id,{otherDeduction:v})} disabled={entry.locked} />
                 <button type="button" className="ghost sm" title="輸入備註" style={{marginTop:2, padding:'2px 6px'}} onClick={()=>setNoteBox({employeeId:emp.id, name:emp.name, field:'otherDeductionNote', label:'其他扣款備註', value:entry.otherDeductionNote||''})}>
                   <span className="material-icons" style={{fontSize:13}}>{entry.otherDeductionNote?'edit_note':'note_add'}</span>
                 </button>
               </td>
-              <td className="col-deduct sub">{money(calc.deductTotal)}</td>
+              <td className={'col-deduct sub'+(n(calc.deductTotal)?'':' z')}>{money(calc.deductTotal)}</td>
               <td className="col-result mono"><b>{money(calc.pay06)}</b></td>
             </tr>
             );
