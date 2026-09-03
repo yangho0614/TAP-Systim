@@ -1836,6 +1836,13 @@ function App(){
       calc: calcForEmployee(emp, entry, settings, menstrualBaseline[emp.id]||{menstrual:0,sick:0}, month)};
   }), [employees, payrollEntries, settings, menstrualBaseline, month]);
 
+  /* 有人本薪不為 0 卻還沒有這個月的薪資列（免出勤的人不會被「套用」帶進來）。
+     ⚠️ 沒有這個判斷的話，儲存鈕在「沒有任何修改」時是灰的，
+     使用者得先亂改一格製造 dirty 才能補列 —— 那種每月都要記得做的事一定會忘。 */
+  const missingPayrollRows = useMemo(()=> employees.filter(e =>
+    !payrollEntries[e.id] && String(e.status||'') !== '離職' && n(e.baseSalary)
+  ).length, [employees, payrollEntries]);
+
   const needsMonth = ['records','requests','attendance','payroll','payslip','transfer'].includes(tab);
 
   function logout(){
@@ -1929,7 +1936,7 @@ function App(){
               讓人誤以為資料有問題，其實是該月已鎖定、本來就不會被覆蓋 */}
           {tab==='attendance' && <AttendanceTab month={month} onApply={applyAttendanceToPayroll}
             allLocked={rows.length>0 && rows.every(({entry})=>entry.locked)}/>}
-          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onUndoApply={applyUndo?undoApply:null} onSave={savePayroll} dirty={dirty} saving={saving} onEditEmployee={openEditEmployee} onReload={()=>reloadPayroll(month)} menstrualBaseline={menstrualBaseline} settings={settings}/>}
+          {tab==='payroll' && <PayrollTab employees={employees} rows={rows} setEntry={setEntry} month={month} loading={payrollLoading} onApply={applyAttendanceToPayroll} onUndoApply={applyUndo?undoApply:null} onSave={savePayroll} dirty={dirty} missingRows={missingPayrollRows} saving={saving} onEditEmployee={openEditEmployee} onReload={()=>reloadPayroll(month)} menstrualBaseline={menstrualBaseline} settings={settings}/>}
           {tab==='payslip' && <PayslipTab employees={employees} payrollEntries={savedEntries} dirty={dirty} month={month} settings={settings} menstrualBaseline={menstrualBaseline}/>}
           {tab==='transfer' && <TransferTab rows={rows} month={month}/>}
           {tab==='register' && <PayrollRegisterTab/>}
@@ -3436,7 +3443,7 @@ function NumCell({value, onChange, disabled, unit}){
 }
 
 /* ========================= 薪資計算 / 明細總表 ========================= */
-function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoApply, onSave, dirty, saving, onEditEmployee, onReload, menstrualBaseline, settings}){
+function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoApply, onSave, dirty, missingRows, saving, onEditEmployee, onReload, menstrualBaseline, settings}){
   /* 「隱藏無薪資」：非正式員工、還沒設薪的掛名帳號在薪資表上是一整排 0，
      五六列夾在中間會把真正要看的人擠散。只隱藏**完全沒有金額**的列 ——
      本薪 0 但有 26 日獎金或扣款的人一定要留著，否則會漏付。
@@ -3702,11 +3709,12 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
         </button>
         <button className="ghost sm" onClick={()=>window.print()}>列印本頁</button>
         <button className="ghost sm" onClick={doExport}>匯出 CSV</button>
-        <button onClick={onSave} disabled={saving || !dirty || allLocked}
-          style={dirty && !allLocked ? {position:'relative', boxShadow:'0 0 0 2px var(--danger)'} : null}
-          title={dirty ? '有未儲存的變更' : ''}>
+        <button onClick={onSave} disabled={saving || (!dirty && !n(missingRows)) || allLocked}
+          style={(dirty || n(missingRows)) && !allLocked ? {position:'relative', boxShadow:'0 0 0 2px var(--danger)'} : null}
+          title={dirty ? '有未儲存的變更'
+               : n(missingRows) ? `有 ${missingRows} 位員工本月還沒有薪資列（本薪不為 0），儲存後會自動補上` : ''}>
           {saving?'儲存中...':'儲存薪資紀錄'}
-          {dirty && !allLocked && <span style={{position:'absolute', top:-4, right:-4, width:9, height:9, borderRadius:'50%', background:'var(--danger)', border:'2px solid #fff'}}></span>}
+          {(dirty || n(missingRows)) && !allLocked && <span style={{position:'absolute', top:-4, right:-4, width:9, height:9, borderRadius:'50%', background:'var(--danger)', border:'2px solid #fff'}}></span>}
         </button>
       </div>
       <div className="toolbar no-print">
