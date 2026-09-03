@@ -178,8 +178,11 @@
         那是介面的按鈕與警示色，跟薪資表的科目語意是兩套語言。 */
 
   .pay-tbl{width:auto; font-size:16px; border-collapse:separate; border-spacing:0;}
-  .pay-tbl th{font-size:13.5px; padding:7px 8px; font-weight:500; color:#414A54;}
-  .pay-tbl td{padding:7px 8px;}
+  .pay-tbl th{font-size:13.5px; padding:7px 12px; font-weight:500; color:#414A54;}
+  /* 欄位要有呼吸空間。⚠️ 不要為了讓 25 欄擠進畫面而縮 —— 外層本來就是
+     overflow-x:auto，寬度不夠就橫向捲，擠成一團才是真的不能用。 */
+  .pay-tbl td{padding:7px 12px; min-width:78px;}
+  .pay-tbl td.freeze-1{min-width:120px;}
   .pay-tbl td .hint{font-size:12px; color:#5F666E;}
   .pay-tbl .freeze-1 b{font-size:15.5px;}
 
@@ -3786,14 +3789,17 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
           {shownRows.map(({emp, entry, calc})=>{
             const s = summaryMap[emp.id] || {};
             const leaveBaseline = menstrualBaseline[emp.id] || {menstrual:0, sick:0};
-            const refOtWeekday134 = calc.hourly*1.34*n(s.otWeekday134);
-            const refOtWeekday167 = calc.hourly*1.67*n(s.otWeekday167);
-            const refOtRestDay = calcRestDayPay(calc.hourly, s.otRestDayHours, (settings && settings.restDayOtMode) || 'tier').pay;
-            const refOtHoliday = calcHolidayPay(calc.hourly, calc.dailyWage, s.otHolidayHours).pay;
-            const refPersonalLeave = calc.hourly*1.0*n(s.personalLeave);
-            const refSickLeave = calcSickLeaveRefMoney(calc.hourly, s.sickLeave, leaveBaseline);
-            const refMenstrualLeave = calcMenstrualLeaveRefMoney(calc.hourly, s.menstrualLeave, leaveBaseline);
-            const refDisasterLeave = calc.hourly*1.0*n(s.disasterLeave);
+            /* ⚠️ 這一行的「＝金額」是**這一格輸入值換算成的錢**，不是打卡統計的參考值。
+               先前用的是 summaryMap（套用後才會帶進來的數字），結果會出現
+               「事假 0、底下卻紅字 ＝75」這種自相矛盾的畫面（2026-09-03 Evan 抓到）。 */
+            const refOtWeekday134 = calc.hourly*1.34*n(entry.otWeekday134);
+            const refOtWeekday167 = calc.hourly*1.67*n(entry.otWeekday167);
+            const refOtRestDay = calcRestDayPay(calc.hourly, entry.otRestDayHours, (settings && settings.restDayOtMode) || 'tier').pay;
+            const refOtHoliday = calcHolidayPay(calc.hourly, calc.dailyWage, entry.otHolidayHours).pay;
+            const refPersonalLeave = calc.hourly*1.0*n(entry.personalLeave);
+            const refSickLeave = calcSickLeaveRefMoney(calc.hourly, entry.sickLeave, leaveBaseline);
+            const refMenstrualLeave = calcMenstrualLeaveRefMoney(calc.hourly, entry.menstrualLeave, leaveBaseline);
+            const refDisasterLeave = calc.hourly*1.0*n(entry.disasterLeave);
             return (
             <tr key={emp.id}>
               <td className="freeze-1">
