@@ -166,6 +166,33 @@
      列印出來每位員工區塊的左上／左下角是開口的。 */
   .reg-freeze-2{ min-width:96px; border-right:1px solid #9AA1A8; }
   th.reg-freeze-2{ z-index:4; background:#EDEDED; }
+  /* ===== 薪資三張表（06日／26日／整月總覽）的統一呈現，2026-09-03 定案 =====
+     四條規則：①欄位三類各一種樣子 ②換算金額一律 inline ③線分欄、底色分群
+     ④顏色只有兩個用途：警示紅（遲到／曠職）與品牌青（實付）。
+     ⚠️ 不要再把「所有扣款」染紅 —— 勞健保與請假扣款每個月必然發生，
+     全部染紅之後紅色變成背景，真正要處理的遲到與曠職反而被淹沒。 */
+  .pay-tbl tbody td{border-color:#F1F1F1;}
+  .pay-tbl tbody td.col-add, .pay-tbl tbody td.col-deduct{background:#fff;}
+  .pay-tbl tbody tr:nth-child(even) td,
+  .pay-tbl tbody tr:nth-child(even) td.col-add,
+  .pay-tbl tbody tr:nth-child(even) td.col-deduct{background:#FBFBFB;}
+  .pay-tbl tbody td.sub, .pay-tbl tbody tr:nth-child(even) td.sub{background:#F6F7F8;}
+  .pay-tbl tbody td.col-result, .pay-tbl tbody tr:nth-child(even) td.col-result{
+    background:#FCFAF2; color:var(--income); font-weight:700;}
+  .pay-tbl tbody tr:hover td, .pay-tbl tbody tr:hover td.sub{background:#F2FAFA;}
+  .pay-tbl tbody tr:hover td.col-result{background:#F7F6EC;}
+  /* 加項不再上色、一般扣款不再上色；紅字只留給遲到與曠職（.alert） */
+  .pay-tbl .num-pos, .pay-tbl .num-neg{color:inherit;}
+  .pay-tbl .alert{color:var(--outcome); font-weight:600;}
+  /* 0 值退到背景：不畫框、字色極淡，眼睛只會停在真的有數字的格子 */
+  .pay-tbl input[type=number]{width:72px;}
+  .pay-tbl input[type=number].zero{border-color:transparent; background:transparent;
+                                   color:#C9CDD3; opacity:1; font-weight:400;}
+  /* 換算金額：固定寬度貼在輸入框右邊。⚠️ 一定要固定寬度，否則框會被「＝3,800」
+     推著跑，同一欄每列的框左右不對齊（2026-09-03 Evan 指出） */
+  .pay-tbl .ref{display:inline-block; min-width:54px; text-align:left; margin-left:6px;
+                font-size:10px; color:#9AA0A8; font-family:'Roboto Mono',monospace;}
+  .pay-tbl td:has(input[type=number]){white-space:nowrap;}
   .col-add{background:#EAF6ED;}
   .col-deduct{background:#FBEDEA;}
   .col-result{background:#FBF3D9; font-weight:700;}
@@ -3324,7 +3351,8 @@ function MakeupRow({employeeId, workDate, initialValue, onSaved}){
 function NumCell({value, onChange, disabled}){
   const isZero = !Number(value);
   return <input type="number" value={value} disabled={disabled}
-    style={isZero ? {opacity:.38} : {fontWeight:600}}
+    className={isZero ? 'zero' : ''}
+    style={isZero ? null : {fontWeight:600}}
     onFocus={e=>e.target.select()}
     onChange={e=>onChange(Number(e.target.value))} />;
 }
@@ -3398,9 +3426,11 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
   useEffect(()=>{ apiGet('getMonthlySummary', {month}).then(setSummary).catch(()=>{}); }, [month]);
   const summaryMap = useMemo(()=>{ const m={}; summary.forEach(s=>{ m[s.employeeId]=s; }); return m; }, [summary]);
   // 「系統實際算出的金額」對照：為 0 時不顯示，避免整張表被 200 多個「實際 0」灌滿
+  /* 換算金額改成貼在輸入框右邊（原本另起一行，害每列高矮不一）。
+     值是 0 也要輸出這個 span —— 它負責佔位，同一欄的框才會左右對齊。 */
   function refBelow(v){
-    if(v===undefined || v===null || !Number(v)) return null;
-    return <div className="hint" style={{fontSize:10, marginTop:2, textAlign:'center', color:'var(--brand)'}}>＝{money(v)}</div>;
+    const has = !(v===undefined || v===null || !Number(v));
+    return <span className="ref">{has ? '＝'+money(v) : ''}</span>;
   }
   function scrollToStart(){ if(!scrollRef.current) return; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:0, behavior:'smooth'}); else scrollRef.current.scrollLeft = 0; }
   function scrollToEnd(){ if(!scrollRef.current) return; const w = scrollRef.current.scrollWidth; if(scrollRef.current.scrollTo) scrollRef.current.scrollTo({left:w, behavior:'smooth'}); else scrollRef.current.scrollLeft = w; }
@@ -3656,7 +3686,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
       )}
       {loading ? <div className="hint">載入中...</div> : rows.length===0 ? <div className="empty card">尚無在職員工，請先至「員工資料」頁面新增。</div> : subTab==='06' ? (
       <div ref={scrollRef} style={{overflowX:'auto'}}>
-      <table>
+      <table className="pay-tbl">
         <thead>
           <tr>
             <th className="freeze-1" rowSpan="2">姓名 / 部門</th>
@@ -3728,7 +3758,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} disabled={entry.locked} />{refBelow(refOtRestDay)}</td>
               <td className="col-add"><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} disabled={entry.locked} />{refBelow(refOtHoliday)}</td>
               </>}
-              <td className="col-add num-pos">{money(calc.overtimePay)}</td>
+              <td className="col-add sub">{money(calc.overtimePay)}</td>
               {shown('bonus') && <>
               <td className="col-add"><NumCell value={entry.festivalBonus} onChange={v=>setEntry(emp.id,{festivalBonus:v})} disabled={entry.locked} /></td>
               <td className="col-add"><NumCell value={entry.yearEndBonus} onChange={v=>setEntry(emp.id,{yearEndBonus:v})} disabled={entry.locked} /></td>
@@ -3748,7 +3778,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
                   </button>
                 )}
               </td>
-              <td className="col-add num-pos"><b>{money(calc.payableTotal)}</b></td>
+              <td className="col-add sub"><b>{money(calc.payableTotal)}</b></td>
               {shown('leave') && <>
               <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} disabled={entry.locked} />{refBelow(refPersonalLeave)}</td>
               <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} disabled={entry.locked} />{refBelow(refSickLeave)}</td>
@@ -3765,13 +3795,13 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
                   曠職與請假同為小時級，跟「請假時數」那四欄一致。 */}
               <td className="col-deduct">
                 <NumCell value={entry.lateMinutes} onChange={v=>setEntry(emp.id,{lateMinutes:v})} disabled={entry.locked} />
-                {n(entry.lateMinutes)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>＝{Math.round(n(entry.lateMinutes)/60*100)/100} 時</div>}
+                <span className="ref">{n(entry.lateMinutes)>0 ? '＝'+(Math.round(n(entry.lateMinutes)/60*100)/100)+' 時' : ''}</span>
               </td>
               <td className="col-deduct">
                 <NumCell value={entry.earlyMinutes} onChange={v=>setEntry(emp.id,{earlyMinutes:v})} disabled={entry.locked} />
-                {n(entry.earlyMinutes)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>＝{Math.round(n(entry.earlyMinutes)/60*100)/100} 時</div>}
+                <span className="ref">{n(entry.earlyMinutes)>0 ? '＝'+(Math.round(n(entry.earlyMinutes)/60*100)/100)+' 時' : ''}</span>
               </td>
-              <td className="col-deduct num-neg" title={`時薪 ${money(Math.round(calc.hourly))} × ${calc.lateEarlyHours} 小時`}>
+              <td className="col-deduct sub alert" title={`時薪 ${money(Math.round(calc.hourly))} × ${calc.lateEarlyHours} 小時`}>
                 {money(calc.lateEarlyDeduct)}
                 {/* 有分鐘卻沒扣款只有兩種可能，講清楚是哪一種，不然看起來像算錯 */}
                 {!entry.locked && !n(calc.lateEarlyDeduct) && (n(entry.lateMinutes)+n(entry.earlyMinutes))>0 && (
@@ -3783,11 +3813,9 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               </td>
               <td className="col-deduct">
                 <NumCell value={entry.absentHours} onChange={v=>setEntry(emp.id,{absentHours:v})} disabled={entry.locked} />
-                {n(entry.absentHours)>0 && (
-                  <div className="hint" style={{fontSize:10, marginTop:2}}>＝{Math.round(n(entry.absentHours)/8*100)/100} 日</div>
-                )}
+                <span className="ref">{n(entry.absentHours)>0 ? '＝'+(Math.round(n(entry.absentHours)/8*100)/100)+' 日' : ''}</span>
               </td>
-              <td className="col-deduct num-neg" title={`時薪 ${money(Math.round(calc.hourly))} × ${calc.absentHours} 小時`}>
+              <td className="col-deduct sub alert" title={`時薪 ${money(Math.round(calc.hourly))} × ${calc.absentHours} 小時`}>
                 {money(calc.absentDeduct)}
                 {n(entry.absentHours)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全勤全扣</div>}
                 {!entry.locked && !n(calc.absentDeduct) && n(entry.absentHours)>0 && (
@@ -3803,7 +3831,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
                   <span className="material-icons" style={{fontSize:13}}>{entry.otherDeductionNote?'edit_note':'note_add'}</span>
                 </button>
               </td>
-              <td className="col-deduct num-neg">{money(calc.deductTotal)}</td>
+              <td className="col-deduct sub">{money(calc.deductTotal)}</td>
               <td className="col-result mono"><b>{money(calc.pay06)}</b></td>
             </tr>
             );
@@ -3816,24 +3844,24 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
                 ⚠️ 時數欄用 trimNum 不用 money —— 那是小時／分鐘，不是錢。 */}
             {shown('allow') && <><td>{money(totals.meal)}</td><td>{money(totals.transport)}</td><td>{money(totals.position)}</td><td>{money(totals.fullAtt)}</td></>}
             {shown('ot') && <><td className="num-pos">{money(totals.ot134)}</td><td className="num-pos">{money(totals.ot167)}</td><td className="num-pos">{money(totals.otRest)}</td><td className="num-pos">{money(totals.otHoliday)}</td></>}
-            <td className="num-pos">{money(totals.overtime)}</td>
+            <td className="sub">{money(totals.overtime)}</td>
             {shown('bonus') && <><td>{money(totals.festivalBonus)}</td><td>{money(totals.yearEndBonus)}</td><td>{money(totals.performanceBonus)}</td><td>{money(totals.otherBonus)}</td></>}
             <td>{money(totals.annualLeaveSettlement)}</td>
-            <td className="num-pos">{money(totals.payable)}</td>
+            <td className="sub">{money(totals.payable)}</td>
             {shown('leave') && <><td className="num-neg">{money(totals.personalLeave)}</td><td className="num-neg">{money(totals.sickLeave)}</td><td className="num-neg">{money(totals.menstrualLeave)}</td><td className="num-neg">{money(totals.disasterLeave)}</td></>}
-            {shown('late') && <><td className="num-neg">{money(totals.lateMoney)}</td><td className="num-neg">{money(totals.earlyMoney)}</td><td className="num-neg">{money(totals.lateEarlyDeduct)}</td><td className="num-neg">{money(totals.absentDeduct)}</td><td className="num-neg">{money(totals.absentDeduct)}</td></>}
+            {shown('late') && <><td>{money(totals.lateMoney)}</td><td>{money(totals.earlyMoney)}</td><td className="sub alert">{money(totals.lateEarlyDeduct)}</td><td>{money(totals.absentDeduct)}</td><td className="sub alert">{money(totals.absentDeduct)}</td></>}
             <td>{money(totals.labor)}</td>
             <td>{money(totals.health)}</td>
             <td>{money(totals.otherDeduct)}</td>
-            <td className="num-neg">{money(totals.deduct)}</td>
-            <td className="mono">{money(totals.pay06)}</td>
+            <td className="sub">{money(totals.deduct)}</td>
+            <td className="mono" style={{color:'var(--income)', fontWeight:700}}>{money(totals.pay06)}</td>
           </tr>
         </tbody>
       </table>
       </div>
       ) : subTab==='26' ? (
       <div ref={scrollRef} style={{overflowX:'auto'}}>
-      <table>
+      <table className="pay-tbl">
         <thead>
           <tr>
             <th className="freeze-1">姓名 / 部門</th>
@@ -3868,7 +3896,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
       ) : (
       /* 整月總覽：唯讀，把分開編輯的 06 日與 26 日兩段併成一張表方便閱讀，不提供編輯 */
       <div style={{overflowX:'auto'}}>
-      <table>
+      <table className="pay-tbl">
         <thead>
           <tr>
             <th className="freeze-1">姓名 / 部門</th>
