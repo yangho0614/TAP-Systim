@@ -254,6 +254,7 @@
   .pay-tbl .ref{display:block; height:16px; line-height:16px; text-align:right; margin-top:2px;
     padding-right:2px; font-size:12px; color:#78818A; font-family:'Roboto Mono',monospace;}
   .pay-tbl td:has(input[type=number]){white-space:nowrap;}
+  .pay-tbl .unit{font-size:11px; color:#98A0A8; margin-left:3px;}
   /* 姓名靠左：整張表是靠右的，姓名是唯一的文字欄 */
   .pay-tbl .freeze-1{text-align:left;}
   .col-add{background:#EAF6ED;}
@@ -3417,13 +3418,20 @@ function MakeupRow({employeeId, workDate, initialValue, onSaved}){
 }
 
 /* 值為 0 時淡化顯示：整張表大多數格子都是 0，淡化後有值的格子才會跳出來 */
-function NumCell({value, onChange, disabled}){
+/* 單位跟著值走（2 h、652 分），欄名就不必寫「遲到(分)」這種括號 ——
+   同一張表裡「請假四欄沒單位、遲到早退寫括號」是兩套寫法（2026-09-03 Evan 指出）。 */
+function NumCell({value, onChange, disabled, unit}){
   const isZero = !Number(value);
-  return <input type="number" value={value} disabled={disabled}
-    className={isZero ? 'zero' : ''}
-    style={isZero ? null : {fontWeight:600}}
-    onFocus={e=>e.target.select()}
-    onChange={e=>onChange(Number(e.target.value))} />;
+  return (
+    <>
+      <input type="number" value={value} disabled={disabled}
+        className={isZero ? 'zero' : ''}
+        style={isZero ? null : {fontWeight:600}}
+        onFocus={e=>e.target.select()}
+        onChange={e=>onChange(Number(e.target.value))} />
+      {unit && !isZero && <span className="unit">{unit}</span>}
+    </>
+  );
 }
 
 /* ========================= 薪資計算 / 明細總表 ========================= */
@@ -3788,7 +3796,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             {shown('ot') && <><th className="col-add">平日1.34</th><th className="col-add">平日1.67</th><th className="col-add">休息日</th><th className="col-add">國定假日</th></>}
             {shown('bonus') && <><th className="col-add">三節</th><th className="col-add">年終</th><th className="col-add">績效</th><th className="col-add">其他</th></>}
             {shown('leave') && <><th className="col-deduct">事假</th><th className="col-deduct">病假</th><th className="col-deduct">生理假</th><th className="col-deduct">災防</th></>}
-            {shown('late') && <><th className="col-deduct">遲到(分)</th><th className="col-deduct">早退(分)</th><th className="col-deduct">遲到扣款</th><th className="col-deduct">曠職(時)</th><th className="col-deduct">曠職扣款</th></>}
+            {shown('late') && <><th className="col-deduct">遲到</th><th className="col-deduct">早退</th><th className="col-deduct">遲到扣款</th><th className="col-deduct">曠職</th><th className="col-deduct">曠職扣款</th></>}
           </tr>
         </thead>
         <tbody>
@@ -3835,10 +3843,10 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               </td>
               </>}
               {shown('ot') && <>
-              <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} />{refBelow(refOtWeekday134)}</td>
-              <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} disabled={entry.locked} />{refBelow(refOtWeekday167)}</td>
-              <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} disabled={entry.locked} />{refBelow(refOtRestDay)}</td>
-              <td className="col-add"><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} disabled={entry.locked} />{refBelow(refOtHoliday)}</td>
+              <td className="col-add"><NumCell value={entry.otWeekday134} onChange={v=>setEntry(emp.id,{otWeekday134:v})} disabled={entry.locked} unit="h" />{refBelow(refOtWeekday134)}</td>
+              <td className="col-add"><NumCell value={entry.otWeekday167} onChange={v=>setEntry(emp.id,{otWeekday167:v})} disabled={entry.locked} unit="h" />{refBelow(refOtWeekday167)}</td>
+              <td className="col-add"><NumCell value={entry.otRestDayHours} onChange={v=>setEntry(emp.id,{otRestDayHours:v})} disabled={entry.locked} unit="h" />{refBelow(refOtRestDay)}</td>
+              <td className="col-add"><NumCell value={entry.otHolidayHours} onChange={v=>setEntry(emp.id,{otHolidayHours:v})} disabled={entry.locked} unit="h" />{refBelow(refOtHoliday)}</td>
               </>}
               <td className={'col-add sub'+(n(calc.overtimePay)?'':' z')}>{money(calc.overtimePay)}</td>
               {shown('bonus') && <>
@@ -3862,25 +3870,25 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               </td>
               <td className="col-add sub"><b>{money(calc.payableTotal)}</b></td>
               {shown('leave') && <>
-              <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} disabled={entry.locked} />{refBelow(refPersonalLeave)}</td>
-              <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} disabled={entry.locked} />{refBelow(refSickLeave)}</td>
+              <td className="col-deduct"><NumCell value={entry.personalLeave} onChange={v=>setEntry(emp.id,{personalLeave:v})} disabled={entry.locked} unit="h" />{refBelow(refPersonalLeave)}</td>
+              <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} disabled={entry.locked} unit="h" />{refBelow(refSickLeave)}</td>
               <td className="col-deduct">
-                <NumCell value={entry.menstrualLeave} onChange={v=>setEntry(emp.id,{menstrualLeave:v})} disabled={entry.locked} />
+                <NumCell value={entry.menstrualLeave} onChange={v=>setEntry(emp.id,{menstrualLeave:v})} disabled={entry.locked} unit="h" />
                 {n(entry.menstrualLeave)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全薪{calc.menstrualPaidHours}/半薪{calc.menstrualHalfHours}</div>}
                 {refBelow(refMenstrualLeave)}
               </td>
-              <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} />{refBelow(refDisasterLeave)}</td>
+              <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} unit="h" />{refBelow(refDisasterLeave)}</td>
               </>}
               {shown('late') && <>
               {/* 分鐘怎麼變成金額，中間那步要看得見，否則「652 分 → 1,721 元」是一個黑盒子。
                   單位不統一是刻意的：遲到早退是分鐘級的事件，換算成 10.87 小時反而讀不出意義；
                   曠職與請假同為小時級，跟「請假時數」那四欄一致。 */}
               <td className="col-deduct">
-                <NumCell value={entry.lateMinutes} onChange={v=>setEntry(emp.id,{lateMinutes:v})} disabled={entry.locked} />
+                <NumCell value={entry.lateMinutes} onChange={v=>setEntry(emp.id,{lateMinutes:v})} disabled={entry.locked} unit="分" />
                 <span className="ref">{n(entry.lateMinutes)>0 ? '＝'+money(Math.round(calc.hourly*n(entry.lateMinutes)/60)) : ''}</span>
               </td>
               <td className="col-deduct">
-                <NumCell value={entry.earlyMinutes} onChange={v=>setEntry(emp.id,{earlyMinutes:v})} disabled={entry.locked} />
+                <NumCell value={entry.earlyMinutes} onChange={v=>setEntry(emp.id,{earlyMinutes:v})} disabled={entry.locked} unit="分" />
                 <span className="ref">{n(entry.earlyMinutes)>0 ? '＝'+money(Math.round(calc.hourly*n(entry.earlyMinutes)/60)) : ''}</span>
               </td>
               <td className="col-deduct sub alert" title={`時薪 ${money(Math.round(calc.hourly))} × ${calc.lateEarlyHours} 小時`}>
@@ -3894,7 +3902,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
                 )}
               </td>
               <td className="col-deduct">
-                <NumCell value={entry.absentHours} onChange={v=>setEntry(emp.id,{absentHours:v})} disabled={entry.locked} />
+                <NumCell value={entry.absentHours} onChange={v=>setEntry(emp.id,{absentHours:v})} disabled={entry.locked} unit="h" />
                 <span className="ref">{n(entry.absentHours)>0 ? '＝'+money(Math.round(calc.hourly*n(entry.absentHours))) : ''}</span>
               </td>
               <td className="col-deduct sub alert" title={`時薪 ${money(Math.round(calc.hourly))} × ${calc.absentHours} 小時`}>
