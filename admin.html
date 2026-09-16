@@ -938,6 +938,11 @@ async function apiPost(action, body={}){
   }
   return json.data;
 }
+/* 「今天是哪一天」一律用台北時間算。
+   ⚠️ 2026-09-16 修：原本寫 new Date().toISOString().slice(0,10)，那是**世界時間**的日期，
+      比台北慢 8 小時 —— 台北凌晨 00:00～08:00 之間會算成昨天，後台的「今天」標記
+      會停在前一列。後端（GAS 與 Worker）一律用 Asia/Taipei，前端也要一致。 */
+function todayTaipei(){ return new Date().toLocaleDateString('sv-SE', {timeZone:'Asia/Taipei'}); }
 function todayMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function monthLabel(m){
   if(!m) return '';
@@ -2396,7 +2401,7 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
     return r && (!r.checkIn || !r.checkOut);
   });
   const selFullRecord = selHasRecord.filter(d=>selHalfMissing.indexOf(d)===-1);
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = todayTaipei();
 
   function toggle(date){ setSel(s=>({...s, [date]: !s[date]})); }
   function selectAll(pred, label){
@@ -2478,7 +2483,12 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
   // 一天的「主要狀態」：畫面上這一格要說什麼。順序即優先度。
   function dayState(d){
     if(d.records.some(r=>!r.voided && r.checkIn)){
-      if(d.incomplete && d.workedHours<=0) return {k:'punch', t:'漏打下班卡'};
+      /* ⚠️ 今天還沒過完，有上班卡沒下班卡是正常的「上班中」，不是漏打。
+         後端算缺口時早就排除了今天（見 Worker 的 skipDate），但這個標籤是前端自己判的，
+         沒排除今天就會從早上一路掛著橘色的「漏打下班卡」到下班為止。 */
+      if(d.incomplete && d.workedHours<=0){
+        return d.date===todayStr ? {k:'off', t:'上班中'} : {k:'punch', t:'漏打下班卡'};
+      }
       /* ⚠️ 有打卡紀錄但時數仍然不足時，一定要把「缺幾小時」講出來。
          紅底的判準是「缺滿 1 小時」，而畫面上顯示的是遲到分鐘（已扣寬限），
          兩者差一個寬限值 —— 只看遲到分鐘的話，會覺得「53 分紅、31 分不紅」
@@ -2578,7 +2588,7 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
         <button className="ghost sm" onClick={()=>selectAll(d=>d.required && d.records.length===0 && d.leaveHours<=0, '應出勤但無紀錄')}>
           全選無紀錄
         </button>
-        <button className="ghost sm" onClick={()=>selectAll(d=>d.incomplete, '漏打下班卡')}>
+        <button className="ghost sm" onClick={()=>selectAll(d=>d.incomplete && d.date!==todayStr, '漏打下班卡')}>
           全選漏打下班卡
         </button>
         {/* 勾選後就在這排直接給批次入口。原本只有畫面最底部那條工具列有，
@@ -5912,8 +5922,8 @@ function CompLedgerTab({employees}){
 
   function expireStatus(expireDate){
     if(!expireDate) return '';
-    const today = new Date().toISOString().slice(0,10);
-    const deadline = new Date(Date.now() + reminderDays*86400000).toISOString().slice(0,10);
+    const today = todayTaipei();
+    const deadline = new Date(Date.now() + reminderDays*86400000).toLocaleDateString('sv-SE', {timeZone:'Asia/Taipei'});
     if(expireDate < today) return 'expired';
     if(expireDate <= deadline) return 'soon';
     return '';

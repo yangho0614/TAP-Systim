@@ -422,6 +422,11 @@
 <script type="text/plain" id="app-src">
 const {useState, useEffect, useMemo, useRef} = React;
 // 時數／日數一律取小數一位，末尾的 .0 去掉
+/* 「今天是哪一天」一律用台北時間算。
+   ⚠️ 2026-09-16 修：原本寫 new Date().toISOString().slice(0,10)，那是**世界時間**的日期，
+      比台北慢 8 小時 —— 台北凌晨 00:00～08:00 之間會算成昨天，後台的「今天」標記
+      會停在前一列。後端（GAS 與 Worker）一律用 Asia/Taipei，前端也要一致。 */
+function todayTaipei(){ return new Date().toLocaleDateString('sv-SE', {timeZone:'Asia/Taipei'}); }
 function trim1(v){ const x = Math.round((Number(v)||0)*10)/10; return String(x); }
 // 日期後面補上星期，例如 2026-08-17 08:30 → 2026-08-17(一) 08:30。
 // 與 admin.html 的同名函式為同一份實作，前後台顯示格式要一致。
@@ -1952,7 +1957,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
 
       <div className="form-actions">
         <button className="leave" onClick={()=>{
-          const today = new Date().toISOString().slice(0,10);
+          const today = todayTaipei();
           const defStart = today+'T'+shiftStart, defEnd = today+'T'+shiftEnd;
           setLeaveBox({leaveType:'', startDT: defStart, endDT: defEnd, hours: computeHours(defStart, defEnd), reason:'', delegateId:''});
         }}>
@@ -2332,7 +2337,7 @@ function CalendarPage({session, showToast}){
                 const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
                 const hol = holidayMap[dateStr];
                 const leaves = leavesOnDate(dateStr);
-                const isToday = dateStr === new Date().toISOString().slice(0,10);
+                const isToday = dateStr === todayTaipei();
                 const dow = new Date(y, m-1, d).getDay();
                 const isMandatoryRest = settings && dow === Number(settings.mandatoryRestDay);
                 const isRestDay = settings && dow === Number(settings.restDay);
