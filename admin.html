@@ -3458,14 +3458,41 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
      五六列夾在中間會把真正要看的人擠散。只隱藏**完全沒有金額**的列 ——
      本薪 0 但有 26 日獎金或扣款的人一定要留著，否則會漏付。
      ⚠️ 只是畫面過濾，合計、匯出 CSV、儲存都仍以完整名單為準。 */
-  const [hideZero, setHideZero] = useState(()=>{ try{ return localStorage.getItem('payroll_hide_zero')==='1'; }catch(e){ return false; } });
-  function toggleHideZero(){
-    setHideZero(v=>{ const nv=!v; try{ localStorage.setItem('payroll_hide_zero', nv?'1':'0'); }catch(e){} return nv; });
-  }
-  const isBlankRow = r => !n(r.calc.effBaseSalary) && !n(r.calc.payableTotal) && !n(r.calc.deductTotal) && !n(r.calc.pay26);
-  const blankCount = rows.filter(isBlankRow).length;
-  const shownRows = hideZero ? rows.filter(r=>!isBlankRow(r)) : rows;
   const [subTab, setSubTab] = useState('06');
+  /* 三張表各自一個開關（2026-09-18 Evan 要求「各自、互不影響」）。
+     原本是一個 boolean 共用，在 06 日按了隱藏，切到 26 日與整月也跟著少人，而且那兩張表
+     連按鈕都沒有，看不出來也關不掉。 */
+  const HIDE_KEY = 'payroll_hide_zero_v2';
+  const [hideMap, setHideMap] = useState(()=>{
+    try{
+      const raw = localStorage.getItem(HIDE_KEY);
+      if(raw) return JSON.parse(raw);
+      const old = localStorage.getItem('payroll_hide_zero')==='1';   // 舊版單一開關，沿用成三張的初始值
+      return {'06':old, '26':old, 'all':old};
+    }catch(e){ return {'06':false, '26':false, 'all':false}; }
+  });
+  function toggleHideZero(){
+    setHideMap(prev=>{
+      const next = {...prev, [subTab]: !prev[subTab]};
+      try{ localStorage.setItem(HIDE_KEY, JSON.stringify(next)); }catch(e){}
+      return next;
+    });
+  }
+  /* 「無薪資」依**當下這張表**認定：26 日表看 26 日那五欄與 26 日應付，整月看整月合計。
+     ⚠️ 06 日表刻意維持原本的判準（含 pay26）—— 那是編輯與儲存的主畫面，
+        本薪 0 但有 26 日獎金的人不能從這張表上消失，否則容易漏付。 */
+  const isBlankRow = r => {
+    if(subTab==='26') return !n(r.entry.businessExpense) && !n(r.entry.salesPerformance) && !n(r.entry.salesBonus26)
+      && !n(r.entry.otherExpense26) && !n(r.entry.deduction26) && !n(r.calc.pay26);
+    if(subTab==='all') return !n(r.calc.grandTotal) && !n(r.calc.pay06) && !n(r.calc.pay26) && !n(r.calc.deductTotal);
+    return !n(r.calc.effBaseSalary) && !n(r.calc.payableTotal) && !n(r.calc.deductTotal) && !n(r.calc.pay26);
+  };
+  const blankCount = rows.filter(isBlankRow).length;
+  /* ⚠️ 全部的人都沒有金額時不套用隱藏 —— 否則整張表只剩一列合計，看起來像壞掉。
+     26 日表最常遇到：業績獎金那幾欄多數月份整月都是空的。按鈕狀態照舊保留。 */
+  const hideOn = !!hideMap[subTab];
+  const hideZero = hideOn && blankCount < rows.length;
+  const shownRows = hideZero ? rows.filter(r=>!isBlankRow(r)) : rows;
   const [settleBox, setSettleBox] = useState(null); // {year, items, loading, saving}
   const [lockBox, setLockBox] = useState(null); // {items, loading, saving}
   const [resignRowBox, setResignRowBox] = useState(null); // {employeeId, name, loading, data}
@@ -3761,17 +3788,21 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
              26 日與整月總覽本來就一起吃這個設定，但按鈕只畫在 06 日 —— 在另外兩張表上
              人被藏起來、畫面卻沒有任何線索，也沒辦法關掉。
              欄位群組那幾顆只控制 06 日表的欄位，另外兩張沒有對應欄位，所以不顯示，
-             避免出現按了沒反應的按鈕；標題也跟著換成「顯示人員」。 */}
+             避免出現按了沒反應的按鈕；標題也跟著換成「顯示人員」。
+             開關與「無薪資」的認定都是每張表各自一份，見上面的 hideMap／isBlankRow。 */}
       {!loading && rows.length>0 && (subTab==='06' || blankCount>0) && (
         <div className="no-print" style={{display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', margin:'0 0 10px'}}>
           <span className="hint" style={{marginRight:2}}>{subTab==='06' ? '顯示欄位' : '顯示人員'}</span>
           {blankCount>0 && (
-            <button type="button" onClick={toggleHideZero} className={hideZero?'':'ghost'}
+            <button type="button" onClick={toggleHideZero} className={hideOn?'':'ghost'}
               style={{fontSize:12, padding:'3px 11px', borderRadius:20, marginRight:8}}
-              title={hideZero ? '目前隱藏了本月沒有任何金額的員工' : '把本月完全沒有金額的員工暫時收起來'}>
+              title={(!hideZero && hideOn ? '這張表本月所有人都沒有金額，暫不隱藏，否則整張表會空白'
+                : hideZero ? '目前隱藏了這張表上沒有任何金額的員工' : '把這張表上完全沒有金額的員工暫時收起來')
+                + '（只影響這張表，合計與匯出仍以完整名單為準）'}>
               <span className="material-icons" style={{fontSize:13, verticalAlign:'-2px', marginRight:3}}>
                 {hideZero?'visibility_off':'visibility'}</span>
-              {hideZero ? `已隱藏無薪資 ${blankCount} 人` : `隱藏無薪資 ${blankCount} 人`}
+              {!hideZero && hideOn ? `本月都沒有金額（${blankCount} 人）`
+                : hideZero ? `已隱藏無薪資 ${blankCount} 人` : `隱藏無薪資 ${blankCount} 人`}
             </button>
           )}
           {subTab==='06' && GROUPS.map(g=>{
