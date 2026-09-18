@@ -3757,9 +3757,14 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
           </div>
         </div>
       )}
-      {subTab==='06' && !loading && rows.length>0 && (
+      {/* ⚠️ 篩選列三張表都要顯示（2026-09-18 Evan 指出）。「隱藏無薪資」過濾的是 shownRows，
+             26 日與整月總覽本來就一起吃這個設定，但按鈕只畫在 06 日 —— 在另外兩張表上
+             人被藏起來、畫面卻沒有任何線索，也沒辦法關掉。
+             欄位群組那幾顆只控制 06 日表的欄位，另外兩張沒有對應欄位，所以不顯示，
+             避免出現按了沒反應的按鈕；標題也跟著換成「顯示人員」。 */}
+      {!loading && rows.length>0 && (subTab==='06' || blankCount>0) && (
         <div className="no-print" style={{display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', margin:'0 0 10px'}}>
-          <span className="hint" style={{marginRight:2}}>顯示欄位</span>
+          <span className="hint" style={{marginRight:2}}>{subTab==='06' ? '顯示欄位' : '顯示人員'}</span>
           {blankCount>0 && (
             <button type="button" onClick={toggleHideZero} className={hideZero?'':'ghost'}
               style={{fontSize:12, padding:'3px 11px', borderRadius:20, marginRight:8}}
@@ -3769,7 +3774,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               {hideZero ? `已隱藏無薪資 ${blankCount} 人` : `隱藏無薪資 ${blankCount} 人`}
             </button>
           )}
-          {GROUPS.map(g=>{
+          {subTab==='06' && GROUPS.map(g=>{
             const on = shown(g.key), cnt = groupCounts[g.key];
             return (
               <button key={g.key} type="button" onClick={()=>toggleGroup(g.key)}
