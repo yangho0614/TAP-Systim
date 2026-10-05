@@ -2023,7 +2023,6 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                   let extra = '';
                   if(t==='特休' && balances) extra = remainText(balances.annualRemain);
                   if(t==='補休' && balances) extra = remainText(balances.compRemain);
-                  if(t==='生理假' && menstrualStatus) extra = `（剩 ${trim1(menstrualStatus.remainingFullPayHours)} 小時全薪）`;
                   // 事假／病假／家庭照顧假比照特休，直接把剩餘寫在選項上，不必選了才在下方額度條看到。
                   // 事假與家庭照顧假共用全年 14 日上限（性平法第 20 條），剩餘要取兩個限制的較小值，
                   // 否則會顯示一個送出時反而被後端擋下來的數字。
@@ -2041,7 +2040,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
               </select>
               {leaveBox.leaveType==='生理假' && menstrualStatus && (
                 <div className="hint" style={{marginTop:6}}>
-                  依勞基法第14條之1，生理假每年前3 日（24小時）全薪，超過部分比照病假折半發給。你今年已使用 {menstrualStatus.usedHours} 小時，還有 {menstrualStatus.remainingFullPayHours} 小時全薪額度。
+                  生理假薪資減半發給（性別平等工作法第 14 條）。每年前 3 日（24 小時）不併入病假，超過的部分併入病假全年 30 日計算。你今年已使用 {menstrualStatus.usedHours} 小時。
                 </div>
               )}
 
@@ -2142,7 +2141,7 @@ function FormsPage({session, isManager, pending, refreshPending, showToast, sett
                       <span>事假</span><span>全年 14 日</span><span>不給工資（勞工請假規則 7 條）</span>
                       <span>病假</span><span>全年 30 日</span><span>工資折半，超過部分不給薪（請假規則 4 條）</span>
                       <span>家庭照顧假</span><span>全年 7 日</span><span>不給工資，日數併入事假計算（性平法 20 條）</span>
-                      <span>生理假</span><span>每月 1 日</span><span>公司政策前 3 日全薪，其餘折半（性平法 14 條）</span>
+                      <span>生理假</span><span>每月 1 日</span><span>工資折半；全年前 3 日不併入病假（性平法 14 條）</span>
                       <span>特休</span><span>依年資</span><span>全薪，剩餘時數見上方選單</span>
                       <span>補休</span><span>依加班時數</span><span>全薪，期限內未休完折算工資</span>
                       <span>婚假 / 喪假</span><span>依法定日數</span><span>全薪</span>

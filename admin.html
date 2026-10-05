@@ -1229,6 +1229,12 @@ function calcMandatoryRestPay(hourly, dailyWage, hours, mode){
   }
   return hourly*2*h; // 優於勞基法：時薪×2
 }
+/* 生理假薪資：2026-09 起改回法定「減半發給」（性別平等工作法第 14 條），由 Evan 於 2026-10-05 決定。
+   2026-08 以前是公司政策「每年前 3 日全薪」，那些月份已經發薪，算法維持不動。
+   ⚠️ 用「月份」切，不能用「是否鎖定」切 —— 9 月日後鎖定時若跟著變回全薪，薪資條金額就變了。
+   ⚠️ 每年前 3 日（24hr）「不併入病假 30 日上限」這件事新舊制都一樣，變的只有那 24hr 的給薪比例。
+   ⚠️ GAS／Worker／admin.html 三份都有這個常數，要改一起改。 */
+const MENSTRUAL_HALF_PAY_FROM = '2026-09';
 // 以下兩個函式僅供薪資表欄位下方「系統實際」參考金額換算用，不影響實際請假扣款計算（實際計算仍以 calcForEmployee 內以本次輸入時數為準）
 function calcSickLeaveRefMoney(hourly, sickHours, leaveBaseline){
   const MENSTRUAL_FULL_PAY_HOURS = 24, SICK_LEAVE_ANNUAL_CAP_HOURS = 240;
@@ -1241,7 +1247,7 @@ function calcSickLeaveRefMoney(hourly, sickHours, leaveBaseline){
   const unpaidHours = h - halfPayHours;
   return hourly*0.5*halfPayHours + hourly*1.0*unpaidHours;
 }
-function calcMenstrualLeaveRefMoney(hourly, menstrualHours, leaveBaseline){
+function calcMenstrualLeaveRefMoney(hourly, menstrualHours, leaveBaseline, month){
   const MENSTRUAL_FULL_PAY_HOURS = 24, SICK_LEAVE_ANNUAL_CAP_HOURS = 240;
   const menstrualUsedBefore = n(leaveBaseline && leaveBaseline.menstrual);
   const sickUsedBefore = n(leaveBaseline && leaveBaseline.sick);
@@ -1252,7 +1258,9 @@ function calcMenstrualLeaveRefMoney(hourly, menstrualHours, leaveBaseline){
   const capRemaining = Math.max(0, SICK_LEAVE_ANNUAL_CAP_HOURS - sickUsedBefore - menstrualOverageBefore);
   const halfPayHours = Math.min(overageThisMonth, capRemaining);
   const unpaidHours = overageThisMonth - halfPayHours;
-  return hourly*0.5*halfPayHours + hourly*1.0*unpaidHours; // 全薪部分金額為0，不列入
+  // 2026-09 起前 3 日也減半（見 MENSTRUAL_HALF_PAY_FROM）；之前的月份那段是全薪、金額為 0
+  const firstPartHours = String(month||'') >= MENSTRUAL_HALF_PAY_FROM ? Math.min(h, remainFullPay) : 0;
+  return hourly*0.5*(halfPayHours + firstPartHours) + hourly*1.0*unpaidHours;
 }
 // 計算勞健保加退保狀態：勞保依「當月在職日數/30」比例計算；健保看「當月最後一天」是否仍在職，是則收整月保費，否則本月不收
 function getInsuranceStatusForMonth(hireDate, resignDate, month){
@@ -1357,13 +1365,15 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const payableTotal = payableA + overtimePay;
 
 
-  const MENSTRUAL_FULL_PAY_HOURS = 24; // 每年前3 日(以8hr/天計)生理假全薪
+  const MENSTRUAL_FULL_PAY_HOURS = 24; // 每年前3 日(以8hr/天計)生理假不併入病假上限；2026-08 以前這 24hr 另享全薪
   const SICK_LEAVE_ANNUAL_CAP_HOURS = 240; // 病假年度30 日(以8hr/天計)上限，生理假超過3 日部分需併入計算
   const menstrualUsedBefore = n(leaveBaseline && leaveBaseline.menstrual);
   const sickUsedBefore = n(leaveBaseline && leaveBaseline.sick);
   const remainFullPay = Math.max(0, MENSTRUAL_FULL_PAY_HOURS - menstrualUsedBefore);
-  const menstrualPaidHours = Math.min(n(entry.menstrualLeave), remainFullPay);
-  const menstrualOverageThisMonth = n(entry.menstrualLeave) - menstrualPaidHours;
+  const menstrualNotMergedHours = Math.min(n(entry.menstrualLeave), remainFullPay); // 前 3 日內、不併入病假上限的時數
+  const menstrualOverageThisMonth = n(entry.menstrualLeave) - menstrualNotMergedHours;
+  const menstrualAllHalf = String(month||'') >= MENSTRUAL_HALF_PAY_FROM; // 2026-09 起前 3 日也減半
+  const menstrualPaidHours = menstrualAllHalf ? 0 : menstrualNotMergedHours;
 
   // 病假＋生理假(超過3 日部分)共用年度30 日上限；超過部分不給薪(0%)，未超過部分半薪(50%)
   const menstrualOverageBefore = Math.max(0, menstrualUsedBefore - MENSTRUAL_FULL_PAY_HOURS);
@@ -1372,9 +1382,9 @@ function calcForEmployee(emp, entryRaw, settings, leaveBaseline, month){
   const sickHalfPayHours = Math.min(n(entry.sickLeave), sickCapRemaining);
   const sickUnpaidHours = n(entry.sickLeave) - sickHalfPayHours;
   sickCapRemaining = Math.max(0, sickCapRemaining - sickHalfPayHours);
-  const menstrualHalfPayHours = Math.min(menstrualOverageThisMonth, sickCapRemaining);
-  const menstrualUnpaidHours = menstrualOverageThisMonth - menstrualHalfPayHours;
-  const menstrualHalfHours = menstrualOverageThisMonth; // 沿用舊欄位名稱：本月生理假超過3 日(全薪)的部分小時數
+  const menstrualUnpaidHours = menstrualOverageThisMonth - Math.min(menstrualOverageThisMonth, sickCapRemaining);
+  const menstrualHalfPayHours = Math.min(menstrualOverageThisMonth, sickCapRemaining) + (menstrualAllHalf ? menstrualNotMergedHours : 0);
+  const menstrualHalfHours = n(entry.menstrualLeave) - menstrualPaidHours; // 本月不是全薪的時數（半薪＋不給薪）
   const sickCapExceeded = (sickUnpaidHours + menstrualUnpaidHours) > 0;
 
   const leaveDeduct = yuan(hourly*1.0*n(entry.personalLeave))
@@ -3755,7 +3765,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
         </button>
       </div>
       <div className="toolbar no-print">
-        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍/其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假（歷年制，每年前3 日全薪、第4 日起50%）、災防假100%（公司採不支薪，惟不影響全勤與考績）；病假與生理假(超過3 日部分)共用年度30 日上限，超過後不給薪。<b>遲到早退依實際分鐘數扣工資</b>（那段時間沒有提供勞務，與請事假同一個道理），可在系統設定關閉；補請假後該筆自動歸零</span>
+        <span className="hint">加班費依勞基法第24條分類計算：平日前2hr 1.34倍/其後1.67倍；休息日依4/8/12小時級距算1.34/1.67/2.67倍；國定假日加發一日工資（休息日出勤時數與平日加班合計列入每月46小時上限）。請假扣款：事假100%、病假50%、生理假50%（2026-08 以前每年前3 日全薪）、災防假100%（公司採不支薪，惟不影響全勤與考績）；病假與生理假(每年超過3 日的部分)共用年度30 日上限，超過後不給薪。<b>遲到早退依實際分鐘數扣工資</b>（那段時間沒有提供勞務，與請事假同一個道理），可在系統設定關閉；補請假後該筆自動歸零</span>
       </div>
 
       {(otCapAlerts.length>0 || minWageAlerts.length>0 || restDayCapAlerts.length>0 || sickCapAlerts.length>0) && (
@@ -3867,7 +3877,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
             const refOtHoliday = calcHolidayPay(calc.hourly, calc.dailyWage, entry.otHolidayHours).pay;
             const refPersonalLeave = calc.hourly*1.0*n(entry.personalLeave);
             const refSickLeave = calcSickLeaveRefMoney(calc.hourly, entry.sickLeave, leaveBaseline);
-            const refMenstrualLeave = calcMenstrualLeaveRefMoney(calc.hourly, entry.menstrualLeave, leaveBaseline);
+            const refMenstrualLeave = calcMenstrualLeaveRefMoney(calc.hourly, entry.menstrualLeave, leaveBaseline, month);
             const refDisasterLeave = calc.hourly*1.0*n(entry.disasterLeave);
             return (
             <tr key={emp.id}>
@@ -3929,7 +3939,7 @@ function PayrollTab({employees, rows, setEntry, month, loading, onApply, onUndoA
               <td className="col-deduct"><NumCell value={entry.sickLeave} onChange={v=>setEntry(emp.id,{sickLeave:v})} disabled={entry.locked} unit="時" />{refBelow(refSickLeave)}</td>
               <td className="col-deduct">
                 <NumCell value={entry.menstrualLeave} onChange={v=>setEntry(emp.id,{menstrualLeave:v})} disabled={entry.locked} unit="時" />
-                {n(entry.menstrualLeave)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全薪{calc.menstrualPaidHours}/半薪{calc.menstrualHalfHours}</div>}
+                {n(entry.menstrualLeave)>0 && n(calc.menstrualPaidHours)>0 && <div className="hint" style={{fontSize:10, marginTop:2}}>全薪{calc.menstrualPaidHours}/半薪{calc.menstrualHalfHours}</div>}
                 {refBelow(refMenstrualLeave)}
               </td>
               <td className="col-deduct"><NumCell value={entry.disasterLeave} onChange={v=>setEntry(emp.id,{disasterLeave:v})} disabled={entry.locked} unit="時" />{refBelow(refDisasterLeave)}</td>
@@ -5765,7 +5775,7 @@ function GuideTab({setTab}){
 
       <h3 className="guide-h">請假扣款與全勤</h3>
       <div className="card guide-note">
-        <p>事假、家庭照顧假<b>全額扣</b>；病假與生理假<b>扣半薪</b>，兩者共用年度 30 日上限，超過部分全額扣；災防假依公司政策不支薪但<b>不影響全勤與考績</b>。特休、補休、婚喪假、公假、公傷病假<b>不扣薪</b>。</p>
+        <p>事假、家庭照顧假<b>全額扣</b>；病假與生理假<b>扣半薪</b>（生理假 2026 年 8 月以前每年前 3 日全薪，9 月起一律半薪），病假與生理假每年超過 3 日的部分共用年度 30 日上限，超過部分全額扣；災防假依公司政策不支薪但<b>不影響全勤與考績</b>。特休、補休、婚喪假、公假、公傷病假<b>不扣薪</b>。</p>
         <p>全勤獎金的扣減只看<b>病假與事假</b>的時數比例。生理假、家庭照顧假、婚喪假、公假、公傷病假依性別平等工作法第 21 條<b>不得影響全勤</b>，不列入扣減。</p>
       </div>
     </div>
