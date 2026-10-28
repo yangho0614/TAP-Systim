@@ -2478,14 +2478,15 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
     const ws = (data.workStart||'09:00').slice(0,5), we = (data.workEnd||'18:00').slice(0,5);
     const hm = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
     const toM = t => { const [h,m] = String(t||'').split(':').map(Number); return h*60 + (m||0); };
+    // checkIn／checkOut 是 'yyyy-MM-dd HH:mm:ss'，時間要取 11~16 碼
     // 有打卡但不足一天（遲到／早退）：預設只請缺的那一段，對齊到半小時，免得每次都要手改。
     // 整天沒紀錄才帶整天。時段可以再改，時數會跟著重算
     const rec = d.records.find(r=>!r.voided && r.checkIn);
     let st = ws, et = we;
     if(rec && n(d.lateMinutes) > 0){
-      et = hm(Math.min(toM(we), Math.ceil(toM(String(rec.checkIn).slice(0,5)) / 30) * 30));
+      et = hm(Math.min(toM(we), Math.ceil(toM(String(rec.checkIn).slice(11,16)) / 30) * 30));
     }else if(rec && n(d.earlyMinutes) > 0 && rec.checkOut){
-      st = hm(Math.max(toM(ws), Math.floor(toM(String(rec.checkOut).slice(0,5)) / 30) * 30));
+      st = hm(Math.max(toM(ws), Math.floor(toM(String(rec.checkOut).slice(11,16)) / 30) * 30));
     }
     setLeaveBox({date: d.date, leaveType: rec ? '事假' : '特休', startTime: st, endTime: et,
       hours: leaveSpanHours(st, et), reason:'', busy:false});
