@@ -5337,6 +5337,166 @@ function AccountsTab({employees}){
   );
 }
 
+/* ========================= 批次代請假 =========================
+   颱風停班這類「全公司同一天放假」：勾人、選日期，一次替所有人建好**已核准**的假單。
+   先預覽（後端算出每人每天幾點到幾點、幾小時，並標出會被擋的），確認後逐張送出——
+   一次全送會撞上 35 秒逾時，而且逾時了也不知道送到第幾張。 */
+function batchDateRange(from, to){
+  if(!from) return [];
+  const out = [];
+  const d = new Date(from + 'T00:00:00Z'), end = new Date((to || from) + 'T00:00:00Z');
+  while(d <= end && out.length < 32){ out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate()+1); }
+  return out;
+}
+function BatchLeaveModal({employees, onClose, onDone}){
+  // 預設只勾需要打卡的正式員工；負責人與非正式員工沒有班表，也不算出勤
+  const candidates = useMemo(()=>(employees||[]).filter(e=>e.status!=='離職'
+    && (!e.employeeType || e.employeeType==='正式員工') && e.exemptFromAttendance!==true), [employees]);
+  const today = todayTaipei();
+  const [form, setForm] = useState({leaveType:'災防假', from:today, to:today, allDay:true,
+    startTime:'13:00', endTime:'17:30', reason:'颱風停班（政府公告）'});
+  const [picked, setPicked] = useState(()=>{ const m={}; candidates.forEach(e=>m[e.id]=true); return m; });
+  const [items, setItems] = useState(null);   // 預覽結果；改了條件就清掉，避免送出的不是畫面上那份
+  const [results, setResults] = useState({}); // key → {ok, msg}
+  const [stage, setStage] = useState('form'); // form → preview → sending → done
+  const [busy, setBusy] = useState(false);
+
+  function upd(patch){ setForm({...form, ...patch}); setItems(null); setStage('form'); }
+  function togglePick(id){ setPicked({...picked, [id]:!picked[id]}); setItems(null); setStage('form'); }
+  const pickedIds = candidates.filter(e=>picked[e.id]).map(e=>e.id);
+  const dates = batchDateRange(form.from, form.to < form.from ? form.from : form.to);
+  const keyOf = it => it.employeeId + '|' + it.date;
+  const sendable = (items||[]).filter(it=>!it.problem);
+
+  async function preview(){
+    if(!pickedIds.length){ alert('請至少勾選一位員工'); return; }
+    if(dates.length > 31){ alert('一次最多 31 天'); return; }
+    setBusy(true);
+    try{
+      const r = await apiPost('previewBatchLeave', {employeeIds:pickedIds, dates,
+        allDay:form.allDay, startTime:form.startTime, endTime:form.endTime});
+      setItems(r.items || []); setResults({}); setStage('preview');
+    }catch(e){ alert(e.message); }
+    finally{ setBusy(false); }
+  }
+  async function send(){
+    if(!sendable.length) return;
+    setStage('sending');
+    const res = {};
+    for(const it of sendable){
+      try{
+        const r = await apiPost('submitApprovedLeaveByAdmin', {employeeId:it.employeeId, leaveType:form.leaveType,
+          startTime:it.startTime, endTime:it.endTime, hours:it.hours, reason:form.reason});
+        res[keyOf(it)] = {ok:true, msg: r && r.warning ? r.warning : ''};
+      }catch(e){ res[keyOf(it)] = {ok:false, msg:e.message}; }
+      setResults({...res});
+    }
+    setStage('done');
+    onDone && onDone();
+  }
+
+  const doneCount = Object.values(results).filter(x=>x.ok).length;
+  const failCount = Object.values(results).filter(x=>!x.ok).length;
+  const locked = stage==='sending';
+
+  return (
+    <div className="modal-bg" onClick={e=>{ if(e.target===e.currentTarget && !locked) onClose(); }}>
+      <div className="modal" style={{width:720}}>
+        <h3><span className="material-icons">group_add</span>批次代請假</h3>
+        <div className="hint" style={{marginBottom:12}}>
+          一次替多位員工建立假單，<b>送出即為「已核准」</b>，不必再審核。颱風停班請選「災防假」：不給薪、不影響全勤。
+        </div>
+
+        <div className="grid-2">
+          <div className="field"><label>假別</label>
+            <select value={form.leaveType} onChange={e=>upd({leaveType:e.target.value})} disabled={locked}>
+              {ADMIN_LEAVE_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className="field"><label>事由</label>
+            <input type="text" value={form.reason} onChange={e=>upd({reason:e.target.value})} disabled={locked} />
+          </div>
+          <div className="field"><label>開始日期</label>
+            <input type="date" value={form.from} onChange={e=>upd({from:e.target.value, to: form.to < e.target.value ? e.target.value : form.to})} disabled={locked} />
+          </div>
+          <div className="field"><label>結束日期</label>
+            <input type="date" value={form.to} min={form.from} onChange={e=>upd({to:e.target.value})} disabled={locked} />
+          </div>
+        </div>
+        <div className="field">
+          <label>時段</label>
+          <div style={{display:'flex', gap:16, alignItems:'center', flexWrap:'wrap'}}>
+            <label style={{display:'inline-flex', alignItems:'center', gap:6, margin:0, fontWeight:400}}>
+              <input type="radio" checked={form.allDay} onChange={()=>upd({allDay:true})} disabled={locked} />整天（依各人班表）
+            </label>
+            <label style={{display:'inline-flex', alignItems:'center', gap:6, margin:0, fontWeight:400}}>
+              <input type="radio" checked={!form.allDay} onChange={()=>upd({allDay:false})} disabled={locked} />指定時段
+            </label>
+            {!form.allDay && <span style={{display:'inline-flex', alignItems:'center', gap:6}}>
+              <input type="time" value={form.startTime} onChange={e=>upd({startTime:e.target.value})} disabled={locked} />
+              <span>~</span>
+              <input type="time" value={form.endTime} onChange={e=>upd({endTime:e.target.value})} disabled={locked} />
+            </span>}
+          </div>
+        </div>
+        <div className="field">
+          <label>員工（{pickedIds.length}／{candidates.length}）
+            <button className="ghost sm" style={{marginLeft:8}} disabled={locked}
+                    onClick={()=>{ const all = pickedIds.length<candidates.length; const m={}; candidates.forEach(e=>m[e.id]=all); setPicked(m); setItems(null); setStage('form'); }}>
+              {pickedIds.length<candidates.length ? '全選' : '全不選'}
+            </button>
+          </label>
+          <div style={{display:'flex', flexWrap:'wrap', gap:'6px 18px'}}>
+            {candidates.map(e=>(
+              <label key={e.id} style={{display:'inline-flex', alignItems:'center', gap:6, margin:0, fontWeight:400}}>
+                <input type="checkbox" checked={!!picked[e.id]} onChange={()=>togglePick(e.id)} disabled={locked} />{e.name}
+              </label>
+            ))}
+          </div>
+          <div className="hint" style={{marginTop:4}}>當天有來上班的人請取消勾選，有出勤就照常計薪。</div>
+        </div>
+
+        {items && (
+          <div style={{maxHeight:300, overflowY:'auto', border:'1px solid var(--line)', borderRadius:6}}>
+            <table>
+              <thead><tr><th className="center">姓名</th><th className="center">日期</th><th className="center">時段</th><th className="center">時數</th><th className="center">狀態</th></tr></thead>
+              <tbody>
+                {items.map(it=>{
+                  const r = results[keyOf(it)];
+                  return (
+                    <tr key={keyOf(it)} style={it.problem ? {color:'var(--muted)'} : null}>
+                      <td className="center"><b>{it.name}</b></td>
+                      <td className="center">{withWeekday(it.date)}</td>
+                      <td className="center">{it.startTime.slice(11)} ~ {it.endTime.slice(11)}</td>
+                      <td className="center">{it.hours>0 ? trimNum(it.hours,2) : '—'}</td>
+                      <td className="left" style={{fontSize:12.5}}>
+                        {it.problem ? <span>略過：{it.problem}</span>
+                          : !r ? (stage==='sending' ? <span className="hint">等待中…</span> : <span className="badge">可送出</span>)
+                          : r.ok ? <span style={{color:'var(--brand-dark)', fontWeight:700}}>✓ 已核准{r.msg ? '（'+r.msg+'）' : ''}</span>
+                          : <span style={{color:'var(--danger)'}}>✗ {r.msg}</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {items.length===0 && <tr><td colSpan="5" className="hint" style={{textAlign:'center'}}>沒有資料</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {stage==='sending' && <div className="hint" style={{marginTop:8}}>送出中 {Object.keys(results).length}／{sendable.length}，請勿關閉視窗…</div>}
+        {stage==='done' && <div style={{marginTop:8, fontWeight:700}}>完成：{doneCount} 張已核准{failCount ? `，${failCount} 張失敗（原因見上表）` : ''}</div>}
+
+        <div className="modal-actions">
+          <button className="ghost" onClick={onClose} disabled={locked}>{stage==='done' ? '關閉' : '取消'}</button>
+          {stage!=='done' && (items
+            ? <button onClick={send} disabled={locked || !sendable.length}>{locked ? '送出中...' : `送出 ${sendable.length} 張（直接核准）`}</button>
+            : <button onClick={preview} disabled={busy}>{busy ? '計算中...' : '預覽'}</button>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ========================= 假單審核 ========================= */
 function RequestsTab({month, employees, setTab}){
   const [list, setList] = useState([]);
@@ -5354,6 +5514,7 @@ function RequestsTab({month, employees, setTab}){
   const [empFilter, setEmpFilter] = useState('');
   const [reviewBox, setReviewBox] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
 
   function load(){
     setLoading(true);
@@ -5416,6 +5577,7 @@ function RequestsTab({month, employees, setTab}){
         </select>
         {empFilter && <button className="ghost sm" onClick={()=>setEmpFilter('')}>清除</button>}
         <span className="grow"></span>
+        <button className="sm" onClick={()=>setBatchOpen(true)}><span className="material-icons" style={{fontSize:15}}>group_add</span>批次代請假</button>
         <button className="ghost sm" onClick={load}><span className="material-icons" style={{fontSize:15}}>refresh</span>重新整理</button>
       </div>
       {gapInfo && gapInfo.people > 0 && (
@@ -5496,6 +5658,7 @@ function RequestsTab({month, employees, setTab}){
           </table>
         )}
       </div>
+      {batchOpen && <BatchLeaveModal employees={employees} onClose={()=>setBatchOpen(false)} onDone={load} />}
       {reviewBox && (
         <div className="modal-bg">
           <div className="modal" style={{width:420}}>
