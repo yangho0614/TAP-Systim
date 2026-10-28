@@ -2463,11 +2463,32 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
     finally{ setBulk(b=>({...b, busy:false})); }
   }
 
+  /* 起訖之間的應工作時數：扣掉與午休（12:00 起 lunchBreak 分鐘）重疊的部分，
+     與後端 leaveSpanWorkHours 同口徑（單日、班表時段內）。後端會再驗一次，這裡只是幫忙帶數字。 */
+  function leaveSpanHours(st, et){
+    const toM = t => { const [h,m] = String(t||'').split(':').map(Number); return h*60 + (m||0); };
+    const ws = toM((data.workStart||'09:00').slice(0,5)), we = toM((data.workEnd||'18:00').slice(0,5));
+    const a = Math.max(toM(st), ws), b = Math.min(toM(et), we);
+    if(!(b > a)) return 0;
+    const ls = 12*60, le = ls + n(data.lunchBreak);
+    const lunch = Math.max(0, Math.min(b, le) - Math.max(a, ls));
+    return Math.round((b - a - lunch) / 60 * 100) / 100;
+  }
   function openLeaveFor(d){
-    // 預設整天：用該員工的班表時間，時數帶當日標準工時
     const ws = (data.workStart||'09:00').slice(0,5), we = (data.workEnd||'18:00').slice(0,5);
-    setLeaveBox({date: d.date, leaveType:'特休', startTime: ws, endTime: we,
-      hours: data.standardHours, reason:'', busy:false});
+    const hm = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+    const toM = t => { const [h,m] = String(t||'').split(':').map(Number); return h*60 + (m||0); };
+    // 有打卡但不足一天（遲到／早退）：預設只請缺的那一段，對齊到半小時，免得每次都要手改。
+    // 整天沒紀錄才帶整天。時段可以再改，時數會跟著重算
+    const rec = d.records.find(r=>!r.voided && r.checkIn);
+    let st = ws, et = we;
+    if(rec && n(d.lateMinutes) > 0){
+      et = hm(Math.min(toM(we), Math.ceil(toM(String(rec.checkIn).slice(0,5)) / 30) * 30));
+    }else if(rec && n(d.earlyMinutes) > 0 && rec.checkOut){
+      st = hm(Math.max(toM(ws), Math.floor(toM(String(rec.checkOut).slice(0,5)) / 30) * 30));
+    }
+    setLeaveBox({date: d.date, leaveType: rec ? '事假' : '特休', startTime: st, endTime: et,
+      hours: leaveSpanHours(st, et), reason:'', busy:false});
   }
   async function submitLeave(){
     const b = leaveBox;
@@ -2733,6 +2754,11 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
                         : <>
                             <button className="ghost sm" onClick={()=>onEdit(rec)}>修改</button>
                             <button className="ghost sm" style={{marginLeft:4}} onClick={()=>onVoid(rec.id, rec)}>作廢</button>
+                            {/* 有打卡但時數不足（遲到／早退沒請假）也要能代請假，不只整天沒紀錄的日子 */}
+                            {d.required && d.gapHours>0 && d.date<todayStr && (
+                              <button className="ghost sm" style={{marginLeft:4}} title="代這位員工送出假單，補上缺的時段（不受補請期限限制）"
+                                      onClick={()=>openLeaveFor(d)}>代請假</button>
+                            )}
                           </>)
                         : (d.date<=todayStr && <>
                             <button className="ghost sm" onClick={()=>setSel({[d.date]:true})}>補登</button>
@@ -2841,10 +2867,10 @@ function EmployeeAttendanceView({employeeId, month, reloadKey, onEdit, onVoid, o
                        onChange={e=>setLeaveBox({...leaveBox, hours:e.target.value})} />
               </div>
               <div className="field"><label>開始時間</label>
-                <input type="time" value={leaveBox.startTime} onChange={e=>setLeaveBox({...leaveBox, startTime:e.target.value})} />
+                <input type="time" value={leaveBox.startTime} onChange={e=>setLeaveBox({...leaveBox, startTime:e.target.value, hours: leaveSpanHours(e.target.value, leaveBox.endTime)})} />
               </div>
               <div className="field"><label>結束時間</label>
-                <input type="time" value={leaveBox.endTime} onChange={e=>setLeaveBox({...leaveBox, endTime:e.target.value})} />
+                <input type="time" value={leaveBox.endTime} onChange={e=>setLeaveBox({...leaveBox, endTime:e.target.value, hours: leaveSpanHours(leaveBox.startTime, e.target.value)})} />
               </div>
             </div>
             <div className="field"><label>事由</label>
